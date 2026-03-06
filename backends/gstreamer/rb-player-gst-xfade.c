@@ -194,50 +194,6 @@ static gboolean silencesrc_push (RBPlayerGstXFade *player);
 GType rb_xfade_stream_get_type (void);
 GType rb_xfade_stream_bin_get_type (void);
 
-G_DEFINE_TYPE_WITH_CODE(RBPlayerGstXFade, rb_player_gst_xfade, G_TYPE_OBJECT,
-			G_IMPLEMENT_INTERFACE(RB_TYPE_PLAYER,
-					      rb_player_init)
-			G_IMPLEMENT_INTERFACE(RB_TYPE_PLAYER_GST_TEE,
-					      rb_player_gst_tee_init)
-			G_IMPLEMENT_INTERFACE(RB_TYPE_PLAYER_GST_FILTER,
-					      rb_player_gst_filter_init))
-
-#define GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_PLAYER_GST_XFADE, RBPlayerGstXFadePrivate))
-
-#define RB_PLAYER_GST_XFADE_TICK_HZ 5
-
-#define EPSILON			(0.001)
-#define STREAM_PLAYING_MESSAGE	"rb-stream-playing"
-#define FADE_OUT_DONE_MESSAGE	"rb-fade-out-done"
-#define FADE_IN_DONE_MESSAGE	"rb-fade-in-done"
-#define STREAM_EOS_MESSAGE	"rb-stream-eos"
-#define STREAM_TAGS_MESSAGE	"rb-stream-tags"
-
-#define PAUSE_FADE_LENGTH	(GST_SECOND / 2)
-
-enum
-{
-	PROP_0,
-	PROP_BUS
-};
-
-enum
-{
-	PREPARE_SOURCE,
-	CAN_REUSE_STREAM,
-	REUSE_STREAM,
-	MISSING_PLUGINS,
-	GET_STREAM_FILTERS,
-	LAST_SIGNAL
-};
-
-/* copied from gsturidecodebin.c:stream_uris */
-static const char *stream_schemes[] = {
-	"http", "https", "mms", "mmsh", "mmsu", "mmst", "ssh", "ftp", "sftp"
-};
-
-static guint signals[LAST_SIGNAL] = { 0 };
-
 struct _RBPlayerGstXFadePrivate
 {
 	/* probably don't need to store pointers to these either */
@@ -284,6 +240,52 @@ struct _RBPlayerGstXFadePrivate
 	char silence_buffer[1024];
 	guint silence_idle_id;
 };
+
+G_DEFINE_TYPE_WITH_CODE(RBPlayerGstXFade, rb_player_gst_xfade, G_TYPE_OBJECT,
+			G_ADD_PRIVATE(RBPlayerGstXFade)
+			G_IMPLEMENT_INTERFACE(RB_TYPE_PLAYER,
+					      rb_player_init)
+			G_IMPLEMENT_INTERFACE(RB_TYPE_PLAYER_GST_TEE,
+					      rb_player_gst_tee_init)
+			G_IMPLEMENT_INTERFACE(RB_TYPE_PLAYER_GST_FILTER,
+					      rb_player_gst_filter_init))
+
+#define GET_PRIVATE(o) (rb_player_gst_xfade_get_instance_private(o))
+
+#define RB_PLAYER_GST_XFADE_TICK_HZ 5
+
+#define EPSILON			(0.001)
+#define STREAM_PLAYING_MESSAGE	"rb-stream-playing"
+#define FADE_OUT_DONE_MESSAGE	"rb-fade-out-done"
+#define FADE_IN_DONE_MESSAGE	"rb-fade-in-done"
+#define STREAM_EOS_MESSAGE	"rb-stream-eos"
+#define STREAM_TAGS_MESSAGE	"rb-stream-tags"
+
+#define PAUSE_FADE_LENGTH	(GST_SECOND / 2)
+
+enum
+{
+	PROP_0,
+	PROP_BUS
+};
+
+enum
+{
+	PREPARE_SOURCE,
+	CAN_REUSE_STREAM,
+	REUSE_STREAM,
+	MISSING_PLUGINS,
+	GET_STREAM_FILTERS,
+	LAST_SIGNAL
+};
+
+/* copied from gsturidecodebin.c:stream_uris */
+static const char *stream_schemes[] = {
+	"http", "https", "mms", "mmsh", "mmsu", "mmst", "ssh", "ftp", "sftp"
+};
+
+static guint signals[LAST_SIGNAL] = { 0 };
+
 
 
 /* these aren't actually used to construct bitmasks,
@@ -715,8 +717,6 @@ rb_player_gst_xfade_class_init (RBPlayerGstXFadeClass *klass)
 			      G_TYPE_ARRAY,
 			      1,
 			      G_TYPE_STRING);
-
-	g_type_class_add_private (klass, sizeof (RBPlayerGstXFadePrivate));
 }
 
 static void
