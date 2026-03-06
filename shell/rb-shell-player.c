@@ -236,7 +236,7 @@ struct RBShellPlayerPrivate
 	guint error_idle_id;
 };
 
-#define RB_SHELL_PLAYER_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_SHELL_PLAYER, RBShellPlayerPrivate))
+#define RB_SHELL_PLAYER_GET_PRIVATE(o) (rb_shell_player_get_instance_private (o))
 
 enum
 {
@@ -274,7 +274,7 @@ enum
 
 static guint rb_shell_player_signals[LAST_SIGNAL] = { 0 };
 
-G_DEFINE_TYPE (RBShellPlayer, rb_shell_player, G_TYPE_OBJECT)
+G_DEFINE_TYPE_WITH_PRIVATE (RBShellPlayer, rb_shell_player, G_TYPE_OBJECT)
 
 static void
 volume_pre_unmount_cb (GVolumeMonitor *monitor,
@@ -3768,7 +3768,6 @@ rb_shell_player_class_init (RBShellPlayerClass *klass)
 			      1,
 			      G_TYPE_INT64);
 
-	g_type_class_add_private (klass, sizeof (RBShellPlayerPrivate));
 }
 
 /**

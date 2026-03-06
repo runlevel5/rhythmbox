@@ -76,8 +76,8 @@ struct RBRandomPlayOrderPrivate
 	gboolean query_model_changed;
 };
 
-G_DEFINE_TYPE (RBRandomPlayOrder, rb_random_play_order, RB_TYPE_PLAY_ORDER)
-#define RB_RANDOM_PLAY_ORDER_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_RANDOM_PLAY_ORDER, RBRandomPlayOrderPrivate))
+G_DEFINE_TYPE_WITH_PRIVATE (RBRandomPlayOrder, rb_random_play_order, RB_TYPE_PLAY_ORDER)
+#define RB_RANDOM_PLAY_ORDER_GET_PRIVATE(o) (rb_random_play_order_get_instance_private (o))
 
 static void
 rb_random_play_order_class_init (RBRandomPlayOrderClass *klass)
@@ -101,7 +101,6 @@ rb_random_play_order_class_init (RBRandomPlayOrderClass *klass)
 	porder->get_previous = rb_random_play_order_get_previous;
 	porder->go_previous = rb_random_play_order_go_previous;
 
-	g_type_class_add_private (klass, sizeof (RBRandomPlayOrderPrivate));
 }
 
 static void

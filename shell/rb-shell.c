@@ -226,8 +226,6 @@ enum
 
 static guint rb_shell_signals[LAST_SIGNAL] = { 0 };
 
-G_DEFINE_TYPE (RBShell, rb_shell, G_TYPE_OBJECT)
-
 struct _RBShellPrivate
 {
 	RBApplication *application;
@@ -304,6 +302,9 @@ struct _RBShellPrivate
 
 	RBTaskList *task_list;
 };
+
+G_DEFINE_TYPE_WITH_PRIVATE (RBShell, rb_shell, G_TYPE_OBJECT)
+
 
 static GMountOperation *
 rb_shell_create_mount_op_cb (RhythmDB *db, RBShell *shell)
@@ -1381,13 +1382,12 @@ rb_shell_class_init (RBShellClass *klass)
 			      G_TYPE_NONE,
 			      5,
 			      G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_BOOLEAN);
-	g_type_class_add_private (klass, sizeof (RBShellPrivate));
 }
 
 static void
 rb_shell_init (RBShell *shell)
 {
-	shell->priv = G_TYPE_INSTANCE_GET_PRIVATE (shell, RB_TYPE_SHELL, RBShellPrivate);
+	shell->priv = rb_shell_get_instance_private (shell);
 }
 
 static void

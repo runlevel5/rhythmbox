@@ -170,7 +170,7 @@ static RBPlaylistExportFilter playlist_formats[] = {
 };
 
 
-G_DEFINE_TYPE (RBPlaylistManager, rb_playlist_manager, G_TYPE_OBJECT)
+G_DEFINE_TYPE_WITH_PRIVATE (RBPlaylistManager, rb_playlist_manager, G_TYPE_OBJECT)
 
 
 /**
@@ -1894,9 +1894,7 @@ rb_playlist_manager_constructed (GObject *object)
 static void
 rb_playlist_manager_init (RBPlaylistManager *mgr)
 {
-	mgr->priv = G_TYPE_INSTANCE_GET_PRIVATE (mgr,
-						 RB_TYPE_PLAYLIST_MANAGER,
-						 RBPlaylistManagerPrivate);
+	mgr->priv = rb_playlist_manager_get_instance_private (mgr);
 
 	mgr->priv->dirty = 0;
 	mgr->priv->saving = 0;
@@ -2046,5 +2044,4 @@ rb_playlist_manager_class_init (RBPlaylistManagerClass *klass)
 			      G_TYPE_NONE,
 			      0, G_TYPE_NONE);
 
-	g_type_class_add_private (klass, sizeof (RBPlaylistManagerPrivate));
 }

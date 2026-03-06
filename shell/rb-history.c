@@ -61,7 +61,7 @@ struct RBHistoryPrivate
 	gpointer destroy_userdata;
 };
 
-#define RB_HISTORY_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_HISTORY, RBHistoryPrivate))
+#define RB_HISTORY_GET_PRIVATE(o) (rb_history_get_instance_private (o))
 
 #define MAX_HISTORY_SIZE 50
 
@@ -91,7 +91,7 @@ enum
 	PROP_MAX_SIZE,
 };
 
-G_DEFINE_TYPE (RBHistory, rb_history, G_TYPE_OBJECT)
+G_DEFINE_TYPE_WITH_PRIVATE (RBHistory, rb_history, G_TYPE_OBJECT)
 
 static void
 rb_history_class_init (RBHistoryClass *klass)
@@ -130,7 +130,6 @@ rb_history_class_init (RBHistoryClass *klass)
 							    0,
 							    G_PARAM_READWRITE));
 
-	g_type_class_add_private (klass, sizeof (RBHistoryPrivate));
 }
 
 /**

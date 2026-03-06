@@ -78,7 +78,7 @@ struct _RBApplicationPrivate
 	GList *accelerators;
 };
 
-G_DEFINE_TYPE (RBApplication, rb_application, GTK_TYPE_APPLICATION);
+G_DEFINE_TYPE_WITH_PRIVATE (RBApplication, rb_application, GTK_TYPE_APPLICATION);
 
 enum {
 	PROP_0,
@@ -458,9 +458,7 @@ impl_get_property (GObject *object, guint prop_id, GValue *value, GParamSpec *ps
 static void
 rb_application_init (RBApplication *app)
 {
-	app->priv = G_TYPE_INSTANCE_GET_PRIVATE (app,
-						 RB_TYPE_APPLICATION,
-						 RBApplicationPrivate);
+	app->priv = rb_application_get_instance_private (app);
 	rb_user_data_dir ();
 	rb_refstring_system_init ();
 
@@ -503,7 +501,6 @@ rb_application_class_init (RBApplicationClass *klass)
 							      G_PARAM_READABLE));
 
 
-	g_type_class_add_private (klass, sizeof (RBApplicationPrivate));
 }
 
 /**
