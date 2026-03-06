@@ -81,7 +81,23 @@ static void rb_source_row_inserted_cb (GtkTreeModel *model,
 				       GtkTreeIter *iter,
 				       RBSource *source);
 
-G_DEFINE_ABSTRACT_TYPE (RBSource, rb_source, RB_TYPE_DISPLAY_PAGE)
+struct _RBSourcePrivate
+{
+	RhythmDBQueryModel *query_model;
+	guint hidden_when_empty : 1;
+	guint update_visibility_id;
+	guint update_status_id;
+	guint status_changed_idle_id;
+	RhythmDBEntryType *entry_type;
+	RBSourceLoadStatus load_status;
+
+	GSettings *settings;
+
+	GMenu *toolbar_menu;
+	GMenuModel *playlist_menu;
+};
+
+G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE (RBSource, rb_source, RB_TYPE_DISPLAY_PAGE)
 
 /**
  * SECTION:rbsource
@@ -103,21 +119,6 @@ G_DEFINE_ABSTRACT_TYPE (RBSource, rb_source, RB_TYPE_DISPLAY_PAGE)
  * playlist-like sources.
  */
 
-struct _RBSourcePrivate
-{
-	RhythmDBQueryModel *query_model;
-	guint hidden_when_empty : 1;
-	guint update_visibility_id;
-	guint update_status_id;
-	guint status_changed_idle_id;
-	RhythmDBEntryType *entry_type;
-	RBSourceLoadStatus load_status;
-
-	GSettings *settings;
-
-	GMenu *toolbar_menu;
-	GMenuModel *playlist_menu;
-};
 
 enum
 {
@@ -364,13 +365,12 @@ rb_source_class_init (RBSourceClass *klass)
 			      G_TYPE_NONE,
 			      0);
 
-	g_type_class_add_private (object_class, sizeof (RBSourcePrivate));
 }
 
 static void
 rb_source_init (RBSource *source)
 {
-	source->priv = G_TYPE_INSTANCE_GET_PRIVATE (source, RB_TYPE_SOURCE, RBSourcePrivate);
+	source->priv = rb_source_get_instance_private (source);
 }
 
 static void

@@ -50,7 +50,7 @@ enum {
 	PROP_SYNC_SETTINGS
 };
 
-G_DEFINE_TYPE (RBSyncSettingsUI, rb_sync_settings_ui, GTK_TYPE_BOX)
+G_DEFINE_TYPE_WITH_PRIVATE (RBSyncSettingsUI, rb_sync_settings_ui, GTK_TYPE_BOX)
 
 
 static void
@@ -182,7 +182,7 @@ rb_sync_settings_ui_new (RBMediaPlayerSource *source, RBSyncSettings *settings)
 static void
 rb_sync_settings_ui_init (RBSyncSettingsUI *ui)
 {
-	ui->priv = G_TYPE_INSTANCE_GET_PRIVATE (ui, RB_TYPE_SYNC_SETTINGS_UI, RBSyncSettingsUIPrivate);
+	ui->priv = rb_sync_settings_ui_get_instance_private (ui);
 	gtk_orientable_set_orientation (GTK_ORIENTABLE (ui), GTK_ORIENTATION_VERTICAL);
 }
 
@@ -413,5 +413,4 @@ rb_sync_settings_ui_class_init (RBSyncSettingsUIClass *klass)
 							      RB_TYPE_SYNC_SETTINGS,
 							      G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
-	g_type_class_add_private (object_class, sizeof (RBSyncSettingsUIPrivate));
 }

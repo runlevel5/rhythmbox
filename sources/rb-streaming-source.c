@@ -101,7 +101,7 @@ struct _RBStreamingSourcePrivate
 	gboolean dispose_has_run;
 };
 
-G_DEFINE_TYPE (RBStreamingSource, rb_streaming_source, RB_TYPE_SOURCE)
+G_DEFINE_TYPE_WITH_PRIVATE (RBStreamingSource, rb_streaming_source, RB_TYPE_SOURCE)
 
 static void
 rb_streaming_source_class_init (RBStreamingSourceClass *klass)
@@ -118,15 +118,12 @@ rb_streaming_source_class_init (RBStreamingSourceClass *klass)
 	source_class->handle_eos = impl_handle_eos;
 	source_class->try_playlist = (RBSourceFeatureFunc) rb_true_function;
 
-	g_type_class_add_private (klass, sizeof (RBStreamingSourcePrivate));
 }
 
 static void
 rb_streaming_source_init (RBStreamingSource *source)
 {
-	source->priv = (G_TYPE_INSTANCE_GET_PRIVATE ((source),
-						     RB_TYPE_STREAMING_SOURCE,
-						     RBStreamingSourcePrivate));
+	source->priv = rb_streaming_source_get_instance_private (source);
 }
 
 static void

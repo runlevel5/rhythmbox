@@ -142,7 +142,7 @@ struct RBPlaylistSourcePrivate
 	GMenu *popup;
 };
 
-#define RB_PLAYLIST_SOURCE_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_PLAYLIST_SOURCE, RBPlaylistSourcePrivate))
+#define RB_PLAYLIST_SOURCE_GET_PRIVATE(o) (rb_playlist_source_get_instance_private (o))
 
 enum
 {
@@ -156,7 +156,7 @@ static const GtkTargetEntry target_uri [] = { { "text/uri-list", 0, 0 } };
 
 static GSettingsBackend *playlist_settings_backend = NULL;
 
-G_DEFINE_ABSTRACT_TYPE (RBPlaylistSource, rb_playlist_source, RB_TYPE_SOURCE);
+G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE (RBPlaylistSource, rb_playlist_source, RB_TYPE_SOURCE);
 
 static void
 rb_playlist_source_class_init (RBPlaylistSourceClass *klass)
@@ -226,7 +226,6 @@ rb_playlist_source_class_init (RBPlaylistSourceClass *klass)
 							       TRUE,
 							       G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
-	g_type_class_add_private (klass, sizeof (RBPlaylistSourcePrivate));
 }
 
 static void

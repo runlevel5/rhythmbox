@@ -116,7 +116,7 @@ enum
 
 static guint signals[LAST_SIGNAL] = { 0 };
 
-G_DEFINE_TYPE (RBDisplayPageTree, rb_display_page_tree, GTK_TYPE_GRID)
+G_DEFINE_TYPE_WITH_PRIVATE (RBDisplayPageTree, rb_display_page_tree, GTK_TYPE_GRID)
 
 static RBDisplayPage *
 get_selected_page (RBDisplayPageTree *display_page_tree)
@@ -1025,9 +1025,7 @@ static void
 rb_display_page_tree_init (RBDisplayPageTree *display_page_tree)
 {
 	display_page_tree->priv =
-		G_TYPE_INSTANCE_GET_PRIVATE (display_page_tree,
-					     RB_TYPE_DISPLAY_PAGE_TREE,
-					     RBDisplayPageTreePrivate);
+rb_display_page_tree_get_instance_private (display_page_tree);
 }
 
 static void
@@ -1105,5 +1103,4 @@ rb_display_page_tree_class_init (RBDisplayPageTreeClass *class)
 			      2,
 			      G_TYPE_POINTER, G_TYPE_POINTER);
 
-	g_type_class_add_private (class, sizeof (RBDisplayPageTreePrivate));
 }
