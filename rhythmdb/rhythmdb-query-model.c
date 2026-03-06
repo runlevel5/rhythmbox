@@ -53,7 +53,44 @@ static void rhythmdb_query_model_tree_model_init (GtkTreeModelIface *iface);
 static void rhythmdb_query_model_drag_source_init (RbTreeDragSourceIface *iface);
 static void rhythmdb_query_model_drag_dest_init (RbTreeDragDestIface *iface);
 
+struct _RhythmDBQueryModelPrivate
+{
+	RhythmDB *db;
+
+	RhythmDBQueryModel *base_model;
+
+	GCompareDataFunc sort_func;
+	gpointer sort_data;
+	GDestroyNotify sort_data_destroy;
+	gboolean sort_reverse;
+
+	GPtrArray *query;
+	GPtrArray *original_query;
+
+	guint stamp;
+
+	RhythmDBQueryModelLimitType limit_type;
+	GVariant *limit_value;
+
+	glong total_duration;
+	guint64 total_size;
+
+	GSequence *entries;
+	GHashTable *reverse_map;
+	GSequence *limited_entries;
+	GHashTable *limited_reverse_map;
+	GHashTable *hidden_entry_map;
+
+	gint pending_update_count;
+
+	gboolean reorder_drag_and_drop;
+	gboolean show_hidden;
+
+	gint query_reapply_timeout_id;
+};
+
 G_DEFINE_TYPE_WITH_CODE(RhythmDBQueryModel, rhythmdb_query_model, G_TYPE_OBJECT,
+			G_ADD_PRIVATE (RhythmDBQueryModel)
 			G_IMPLEMENT_INTERFACE(RHYTHMDB_TYPE_QUERY_RESULTS,
 					      rhythmdb_query_model_query_results_init)
 			G_IMPLEMENT_INTERFACE(GTK_TYPE_TREE_MODEL,
@@ -206,43 +243,8 @@ static const GtkTargetEntry rhythmdb_query_model_drag_types[] = {
 
 static GtkTargetList *rhythmdb_query_model_drag_target_list = NULL;
 
-struct _RhythmDBQueryModelPrivate
-{
-	RhythmDB *db;
 
-	RhythmDBQueryModel *base_model;
-
-	GCompareDataFunc sort_func;
-	gpointer sort_data;
-	GDestroyNotify sort_data_destroy;
-	gboolean sort_reverse;
-
-	GPtrArray *query;
-	GPtrArray *original_query;
-
-	guint stamp;
-
-	RhythmDBQueryModelLimitType limit_type;
-	GVariant *limit_value;
-
-	glong total_duration;
-	guint64 total_size;
-
-	GSequence *entries;
-	GHashTable *reverse_map;
-	GSequence *limited_entries;
-	GHashTable *limited_reverse_map;
-	GHashTable *hidden_entry_map;
-
-	gint pending_update_count;
-
-	gboolean reorder_drag_and_drop;
-	gboolean show_hidden;
-
-	gint query_reapply_timeout_id;
-};
-
-#define RHYTHMDB_QUERY_MODEL_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RHYTHMDB_TYPE_QUERY_MODEL, RhythmDBQueryModelPrivate))
+#define RHYTHMDB_QUERY_MODEL_GET_PRIVATE(o) (rhythmdb_query_model_get_instance_private (o))
 
 enum
 {
@@ -494,7 +496,6 @@ rhythmdb_query_model_class_init (RhythmDBQueryModelClass *klass)
 			      G_TYPE_BOOLEAN,
 			      1, RHYTHMDB_TYPE_ENTRY);
 
-	g_type_class_add_private (klass, sizeof (RhythmDBQueryModelPrivate));
 }
 
 static void

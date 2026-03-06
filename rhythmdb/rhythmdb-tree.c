@@ -67,7 +67,25 @@ typedef struct RhythmDBTreeProperty
 
 #define RHYTHMDB_TREE_PROPERTY_FROM_ENTRY(entry) ((RhythmDBTreeProperty *) entry->data)
 
-G_DEFINE_TYPE(RhythmDBTree, rhythmdb_tree, RHYTHMDB_TYPE)
+struct RhythmDBTreePrivate
+{
+	GHashTable *entries;
+	GHashTable *entry_ids;
+	GMutex entries_lock;
+
+	GHashTable *keywords; /* GHashTable<RBRefString, GHashTable<RhyhmDBEntry, 1>> */
+	GMutex keywords_lock;
+
+	GHashTable *genres;
+	GMutex genres_lock; /* must be held while using the tree */
+
+	GHashTable *unknown_entry_types;
+	gboolean finalizing;
+
+	guint idle_load_id;
+};
+
+G_DEFINE_TYPE_WITH_PRIVATE (RhythmDBTree, rhythmdb_tree, RHYTHMDB_TYPE)
 
 static void rhythmdb_tree_finalize (GObject *object);
 
@@ -133,23 +151,6 @@ static GList *split_query_by_disjunctions (RhythmDBTree *db, GPtrArray *query);
 static gboolean evaluate_conjunctive_subquery (RhythmDBTree *db, GPtrArray *query,
 					       guint base, guint max, RhythmDBEntry *entry);
 
-struct RhythmDBTreePrivate
-{
-	GHashTable *entries;
-	GHashTable *entry_ids;
-	GMutex entries_lock;
-
-	GHashTable *keywords; /* GHashTable<RBRefString, GHashTable<RhyhmDBEntry, 1>> */
-	GMutex keywords_lock;
-
-	GHashTable *genres;
-	GMutex genres_lock; /* must be held while using the tree */
-
-	GHashTable *unknown_entry_types;
-	gboolean finalizing;
-
-	guint idle_load_id;
-};
 
 typedef struct
 {
@@ -163,7 +164,7 @@ typedef struct
 	GList *properties;
 } RhythmDBUnknownEntry;
 
-#define RHYTHMDB_TREE_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RHYTHMDB_TYPE_TREE, RhythmDBTreePrivate))
+#define RHYTHMDB_TREE_GET_PRIVATE(o) (rhythmdb_tree_get_instance_private (o))
 
 enum
 {
@@ -210,7 +211,6 @@ rhythmdb_tree_class_init (RhythmDBTreeClass *klass)
 	rhythmdb_class->impl_do_full_query = rhythmdb_tree_do_full_query;
 	rhythmdb_class->impl_entry_type_registered = rhythmdb_tree_entry_type_registered;
 
-	g_type_class_add_private (klass, sizeof (RhythmDBTreePrivate));
 }
 
 static void
