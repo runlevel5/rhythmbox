@@ -153,7 +153,7 @@ G_DEFINE_DYNAMIC_TYPE_EXTENDED (
 	G_IMPLEMENT_INTERFACE_DYNAMIC (RB_TYPE_DEVICE_SOURCE, rb_generic_player_device_source_init)
 	G_IMPLEMENT_INTERFACE_DYNAMIC (RB_TYPE_TRANSFER_TARGET, rb_generic_player_source_transfer_target_init))
 
-#define GET_PRIVATE(o)   (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_GENERIC_PLAYER_SOURCE, RBGenericPlayerSourcePrivate))
+#define GET_PRIVATE(o) (rb_generic_player_source_get_instance_private (RB_GENERIC_PLAYER_SOURCE (o)))
 
 
 static void
@@ -222,7 +222,6 @@ rb_generic_player_source_class_init (RBGenericPlayerSourceClass *klass)
 							      G_TYPE_MOUNT,
 							      G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
-	g_type_class_add_private (klass, sizeof (RBGenericPlayerSourcePrivate));
 }
 
 static void

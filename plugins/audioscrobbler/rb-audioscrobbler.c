@@ -124,7 +124,7 @@ struct _RBAudioscrobblerPrivate
 	gulong offline_play_notify_id;
 };
 
-#define RB_AUDIOSCROBBLER_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_AUDIOSCROBBLER, RBAudioscrobblerPrivate))
+#define RB_AUDIOSCROBBLER_GET_PRIVATE(o) (rb_audioscrobbler_get_instance_private (o))
 
 
 static gboolean	     rb_audioscrobbler_load_queue (RBAudioscrobbler *audioscrobbler);
@@ -201,7 +201,11 @@ enum
 
 static guint rb_audioscrobbler_signals[LAST_SIGNAL] = { 0 };
 
-G_DEFINE_DYNAMIC_TYPE (RBAudioscrobbler, rb_audioscrobbler, G_TYPE_OBJECT)
+G_DEFINE_DYNAMIC_TYPE_EXTENDED (RBAudioscrobbler,
+	rb_audioscrobbler,
+	G_TYPE_OBJECT,
+	0,
+	G_ADD_PRIVATE_DYNAMIC (RBAudioscrobbler))
 
 
 static void
@@ -324,7 +328,6 @@ rb_audioscrobbler_class_init (RBAudioscrobblerClass *klass)
 		              G_TYPE_UINT,
 		              G_TYPE_STRING);
 
-	g_type_class_add_private (klass, sizeof (RBAudioscrobblerPrivate));
 }
 
 static void

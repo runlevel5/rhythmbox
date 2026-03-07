@@ -252,7 +252,6 @@ rb_rhythmdb_dmap_db_adapter_init (RBRhythmDBDMAPDbAdapter *db)
 static void
 rb_rhythmdb_dmap_db_adapter_class_init (RBRhythmDBDMAPDbAdapterClass *klass)
 {
-	g_type_class_add_private (klass, sizeof (RBRhythmDBDMAPDbAdapterPrivate));
 }
 
 static void
@@ -277,6 +276,7 @@ G_DEFINE_DYNAMIC_TYPE_EXTENDED (RBRhythmDBDMAPDbAdapter,
 				rb_rhythmdb_dmap_db_adapter,
 				G_TYPE_OBJECT,
 				0,
+				G_ADD_PRIVATE_DYNAMIC (RBRhythmDBDMAPDbAdapter)
 				G_IMPLEMENT_INTERFACE_DYNAMIC (DMAP_TYPE_DB,
 							       rb_rhythmdb_dmap_db_adapter_interface_init))
 

@@ -41,7 +41,7 @@ G_BEGIN_DECLS
 #define RB_IS_DACP_PLAYER(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), RB_TYPE_DACP_PLAYER))
 #define RB_IS_DACP_PLAYER_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), RB_TYPE_DACP_PLAYER))
 #define RB_DACP_PLAYER_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), RB_TYPE_DACP_PLAYER, RBDACPPlayerClass))
-#define RB_DACP_PLAYER_GET_PRIVATE(o)   (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_DACP_PLAYER, RBDACPPlayerPrivate))
+#define RB_DACP_PLAYER_GET_PRIVATE(o) (rb_dacp_player_get_instance_private (o))
 
 typedef struct _RBDACPPlayerClass RBDACPPlayerClass;
 typedef struct _RBDACPPlayer RBDACPPlayer;

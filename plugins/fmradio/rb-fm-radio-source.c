@@ -87,7 +87,11 @@ struct _RBFMRadioSourcePrivate {
 	GMenuModel *popup;
 };
 
-G_DEFINE_DYNAMIC_TYPE (RBFMRadioSource, rb_fm_radio_source, RB_TYPE_SOURCE);
+G_DEFINE_DYNAMIC_TYPE_EXTENDED (RBFMRadioSource,
+	rb_fm_radio_source,
+	RB_TYPE_SOURCE,
+	0,
+	G_ADD_PRIVATE_DYNAMIC (RBFMRadioSource));
 
 G_DEFINE_DYNAMIC_TYPE (RBFMRadioEntryType, rb_fm_radio_entry_type, RHYTHMDB_TYPE_ENTRY_TYPE);
 
@@ -131,7 +135,6 @@ rb_fm_radio_source_class_init (RBFMRadioSourceClass *class)
 	source_class->delete_selected = impl_delete_selected;
 	source_class->get_entry_view = impl_get_entry_view;
 
-	g_type_class_add_private (class, sizeof (RBFMRadioSourcePrivate));
 }
 
 static void
@@ -142,8 +145,7 @@ rb_fm_radio_source_class_finalize (RBFMRadioSourceClass *class)
 static void
 rb_fm_radio_source_init (RBFMRadioSource *self)
 {
-	self->priv = G_TYPE_INSTANCE_GET_PRIVATE (
-		self, RB_TYPE_FM_RADIO_SOURCE, RBFMRadioSourcePrivate);
+	self->priv = rb_fm_radio_source_get_instance_private (self);
 }
 
 static void

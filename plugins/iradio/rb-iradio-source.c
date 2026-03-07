@@ -148,14 +148,18 @@ struct RBIRadioSourcePrivate
 	GMenuModel *popup;
 };
 
-#define RB_IRADIO_SOURCE_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_IRADIO_SOURCE, RBIRadioSourcePrivate))
+#define RB_IRADIO_SOURCE_GET_PRIVATE(o) (rb_iradio_source_get_instance_private (o))
 
 static const GtkTargetEntry stations_view_drag_types[] = {
 	{  "text/uri-list", 0, 0 },
 	{  "_NETSCAPE_URL", 0, 1 },
 };
 
-G_DEFINE_DYNAMIC_TYPE (RBIRadioSource, rb_iradio_source, RB_TYPE_STREAMING_SOURCE);
+G_DEFINE_DYNAMIC_TYPE_EXTENDED (RBIRadioSource,
+	rb_iradio_source,
+	RB_TYPE_STREAMING_SOURCE,
+	0,
+	G_ADD_PRIVATE_DYNAMIC (RBIRadioSource));
 
 G_DEFINE_DYNAMIC_TYPE (RBIRadioEntryType, rb_iradio_entry_type, RHYTHMDB_TYPE_ENTRY_TYPE);
 
@@ -208,7 +212,6 @@ rb_iradio_source_class_init (RBIRadioSourceClass *klass)
 					  PROP_SHOW_BROWSER,
 					  "show-browser");
 
-	g_type_class_add_private (klass, sizeof (RBIRadioSourcePrivate));
 }
 
 static void

@@ -178,7 +178,7 @@ struct _RBAudioscrobblerRadioSourcePrivate
 	RBExtDB *art_store;
 };
 
-#define RB_AUDIOSCROBBLER_RADIO_SOURCE_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_AUDIOSCROBBLER_RADIO_SOURCE, RBAudioscrobblerRadioSourcePrivate))
+#define RB_AUDIOSCROBBLER_RADIO_SOURCE_GET_PRIVATE(o) (rb_audioscrobbler_radio_source_get_instance_private (o))
 
 static void rb_audioscrobbler_radio_source_constructed (GObject *object);
 static void rb_audioscrobbler_radio_source_dispose (GObject *object);
@@ -241,7 +241,11 @@ enum {
 	PROP_PLAY_ORDER
 };
 
-G_DEFINE_DYNAMIC_TYPE (RBAudioscrobblerRadioSource, rb_audioscrobbler_radio_source, RB_TYPE_STREAMING_SOURCE)
+G_DEFINE_DYNAMIC_TYPE_EXTENDED (RBAudioscrobblerRadioSource,
+	rb_audioscrobbler_radio_source,
+	RB_TYPE_STREAMING_SOURCE,
+	0,
+	G_ADD_PRIVATE_DYNAMIC (RBAudioscrobblerRadioSource))
 
 RBSource *
 rb_audioscrobbler_radio_source_new (RBAudioscrobblerProfilePage *parent,
@@ -361,7 +365,6 @@ rb_audioscrobbler_radio_source_class_init (RBAudioscrobblerRadioSourceClass *kla
 					  PROP_PLAY_ORDER,
 					  "play-order");
 
-	g_type_class_add_private (klass, sizeof (RBAudioscrobblerRadioSourcePrivate));
 }
 
 static void

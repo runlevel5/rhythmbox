@@ -97,7 +97,7 @@ struct RBStationPropertiesDialogPrivate
 
 };
 
-#define RB_STATION_PROPERTIES_DIALOG_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_STATION_PROPERTIES_DIALOG, RBStationPropertiesDialogPrivate))
+#define RB_STATION_PROPERTIES_DIALOG_GET_PRIVATE(o) (rb_station_properties_dialog_get_instance_private (o))
 
 enum
 {
@@ -106,7 +106,11 @@ enum
 	PROP_PLUGIN
 };
 
-G_DEFINE_DYNAMIC_TYPE (RBStationPropertiesDialog, rb_station_properties_dialog, GTK_TYPE_DIALOG)
+G_DEFINE_DYNAMIC_TYPE_EXTENDED (RBStationPropertiesDialog,
+	rb_station_properties_dialog,
+	GTK_TYPE_DIALOG,
+	0,
+	G_ADD_PRIVATE_DYNAMIC (RBStationPropertiesDialog))
 
 static void
 rb_station_properties_dialog_class_init (RBStationPropertiesDialogClass *klass)
@@ -138,7 +142,6 @@ rb_station_properties_dialog_class_init (RBStationPropertiesDialogClass *klass)
 	object_class->dispose = rb_station_properties_dialog_dispose;
 	object_class->finalize = rb_station_properties_dialog_finalize;
 
-	g_type_class_add_private (klass, sizeof (RBStationPropertiesDialogPrivate));
 }
 
 static void
