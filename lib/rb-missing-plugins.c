@@ -33,10 +33,6 @@
 
 #include <gtk/gtk.h>
 
-#ifdef GDK_WINDOWING_X11
-#include <gdk/gdkx.h>
-#endif
-
 #include <string.h>
 
 /* list of blacklisted detail strings */
@@ -210,16 +206,6 @@ rb_missing_plugins_install (const char **details, gboolean ignore_blacklist, GCl
 	}
 
 	install_ctx = gst_install_plugins_context_new ();
-
-	if (parent_window != NULL && gtk_widget_get_realized (GTK_WIDGET (parent_window))) {
-#ifdef GDK_WINDOWING_X11
-		if (GDK_IS_X11_WINDOW (gtk_widget_get_window (GTK_WIDGET (parent_window)))) {
-			gulong xid = 0;
-			xid = gdk_x11_window_get_xid (gtk_widget_get_window (GTK_WIDGET (parent_window)));
-			gst_install_plugins_context_set_xid (install_ctx, xid);
-		}
-#endif
-	}
 
 	status = gst_install_plugins_async ((const gchar* const*) ctx->details, install_ctx,
 	                                    on_plugin_installation_done,
