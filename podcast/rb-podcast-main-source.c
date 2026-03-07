@@ -46,7 +46,7 @@ struct _RBPodcastMainSourcePrivate
 	GtkWidget *config_widget;
 };
 
-G_DEFINE_TYPE (RBPodcastMainSource, rb_podcast_main_source, RB_TYPE_PODCAST_SOURCE)
+G_DEFINE_TYPE_WITH_PRIVATE (RBPodcastMainSource, rb_podcast_main_source, RB_TYPE_PODCAST_SOURCE)
 
 
 RBSource *
@@ -421,9 +421,7 @@ impl_dispose (GObject *object)
 static void
 rb_podcast_main_source_init (RBPodcastMainSource *source)
 {
-	source->priv = G_TYPE_INSTANCE_GET_PRIVATE (source,
-						    RB_TYPE_PODCAST_MAIN_SOURCE,
-						    RBPodcastMainSourcePrivate);
+	source->priv = rb_podcast_main_source_get_instance_private (source);
 }
 
 static void
@@ -441,5 +439,4 @@ rb_podcast_main_source_class_init (RBPodcastMainSourceClass *klass)
 	source_class->want_uri = impl_want_uri;
 	source_class->add_uri = impl_add_uri;
 
-	g_type_class_add_private (klass, sizeof (RBPodcastMainSourcePrivate));
 }

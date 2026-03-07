@@ -82,7 +82,7 @@ struct RBFeedPodcastPropertiesDialogPrivate
 	GtkWidget   *close_button;
 };
 
-#define RB_FEED_PODCAST_PROPERTIES_DIALOG_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_FEED_PODCAST_PROPERTIES_DIALOG, RBFeedPodcastPropertiesDialogPrivate))
+#define RB_FEED_PODCAST_PROPERTIES_DIALOG_GET_PRIVATE(o) (rb_feed_podcast_properties_dialog_get_instance_private (o))
 
 enum
 {
@@ -90,7 +90,7 @@ enum
 	PROP_BACKEND
 };
 
-G_DEFINE_TYPE (RBFeedPodcastPropertiesDialog, rb_feed_podcast_properties_dialog, GTK_TYPE_DIALOG)
+G_DEFINE_TYPE_WITH_PRIVATE (RBFeedPodcastPropertiesDialog, rb_feed_podcast_properties_dialog, GTK_TYPE_DIALOG)
 
 static void
 rb_feed_podcast_properties_dialog_class_init (RBFeedPodcastPropertiesDialogClass *klass)
@@ -99,7 +99,6 @@ rb_feed_podcast_properties_dialog_class_init (RBFeedPodcastPropertiesDialogClass
 
 	object_class->finalize = rb_feed_podcast_properties_dialog_finalize;
 
-	g_type_class_add_private (klass, sizeof (RBFeedPodcastPropertiesDialogPrivate));
 }
 
 static void
