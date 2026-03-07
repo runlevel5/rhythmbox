@@ -333,7 +333,6 @@ rb_song_info_init (RBSongInfo *song_info)
 				 G_CALLBACK (rb_song_info_response_cb),
 				 song_info, 0);
 
-	gtk_container_set_border_width (GTK_CONTAINER (song_info), 5);
 	gtk_window_set_resizable (GTK_WINDOW (song_info), TRUE);
 	gtk_box_set_spacing (GTK_BOX (gtk_dialog_get_content_area (GTK_DIALOG (song_info))), 2);
 }
@@ -451,7 +450,6 @@ rb_song_info_constructed (GObject *object)
 	GList *tem;
 	gboolean editable = TRUE;
 	RBShell *shell;
-	AtkObject *lobj, *robj;
 	GtkBuilder *builder;
 	GtkWidget *content_area;
 
@@ -486,12 +484,12 @@ rb_song_info_constructed (GObject *object)
 	content_area = gtk_dialog_get_content_area (GTK_DIALOG (song_info));
 	if (song_info->priv->current_entry) {
 		builder = rb_builder_load ("song-info.ui", song_info);
-		gtk_container_add (GTK_CONTAINER (content_area),
-				   GTK_WIDGET (gtk_builder_get_object (builder, "song_info_vbox")));
+		gtk_box_append (GTK_BOX (content_area),
+				GTK_WIDGET (gtk_builder_get_object (builder, "song_info_vbox")));
 	} else {
 		builder = rb_builder_load ("song-info-multiple.ui", song_info);
-		gtk_container_add (GTK_CONTAINER (content_area),
-				   GTK_WIDGET (gtk_builder_get_object (builder, "song_info_notebook")));
+		gtk_box_append (GTK_BOX (content_area),
+				GTK_WIDGET (gtk_builder_get_object (builder, "song_info_notebook")));
 	}
 
 	song_info->priv->artist = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_artist"));
@@ -595,16 +593,15 @@ rb_song_info_constructed (GObject *object)
 	g_signal_connect_object (song_info->priv->rating, "rated",
 				 G_CALLBACK (rb_song_info_rated_cb),
 				 G_OBJECT (song_info), 0);
-	gtk_container_add (GTK_CONTAINER (gtk_builder_get_object (builder, "song_info_rating_container")),
-			   song_info->priv->rating);
+	gtk_box_append (GTK_BOX (gtk_builder_get_object (builder, "song_info_rating_container")),
+			song_info->priv->rating);
 	g_object_set (gtk_builder_get_object (builder, "rating_label"), "mnemonic-widget", song_info->priv->rating, NULL);
 
-	/* add relationship between the rating label and the rating widget */
-	lobj = gtk_widget_get_accessible (GTK_WIDGET (gtk_builder_get_object (builder, "rating_label")));
-	robj = gtk_widget_get_accessible (song_info->priv->rating);
-
-	atk_object_add_relationship (lobj, ATK_RELATION_LABEL_FOR, robj);
-	atk_object_add_relationship (robj, ATK_RELATION_LABELLED_BY, lobj);
+	/* accessible relationship between rating label and widget */
+	gtk_accessible_update_relation (GTK_ACCESSIBLE (song_info->priv->rating),
+					GTK_ACCESSIBLE_RELATION_LABELLED_BY,
+					gtk_builder_get_object (builder, "rating_label"), NULL,
+					-1);
 
 	gtk_editable_set_editable (GTK_EDITABLE (song_info->priv->artist), editable);
 	gtk_editable_set_editable (GTK_EDITABLE (song_info->priv->album), editable);
@@ -894,7 +891,7 @@ rb_song_info_response_cb (GtkDialog *dialog,
 {
 	if (response_id == GTK_RESPONSE_CLOSE) {
 		rb_song_info_sync_entries (RB_SONG_INFO (dialog));
-		gtk_widget_destroy (GTK_WIDGET (dialog));
+		gtk_window_destroy (GTK_WINDOW (dialog));
 	}
 }
 
@@ -954,7 +951,7 @@ rb_song_info_populate_num_field (GtkEntry *field, gulong num)
 		tmp = g_strdup_printf ("%.2ld", num);
 	else
 		tmp = g_strdup (_("Unknown"));
-	gtk_entry_set_text (field, tmp);
+	gtk_editable_set_text (GTK_EDITABLE (field), tmp);
 	g_free (tmp);
 }
 
@@ -966,7 +963,7 @@ rb_song_info_populate_dnum_field (GtkEntry *field, gdouble num)
 		tmp = g_strdup_printf ("%.2f", num);
 	else
 		tmp = g_strdup (_("Unknown"));
-	gtk_entry_set_text (field, tmp);
+	gtk_editable_set_text (GTK_EDITABLE (field), tmp);
 	g_free (tmp);
 }
 
@@ -1109,15 +1106,15 @@ rb_song_info_populate_dialog_multiple (RBSongInfo *song_info)
 	}
 
 	if (!mixed_artists && artist != NULL)
-		gtk_entry_set_text (GTK_ENTRY (song_info->priv->artist), artist);
+		gtk_editable_set_text (GTK_EDITABLE (song_info->priv->artist), artist);
 	if (!mixed_albums && album != NULL)
-		gtk_entry_set_text (GTK_ENTRY (song_info->priv->album), album);
+		gtk_editable_set_text (GTK_EDITABLE (song_info->priv->album), album);
 	if (!mixed_album_artists && album_artist != NULL)
-		gtk_entry_set_text (GTK_ENTRY (song_info->priv->album_artist), album_artist);
+		gtk_editable_set_text (GTK_EDITABLE (song_info->priv->album_artist), album_artist);
 	if (!mixed_composers && composer != NULL)
-		gtk_entry_set_text (GTK_ENTRY (song_info->priv->composer), composer);
+		gtk_editable_set_text (GTK_EDITABLE (song_info->priv->composer), composer);
 	if (!mixed_genres && genre != NULL)
-		gtk_entry_set_text (GTK_ENTRY (song_info->priv->genre), genre);
+		gtk_editable_set_text (GTK_EDITABLE (song_info->priv->genre), genre);
 	if (!mixed_years && year != 0)
 		rb_song_info_populate_num_field (GTK_ENTRY (song_info->priv->year), year);
 	if (!mixed_track_totals && track_total != 0)
@@ -1129,13 +1126,13 @@ rb_song_info_populate_dialog_multiple (RBSongInfo *song_info)
 	if (!mixed_ratings && fabs(rating) >= EPSILON)
 		g_object_set (G_OBJECT (song_info->priv->rating), "rating", rating, NULL);
 	if (!mixed_artist_sortnames && artist_sortname != NULL)
-		gtk_entry_set_text (GTK_ENTRY (song_info->priv->artist_sortname), artist_sortname);
+		gtk_editable_set_text (GTK_EDITABLE (song_info->priv->artist_sortname), artist_sortname);
 	if (!mixed_album_sortnames && album_sortname != NULL)
-		gtk_entry_set_text (GTK_ENTRY (song_info->priv->album_sortname), album_sortname);
+		gtk_editable_set_text (GTK_EDITABLE (song_info->priv->album_sortname), album_sortname);
 	if (!mixed_album_artist_sortnames && album_artist_sortname != NULL)
-		gtk_entry_set_text (GTK_ENTRY (song_info->priv->album_artist_sortname), album_artist_sortname);
+		gtk_editable_set_text (GTK_EDITABLE (song_info->priv->album_artist_sortname), album_artist_sortname);
 	if (!mixed_composer_sortnames && composer_sortname != NULL)
-		gtk_entry_set_text (GTK_ENTRY (song_info->priv->composer_sortname), composer_sortname);
+		gtk_editable_set_text (GTK_EDITABLE (song_info->priv->composer_sortname), composer_sortname);
 }
 
 static void
@@ -1152,22 +1149,22 @@ rb_song_info_populate_dialog (RBSongInfo *song_info)
 	rb_song_info_update_buttons (song_info);
 
 	text = rhythmdb_entry_get_string (song_info->priv->current_entry, RHYTHMDB_PROP_TITLE);
-	gtk_entry_set_text (GTK_ENTRY (song_info->priv->title), text);
+	gtk_editable_set_text (GTK_EDITABLE (song_info->priv->title), text);
 
 	tmp = g_strdup_printf (_("%s Properties"), text);
 	gtk_window_set_title (GTK_WINDOW (song_info), tmp);
 	g_free (tmp);
 
 	text = rhythmdb_entry_get_string (song_info->priv->current_entry, RHYTHMDB_PROP_ARTIST);
-	gtk_entry_set_text (GTK_ENTRY (song_info->priv->artist), text);
+	gtk_editable_set_text (GTK_EDITABLE (song_info->priv->artist), text);
 	text = rhythmdb_entry_get_string (song_info->priv->current_entry, RHYTHMDB_PROP_ALBUM);
-	gtk_entry_set_text (GTK_ENTRY (song_info->priv->album), text);
+	gtk_editable_set_text (GTK_EDITABLE (song_info->priv->album), text);
 	text = rhythmdb_entry_get_string (song_info->priv->current_entry, RHYTHMDB_PROP_ALBUM_ARTIST);
-	gtk_entry_set_text (GTK_ENTRY (song_info->priv->album_artist), text);
+	gtk_editable_set_text (GTK_EDITABLE (song_info->priv->album_artist), text);
 	text = rhythmdb_entry_get_string (song_info->priv->current_entry, RHYTHMDB_PROP_COMPOSER);
-	gtk_entry_set_text (GTK_ENTRY (song_info->priv->composer), text);
+	gtk_editable_set_text (GTK_EDITABLE (song_info->priv->composer), text);
 	text = rhythmdb_entry_get_string (song_info->priv->current_entry, RHYTHMDB_PROP_GENRE);
-	gtk_entry_set_text (GTK_ENTRY (song_info->priv->genre), text);
+	gtk_editable_set_text (GTK_EDITABLE (song_info->priv->genre), text);
 
 	num = rhythmdb_entry_get_ulong (song_info->priv->current_entry, RHYTHMDB_PROP_TRACK_NUMBER);
 	rb_song_info_populate_num_field (GTK_ENTRY (song_info->priv->track_cur), num);
@@ -1194,15 +1191,15 @@ rb_song_info_populate_dialog (RBSongInfo *song_info)
 	rb_song_info_update_playback_error (song_info);
 
 	text = rhythmdb_entry_get_string (song_info->priv->current_entry, RHYTHMDB_PROP_TITLE_SORTNAME);
-	gtk_entry_set_text (GTK_ENTRY (song_info->priv->title_sortname), text);
+	gtk_editable_set_text (GTK_EDITABLE (song_info->priv->title_sortname), text);
 	text = rhythmdb_entry_get_string (song_info->priv->current_entry, RHYTHMDB_PROP_ARTIST_SORTNAME);
-	gtk_entry_set_text (GTK_ENTRY (song_info->priv->artist_sortname), text);
+	gtk_editable_set_text (GTK_EDITABLE (song_info->priv->artist_sortname), text);
 	text = rhythmdb_entry_get_string (song_info->priv->current_entry, RHYTHMDB_PROP_ALBUM_SORTNAME);
-	gtk_entry_set_text (GTK_ENTRY (song_info->priv->album_sortname), text);
+	gtk_editable_set_text (GTK_EDITABLE (song_info->priv->album_sortname), text);
 	text = rhythmdb_entry_get_string (song_info->priv->current_entry, RHYTHMDB_PROP_ALBUM_ARTIST_SORTNAME);
-	gtk_entry_set_text (GTK_ENTRY (song_info->priv->album_artist_sortname), text);
+	gtk_editable_set_text (GTK_EDITABLE (song_info->priv->album_artist_sortname), text);
 	text = rhythmdb_entry_get_string (song_info->priv->current_entry, RHYTHMDB_PROP_COMPOSER_SORTNAME);
-	gtk_entry_set_text (GTK_ENTRY (song_info->priv->composer_sortname), text);
+	gtk_editable_set_text (GTK_EDITABLE (song_info->priv->composer_sortname), text);
 }
 
 static void
@@ -1295,10 +1292,10 @@ rb_song_info_update_location (RBSongInfo *song_info)
 		tmp = NULL;
 
 		if (tmp_utf8 != NULL) {
-			gtk_entry_set_text (GTK_ENTRY (song_info->priv->name),
+			gtk_editable_set_text (GTK_EDITABLE (song_info->priv->name),
 					    tmp_utf8);
 		} else {
-			gtk_entry_set_text (GTK_ENTRY (song_info->priv->name),
+			gtk_editable_set_text (GTK_EDITABLE (song_info->priv->name),
 					    _("Unknown file name"));
 		}
 
@@ -1340,10 +1337,10 @@ rb_song_info_update_location (RBSongInfo *song_info)
 		}
 
 		if (tmp_utf8 != NULL) {
-			gtk_entry_set_text (GTK_ENTRY (song_info->priv->location),
+			gtk_editable_set_text (GTK_EDITABLE (song_info->priv->location),
 					    tmp_utf8);
 		} else {
-			gtk_entry_set_text (GTK_ENTRY (song_info->priv->location),
+			gtk_editable_set_text (GTK_EDITABLE (song_info->priv->location),
 					    _("Unknown location"));
 		}
 		g_free (tmp_utf8);
@@ -1579,7 +1576,7 @@ rb_song_info_update_year (RBSongInfo *song_info)
 	} else {
 		text = g_strdup (_("Unknown"));
 	}
-	gtk_entry_set_text (GTK_ENTRY (song_info->priv->year), text);
+	gtk_editable_set_text (GTK_EDITABLE (song_info->priv->year), text);
 	g_free (text);
 }
 
@@ -1599,7 +1596,7 @@ sync_string_property_multiple (RBSongInfo *dialog, RhythmDBPropType property, Gt
 	GList *t;
 	gboolean changed = FALSE;
 
-	new_text = gtk_entry_get_text (GTK_ENTRY (entry));
+	new_text = gtk_editable_get_text (GTK_EDITABLE (entry));
 	if (strlen (new_text) == 0)
 		return FALSE;
 
@@ -1631,7 +1628,7 @@ sync_ulong_property_multiple (RBSongInfo *dialog, RhythmDBPropType property, Gtk
 	gboolean changed = FALSE;
 	char *endptr;
 
-	new_text = gtk_entry_get_text (GTK_ENTRY (entry));
+	new_text = gtk_editable_get_text (GTK_EDITABLE (entry));
 	val_int = g_ascii_strtoull (new_text, &endptr, 10);
 
 	if (endptr != new_text) {
@@ -1660,7 +1657,7 @@ sync_ulong_property_multiple (RBSongInfo *dialog, RhythmDBPropType property, Gtk
 static void
 rb_song_info_sync_entries_multiple (RBSongInfo *dialog)
 {
-	const char *year_str = gtk_entry_get_text (GTK_ENTRY (dialog->priv->year));
+	const char *year_str = gtk_editable_get_text (GTK_EDITABLE (dialog->priv->year));
 	char *endptr;
 	GValue val = {0,};
 	GList *tem;
@@ -1721,7 +1718,7 @@ sync_property_ulong_single (RBSongInfo *dialog,
 {
 	char *endptr;
 
-	const char *new_text = gtk_entry_get_text (GTK_ENTRY (w));
+	const char *new_text = gtk_editable_get_text (GTK_EDITABLE (w));
 	gulong prop_val = g_ascii_strtoull (new_text, &endptr, 10);
 	gulong entry_val = rhythmdb_entry_get_ulong (entry, property);
 
@@ -1785,18 +1782,18 @@ rb_song_info_sync_entry_single (RBSongInfo *dialog)
 	RhythmDBEntry *entry = dialog->priv->current_entry;
 	GtkTextIter start, end;
 
-	title = gtk_entry_get_text (GTK_ENTRY (dialog->priv->title));
-	genre = gtk_entry_get_text (GTK_ENTRY (dialog->priv->genre));
-	artist = gtk_entry_get_text (GTK_ENTRY (dialog->priv->artist));
-	album = gtk_entry_get_text (GTK_ENTRY (dialog->priv->album));
-	album_artist = gtk_entry_get_text (GTK_ENTRY (dialog->priv->album_artist));
-	composer = gtk_entry_get_text (GTK_ENTRY (dialog->priv->composer));
-	year_str = gtk_entry_get_text (GTK_ENTRY (dialog->priv->year));
-	title_sortname = gtk_entry_get_text (GTK_ENTRY (dialog->priv->title_sortname));
-	artist_sortname = gtk_entry_get_text (GTK_ENTRY (dialog->priv->artist_sortname));
-	album_sortname = gtk_entry_get_text (GTK_ENTRY (dialog->priv->album_sortname));
-	album_artist_sortname = gtk_entry_get_text (GTK_ENTRY (dialog->priv->album_artist_sortname));
-	composer_sortname = gtk_entry_get_text (GTK_ENTRY (dialog->priv->composer_sortname));
+	title = gtk_editable_get_text (GTK_EDITABLE (dialog->priv->title));
+	genre = gtk_editable_get_text (GTK_EDITABLE (dialog->priv->genre));
+	artist = gtk_editable_get_text (GTK_EDITABLE (dialog->priv->artist));
+	album = gtk_editable_get_text (GTK_EDITABLE (dialog->priv->album));
+	album_artist = gtk_editable_get_text (GTK_EDITABLE (dialog->priv->album_artist));
+	composer = gtk_editable_get_text (GTK_EDITABLE (dialog->priv->composer));
+	year_str = gtk_editable_get_text (GTK_EDITABLE (dialog->priv->year));
+	title_sortname = gtk_editable_get_text (GTK_EDITABLE (dialog->priv->title_sortname));
+	artist_sortname = gtk_editable_get_text (GTK_EDITABLE (dialog->priv->artist_sortname));
+	album_sortname = gtk_editable_get_text (GTK_EDITABLE (dialog->priv->album_sortname));
+	album_artist_sortname = gtk_editable_get_text (GTK_EDITABLE (dialog->priv->album_artist_sortname));
+	composer_sortname = gtk_editable_get_text (GTK_EDITABLE (dialog->priv->composer_sortname));
 
 	/* Get comment text (string is allocated) */
 	gtk_text_buffer_get_bounds (dialog->priv->comment_buffer, &start, &end);
@@ -1852,7 +1849,7 @@ rb_song_info_sync_entry_single (RBSongInfo *dialog)
 		if (date)
 			g_date_free (date);
 	}
-	bpm_str = gtk_entry_get_text (GTK_ENTRY (dialog->priv->bpm));
+	bpm_str = gtk_editable_get_text (GTK_EDITABLE (dialog->priv->bpm));
 	bpm = g_strtod (bpm_str, &endptr);
 	dentry_val = rhythmdb_entry_get_double (entry, RHYTHMDB_PROP_BPM);
 	if ((endptr != bpm_str) && (bpm != dentry_val)) {
