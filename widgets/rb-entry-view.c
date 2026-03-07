@@ -157,9 +157,11 @@ static void rb_entry_view_pixbuf_clicked_cb (RBEntryView *view,
 					     RBCellRendererPixbuf *cellpixbuf);
 static void rb_entry_view_playing_column_clicked_cb (GtkTreeViewColumn *column,
 						     RBEntryView *view);
-static gboolean rb_entry_view_button_press_cb (GtkTreeView *treeview,
-					      GdkEventButton *event,
-					      RBEntryView *view);
+static void rb_entry_view_button_press_cb (GtkGestureClick *gesture,
+					    int n_press,
+					    double x,
+					    double y,
+					    RBEntryView *view);
 static gboolean rb_entry_view_popup_menu_cb (GtkTreeView *treeview,
 					     RBEntryView *view);
 static void rb_entry_view_entry_is_visible (RBEntryView *view, RhythmDBEntry *entry,
@@ -1819,18 +1821,15 @@ rb_entry_view_constructed (GObject *object)
 	view->priv->overlay = gtk_overlay_new ();
 	gtk_widget_set_vexpand (view->priv->overlay, TRUE);
 	gtk_widget_set_hexpand (view->priv->overlay, TRUE);
-	gtk_container_add (GTK_CONTAINER (view), view->priv->overlay);
+	gtk_box_append (GTK_BOX (view), view->priv->overlay);
 	gtk_widget_show (view->priv->overlay);
 
-	/* NautilusFloatingBar needs enter and leavy notify events */
-	gtk_widget_add_events (view->priv->overlay, GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK);
 
-	view->priv->scrolled_window = gtk_scrolled_window_new (NULL, NULL);
+	view->priv->scrolled_window = gtk_scrolled_window_new ();
 	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (view->priv->scrolled_window),
 					GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-	gtk_scrolled_window_set_shadow_type (GTK_SCROLLED_WINDOW (view->priv->scrolled_window), GTK_SHADOW_NONE);
 	gtk_widget_show (view->priv->scrolled_window);
-	gtk_container_add (GTK_CONTAINER (view->priv->overlay), view->priv->scrolled_window);
+	gtk_overlay_set_child (GTK_OVERLAY (view->priv->overlay), view->priv->scrolled_window);
 
 	view->priv->treeview = gtk_tree_view_new ();
 	gtk_tree_view_set_fixed_height_mode (GTK_TREE_VIEW (view->priv->treeview), TRUE);
@@ -1839,11 +1838,13 @@ rb_entry_view_constructed (GObject *object)
 					     type_ahead_search_func,
 					     view, NULL);
 
-	g_signal_connect_object (view->priv->treeview,
-			         "button_press_event",
-			         G_CALLBACK (rb_entry_view_button_press_cb),
-			         view,
-				 0);
+	{
+		GtkGesture *click = gtk_gesture_click_new ();
+		gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (click), 3);
+		g_signal_connect (click, "pressed",
+				  G_CALLBACK (rb_entry_view_button_press_cb), view);
+		gtk_widget_add_controller (view->priv->treeview, GTK_EVENT_CONTROLLER (click));
+	}
 	g_signal_connect_object (view->priv->treeview,
 			         "row_activated",
 			         G_CALLBACK (rb_entry_view_row_activated_cb),
@@ -1881,7 +1882,7 @@ rb_entry_view_constructed (GObject *object)
 						   GDK_ACTION_COPY | GDK_ACTION_MOVE);
 	}
 
-	gtk_container_add (GTK_CONTAINER (view->priv->scrolled_window), view->priv->treeview);
+	gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (view->priv->scrolled_window), view->priv->treeview);
 
 	{
 		GtkTreeViewColumn *column;
@@ -1892,9 +1893,6 @@ rb_entry_view_constructed (GObject *object)
 		column = GTK_TREE_VIEW_COLUMN (gtk_tree_view_column_new ());
 		renderer = rb_cell_renderer_pixbuf_new ();
 		g_object_set (renderer, "stock-size", GTK_ICON_SIZE_MENU, NULL);
-		if (gtk_check_version (3, 16, 0) != NULL) {
-			g_object_set (renderer, "follow-state", TRUE, NULL);
-		}
 
 		gtk_tree_view_column_pack_start (column, renderer, TRUE);
 		gtk_tree_view_column_set_cell_data_func (column, renderer,
@@ -1903,9 +1901,9 @@ rb_entry_view_constructed (GObject *object)
 							 view,
 							 NULL);
 
-		image_widget = gtk_image_new_from_icon_name ("audio-volume-high-symbolic", GTK_ICON_SIZE_MENU);
+		image_widget = gtk_image_new_from_icon_name ("audio-volume-high-symbolic");
 		gtk_tree_view_column_set_widget (column, image_widget);
-		gtk_widget_show_all (image_widget);
+		gtk_widget_show (image_widget);
 
 		gtk_tree_view_column_set_sizing (column, GTK_TREE_VIEW_COLUMN_FIXED);
 		gtk_tree_view_append_column (GTK_TREE_VIEW (view->priv->treeview), column);
@@ -2068,16 +2066,21 @@ rb_entry_view_get_selected_entries (RBEntryView *view)
 	return list;
 }
 
-static gboolean
-rb_entry_view_button_press_cb (GtkTreeView *treeview,
-			       GdkEventButton *event,
+static void
+rb_entry_view_button_press_cb (GtkGestureClick *gesture,
+			       int n_press,
+			       double x,
+			       double y,
 			       RBEntryView *view)
 {
-	if (event->button == 3) {
+	{
+		GtkTreeView *treeview = GTK_TREE_VIEW (view->priv->treeview);
 		GtkTreePath *path;
 		RhythmDBEntry *entry;
+		int bx, by;
 
-		gtk_tree_view_get_path_at_pos (treeview, event->x, event->y, &path, NULL, NULL, NULL);
+		gtk_tree_view_convert_widget_to_bin_window_coords (treeview, (int)x, (int)y, &bx, &by);
+		gtk_tree_view_get_path_at_pos (treeview, bx, by, &path, NULL, NULL, NULL);
 		if (path != NULL) {
 			GList *selected;
 			entry = rhythmdb_query_model_tree_path_to_entry (view->priv->model, path);
@@ -2092,10 +2095,7 @@ rb_entry_view_button_press_cb (GtkTreeView *treeview,
 			rhythmdb_entry_unref (entry);
 		}
 		g_signal_emit (G_OBJECT (view), rb_entry_view_signals[SHOW_POPUP], 0, (path != NULL));
-		return TRUE;
 	}
-
-	return FALSE;
 }
 
 static gboolean
