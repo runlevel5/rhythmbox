@@ -9,12 +9,10 @@
     <property name="label_xalign">0</property>
     <property name="shadow_type">none</property>
     <child>
-      <object class="GtkTable" id="table2">
+      <object class="GtkGrid" id="table2">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="border_width">12</property>
-        <property name="n_rows">5</property>
-        <property name="n_columns">2</property>
         <property name="column_spacing">12</property>
         <property name="row_spacing">6</property>
         <child>
@@ -24,12 +22,8 @@
             <property name="xalign">0</property>
           </object>
           <packing>
-            <property name="left_attach">1</property>
-            <property name="right_attach">2</property>
-            <property name="top_attach">1</property>
-            <property name="bottom_attach">2</property>
-            <property name="x_options">GTK_FILL</property>
-            <property name="y_options"/>
+            <property name="left-attach">1</property>
+            <property name="top-attach">1</property>
           </packing>
         </child>
         <child>
@@ -40,9 +34,8 @@
             <property name="label" translatable="yes">Model:</property>
           </object>
           <packing>
-            <property name="top_attach">1</property>
-            <property name="bottom_attach">2</property>
-            <property name="y_options"/>
+            <property name="left-attach">0</property>
+            <property name="top-attach">1</property>
           </packing>
         </child>
         <child>
@@ -52,11 +45,8 @@
             <property name="xalign">0</property>
           </object>
           <packing>
-            <property name="left_attach">1</property>
-            <property name="right_attach">2</property>
-            <property name="top_attach">2</property>
-            <property name="bottom_attach">3</property>
-            <property name="y_options"/>
+            <property name="left-attach">1</property>
+            <property name="top-attach">2</property>
           </packing>
         </child>
         <child>
@@ -67,10 +57,8 @@
             <property name="label" translatable="yes">Serial number:</property>
           </object>
           <packing>
-            <property name="top_attach">2</property>
-            <property name="bottom_attach">3</property>
-            <property name="x_options">GTK_FILL</property>
-            <property name="y_options"/>
+            <property name="left-attach">0</property>
+            <property name="top-attach">2</property>
           </packing>
         </child>
         <child>
@@ -81,10 +69,8 @@
             <property name="label" translatable="yes">Firmware version:</property>
           </object>
           <packing>
-            <property name="top_attach">3</property>
-            <property name="bottom_attach">4</property>
-            <property name="x_options">GTK_FILL</property>
-            <property name="y_options"/>
+            <property name="left-attach">0</property>
+            <property name="top-attach">3</property>
           </packing>
         </child>
         <child>
@@ -94,11 +80,8 @@
             <property name="xalign">0</property>
           </object>
           <packing>
-            <property name="left_attach">1</property>
-            <property name="right_attach">2</property>
-            <property name="top_attach">3</property>
-            <property name="bottom_attach">4</property>
-            <property name="y_options"/>
+            <property name="left-attach">1</property>
+            <property name="top-attach">3</property>
           </packing>
         </child>
         <child>
@@ -109,8 +92,8 @@
             <property name="label" translatable="yes">Manufacturer:</property>
           </object>
           <packing>
-            <property name="x_options">GTK_FILL</property>
-            <property name="y_options"/>
+            <property name="left-attach">0</property>
+            <property name="top-attach">0</property>
           </packing>
         </child>
         <child>
@@ -120,9 +103,8 @@
             <property name="xalign">0</property>
           </object>
           <packing>
-            <property name="left_attach">1</property>
-            <property name="right_attach">2</property>
-            <property name="y_options"/>
+            <property name="left-attach">1</property>
+            <property name="top-attach">0</property>
           </packing>
         </child>
         <child>
@@ -134,8 +116,8 @@
             <property name="label" translatable="yes">Audio formats:</property>
           </object>
           <packing>
-            <property name="top_attach">4</property>
-            <property name="bottom_attach">5</property>
+            <property name="left-attach">0</property>
+            <property name="top-attach">4</property>
           </packing>
         </child>
         <child>
@@ -147,10 +129,8 @@
             <property name="wrap">True</property>
           </object>
           <packing>
-            <property name="left_attach">1</property>
-            <property name="right_attach">2</property>
-            <property name="top_attach">4</property>
-            <property name="bottom_attach">5</property>
+            <property name="left-attach">1</property>
+            <property name="top-attach">4</property>
           </packing>
         </child>
       </object>
@@ -166,12 +146,10 @@
       </object>
     </child>
   </object>
-  <object class="GtkTable" id="mtp-basic-info">
+  <object class="GtkGrid" id="mtp-basic-info">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <property name="border_width">12</property>
-    <property name="n_rows">4</property>
-    <property name="n_columns">2</property>
     <property name="column_spacing">12</property>
     <property name="row_spacing">6</property>
     <child>
@@ -181,9 +159,8 @@
         <property name="invisible_char">●</property>
       </object>
       <packing>
-        <property name="left_attach">1</property>
-        <property name="right_attach">2</property>
-        <property name="y_options"/>
+        <property name="left-attach">1</property>
+        <property name="top-attach">0</property>
       </packing>
     </child>
     <child>
@@ -196,8 +173,8 @@
         <property name="mnemonic_widget">entry-mtp-name</property>
       </object>
       <packing>
-        <property name="x_options">GTK_FILL</property>
-        <property name="y_options"/>
+        <property name="left-attach">0</property>
+        <property name="top-attach">0</property>
       </packing>
     </child>
     <child>
@@ -208,8 +185,8 @@
         <property name="label" translatable="yes">Tracks:</property>
       </object>
       <packing>
-        <property name="top_attach">1</property>
-        <property name="bottom_attach">2</property>
+        <property name="left-attach">0</property>
+        <property name="top-attach">1</property>
       </packing>
     </child>
     <child>
@@ -220,8 +197,8 @@
         <property name="label" translatable="yes">Podcasts:</property>
       </object>
       <packing>
-        <property name="top_attach">2</property>
-        <property name="bottom_attach">3</property>
+        <property name="left-attach">0</property>
+        <property name="top-attach">2</property>
       </packing>
     </child>
     <child>
@@ -232,8 +209,8 @@
         <property name="label" translatable="yes">Playlists:</property>
       </object>
       <packing>
-        <property name="top_attach">3</property>
-        <property name="bottom_attach">4</property>
+        <property name="left-attach">0</property>
+        <property name="top-attach">3</property>
       </packing>
     </child>
     <child>
@@ -243,10 +220,8 @@
         <property name="xalign">0</property>
       </object>
       <packing>
-        <property name="left_attach">1</property>
-        <property name="right_attach">2</property>
-        <property name="top_attach">1</property>
-        <property name="bottom_attach">2</property>
+        <property name="left-attach">1</property>
+        <property name="top-attach">1</property>
       </packing>
     </child>
     <child>
@@ -256,10 +231,8 @@
         <property name="xalign">0</property>
       </object>
       <packing>
-        <property name="left_attach">1</property>
-        <property name="right_attach">2</property>
-        <property name="top_attach">2</property>
-        <property name="bottom_attach">3</property>
+        <property name="left-attach">1</property>
+        <property name="top-attach">2</property>
       </packing>
     </child>
     <child>
@@ -269,10 +242,8 @@
         <property name="xalign">0</property>
       </object>
       <packing>
-        <property name="left_attach">1</property>
-        <property name="right_attach">2</property>
-        <property name="top_attach">3</property>
-        <property name="bottom_attach">4</property>
+        <property name="left-attach">1</property>
+        <property name="top-attach">3</property>
       </packing>
     </child>
   </object>

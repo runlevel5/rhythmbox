@@ -59,10 +59,9 @@
               </packing>
             </child>
             <child>
-              <object class="GtkTable" id="table1">
+              <object class="GtkGrid" id="table1">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="n_rows">5</property>
                 <child>
                   <object class="GtkLabel" id="label3">
                     <property name="visible">True</property>
@@ -71,8 +70,8 @@
                     <property name="label" translatable="yes">    * Free listening of all songs</property>
                   </object>
                   <packing>
-                    <property name="x_options">GTK_FILL</property>
-                    <property name="y_options"/>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">0</property>
                   </packing>
                 </child>
                 <child>
@@ -83,10 +82,8 @@
                     <property name="label" translatable="yes">    * Paid members get totally unlimited downloading of the entire catalog (no other service allows that)</property>
                   </object>
                   <packing>
-                    <property name="top_attach">1</property>
-                    <property name="bottom_attach">2</property>
-                    <property name="x_options">GTK_FILL</property>
-                    <property name="y_options"/>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">1</property>
                   </packing>
                 </child>
                 <child>
@@ -97,10 +94,8 @@
                     <property name="label" translatable="yes">    * 10% of your Magnatune membership fees goes to Rhythmbox/GNOME - it's worth joining</property>
                   </object>
                   <packing>
-                    <property name="top_attach">2</property>
-                    <property name="bottom_attach">3</property>
-                    <property name="x_options">GTK_FILL</property>
-                    <property name="y_options"/>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">2</property>
                   </packing>
                 </child>
                 <child>
@@ -111,10 +106,8 @@
                     <property name="label" translatable="yes">    * Open-Source friendly file formats: MP3s and WAVs, but also OGG and FLAC files.</property>
                   </object>
                   <packing>
-                    <property name="top_attach">3</property>
-                    <property name="bottom_attach">4</property>
-                    <property name="x_options">GTK_FILL</property>
-                    <property name="y_options"/>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">3</property>
                   </packing>
                 </child>
                 <child>
@@ -125,10 +118,8 @@
                     <property name="label" translatable="yes">    * All albums and artists hand-picked</property>
                   </object>
                   <packing>
-                    <property name="top_attach">4</property>
-                    <property name="bottom_attach">5</property>
-                    <property name="x_options">GTK_FILL</property>
-                    <property name="y_options"/>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">4</property>
                   </packing>
                 </child>
               </object>
