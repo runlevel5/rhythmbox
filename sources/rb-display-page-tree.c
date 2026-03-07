@@ -796,7 +796,7 @@ impl_constructed (GObject *object)
 	GMenuModel *menu;
 	GtkBuilder *builder;
 	GApplication *app;
-	GtkAccelGroup *accel_group;
+	gpointer accel_group;
 	int pixbuf_width, pixbuf_height;
 
 	GActionEntry actions[] = {

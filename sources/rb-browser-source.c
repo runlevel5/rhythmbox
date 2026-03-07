@@ -273,7 +273,7 @@ rb_browser_source_constructed (GObject *object)
 	RBBrowserSourceClass *klass;
 	RBShell *shell;
 	GObject *shell_player;
-	GtkAccelGroup *accel_group;
+	gpointer accel_group;
 	RhythmDBEntryType *entry_type;
 	GtkWidget *content;
 	GtkWidget *paned;

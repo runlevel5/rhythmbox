@@ -154,7 +154,7 @@ rb_fm_radio_source_constructed (GObject *object)
 	RBFMRadioSource *self;
 	RBShell *shell;
 	RBSourceToolbar *toolbar;
-	GtkAccelGroup *accel_group;
+	gpointer accel_group;
 	GtkWidget *grid;
 	GActionEntry actions[] = {
 		{ "fmradio-new-station", new_station_action_cb }

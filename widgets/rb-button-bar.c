@@ -365,13 +365,13 @@ rb_button_bar_new (GMenuModel *model, GObject *target)
 /**
  * rb_button_bar_add_accelerators:
  * @bar: a #RBButtonBar
- * @group: the #GtkAccelGroup to add accelerators to
+ * @group: the #gpointer to add accelerators to
  *
  * Adds accelerators for the buttons in @bar to the accelerator
  * group @group.
  */
 void
-rb_button_bar_add_accelerators (RBButtonBar *bar, GtkAccelGroup *group)
+rb_button_bar_add_accelerators (RBButtonBar *bar, gpointer group)
 {
 	GList *c, *l;
 
@@ -405,12 +405,12 @@ rb_button_bar_add_accelerators (RBButtonBar *bar, GtkAccelGroup *group)
 /**
  * rb_button_bar_remove_accelerators:
  * @bar: a #RBButtonBar
- * @group: the #GtkAccelGroup to remove accelerators from
+ * @group: the #gpointer to remove accelerators from
  *
  * Reverses the effects of @rb_button_bar_add_accelerators.
  */
 void
-rb_button_bar_remove_accelerators (RBButtonBar *bar, GtkAccelGroup *group)
+rb_button_bar_remove_accelerators (RBButtonBar *bar, gpointer group)
 {
 	GList *c, *l;
 

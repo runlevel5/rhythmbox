@@ -59,8 +59,8 @@ GType		rb_button_bar_get_type		(void);
 
 GtkWidget *	rb_button_bar_new		(GMenuModel *model, GObject *target);
 
-void		rb_button_bar_add_accelerators	(RBButtonBar *bar, GtkAccelGroup *group);
-void		rb_button_bar_remove_accelerators (RBButtonBar *bar, GtkAccelGroup *group);
+void		rb_button_bar_add_accelerators	(RBButtonBar *bar, gpointer group);
+void		rb_button_bar_remove_accelerators (RBButtonBar *bar, gpointer group);
 
 G_END_DECLS
 

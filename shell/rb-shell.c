@@ -231,7 +231,7 @@ struct _RBShellPrivate
 	GtkWidget *window;
 	gboolean iconified;
 
-	GtkAccelGroup *accel_group;
+	gpointer accel_group;
 
 	GtkWidget *main_vbox;
 	GtkWidget *paned;
@@ -1071,13 +1071,13 @@ rb_shell_class_init (RBShellClass *klass)
 	/**
 	 * RBShell:accel-group:
 	 *
-	 * A #GtkAccelGroup instance to use for additional accelerator keys
+	 * A #gpointer instance to use for additional accelerator keys
 	 */
 	g_object_class_install_property (object_class,
 					 PROP_ACCEL_GROUP,
 					 g_param_spec_object ("accel-group",
-							      "GtkAccelGroup",
-							      "GtkAccelGroup object",
+							      "gpointer",
+							      "gpointer object",
 							      GTK_TYPE_ACCEL_GROUP,
 							      G_PARAM_READABLE));
 	/**

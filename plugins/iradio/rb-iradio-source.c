@@ -268,7 +268,7 @@ rb_iradio_source_constructed (GObject *object)
 	RBIRadioSource *source;
 	RBShell *shell;
 	GSettings *settings;
-	GtkAccelGroup *accel_group;
+	gpointer accel_group;
 	GtkWidget *grid;
 	GtkWidget *paned;
 	GActionEntry actions[] = {

@@ -60,7 +60,7 @@ struct _RBSourceToolbarClass
 GType		rb_source_toolbar_get_type 		(void);
 
 RBSourceToolbar *rb_source_toolbar_new 			(RBDisplayPage *page,
-							 GtkAccelGroup *accel_group);
+							 gpointer *accel_group);
 
 void		rb_source_toolbar_add_search_entry_menu	(RBSourceToolbar *toolbar,
 							 GMenuModel *search_menu,

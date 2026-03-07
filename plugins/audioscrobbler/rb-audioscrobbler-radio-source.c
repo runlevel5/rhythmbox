@@ -389,7 +389,7 @@ rb_audioscrobbler_radio_source_constructed (GObject *object)
 	RhythmDB *db;
 	GtkWidget *main_vbox;
 	GtkWidget *error_info_bar_content_area;
-	GtkAccelGroup *accel_group;
+	gpointer accel_group;
 	RBSourceToolbar *toolbar;
 
 	RB_CHAIN_GOBJECT_METHOD (rb_audioscrobbler_radio_source_parent_class, constructed, object);

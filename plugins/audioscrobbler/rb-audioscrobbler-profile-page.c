@@ -615,7 +615,7 @@ init_actions (RBAudioscrobblerProfilePage *page)
 	RBShell *shell;
 	RBShellPlayer *player;
 	GObject *plugin;
-	GtkAccelGroup *accel_group;
+	gpointer accel_group;
 	RhythmDBEntry *entry;
 	GActionMap *map;
 	char *action_name;

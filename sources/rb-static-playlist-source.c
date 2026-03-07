@@ -230,7 +230,7 @@ rb_static_playlist_source_constructed (GObject *object)
 	RBEntryView *songs;
 	RBShell *shell;
 	RhythmDBEntryType *entry_type;
-	GtkAccelGroup *accel_group;
+	gpointer accel_group;
 	GtkWidget *grid;
 	GtkWidget *paned;
 	GMenu *section;

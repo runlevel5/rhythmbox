@@ -1338,7 +1338,7 @@ impl_constructed (GObject *object)
 	RBShellPlayer *shell_player;
 	GSettings *settings;
 	int position;
-	GtkAccelGroup *accel_group;
+	gpointer accel_group;
 	GtkBuilder *builder;
 	GMenu *section;
 	GApplication *app;

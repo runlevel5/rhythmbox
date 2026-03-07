@@ -37,7 +37,7 @@ static void rb_source_toolbar_init (RBSourceToolbar *toolbar);
 
 struct _RBSourceToolbarPrivate
 {
-	GtkAccelGroup *accel_group;
+	gpointer *accel_group;
 	RBDisplayPage *page;
 	RBSearchEntry *search_entry;
 	GtkWidget *search_popup;
@@ -259,13 +259,13 @@ rb_source_toolbar_class_init (RBSourceToolbarClass *klass)
 	/**
 	 * RBSourceToolbar:accel-group:
 	 *
-	 * The #GtkAccelGroup to add accelerators to
+	 * The #gpointer to add accelerators to
 	 */
 	g_object_class_install_property (object_class,
 					 PROP_ACCEL_GROUP,
 					 g_param_spec_object ("accel-group",
 							      "accel group",
-							      "GtkAccelGroup instance",
+							      "gpointer instance",
 							      GTK_TYPE_ACCEL_GROUP,
 							      G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 }
@@ -273,7 +273,7 @@ rb_source_toolbar_class_init (RBSourceToolbarClass *klass)
 /**
  * rb_source_toolbar_new:
  * @page: a #RBDisplayPage
- * @accel_group: a #GtkAccelGroup to add accelerators to
+ * @accel_group: a #gpointer to add accelerators to
  *
  * Creates a new source toolbar for @page.  The toolbar does not
  * initially include a search entry.  Call #rb_source_toolbar_add_search_entry
@@ -282,7 +282,7 @@ rb_source_toolbar_class_init (RBSourceToolbarClass *klass)
  * Return value: the #RBSourceToolbar
  */
 RBSourceToolbar *
-rb_source_toolbar_new (RBDisplayPage *page, GtkAccelGroup *accel_group)
+rb_source_toolbar_new (RBDisplayPage *page, gpointer *accel_group)
 {
 	GObject *object;
 	object = g_object_new (RB_TYPE_SOURCE_TOOLBAR,

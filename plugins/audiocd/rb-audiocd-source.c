@@ -281,7 +281,7 @@ rb_audiocd_source_constructed (GObject *object)
 	RBAudioCdSource *source;
 	GtkCellRenderer *renderer;
 	GtkTreeViewColumn *extract;
-	GtkAccelGroup *accel_group;
+	gpointer accel_group;
 	GtkBuilder *builder;
 	GtkWidget *grid;
 	GtkWidget *widget;

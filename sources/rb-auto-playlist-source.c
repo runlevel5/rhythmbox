@@ -207,7 +207,7 @@ rb_auto_playlist_source_constructed (GObject *object)
 	RBAutoPlaylistSourcePrivate *priv;
 	RBShell *shell;
 	RhythmDBEntryType *entry_type;
-	GtkAccelGroup *accel_group;
+	gpointer accel_group;
 	GtkWidget *grid;
 	GMenu *section;
 	RBApplication *app = RB_APPLICATION (g_application_get_default ());
