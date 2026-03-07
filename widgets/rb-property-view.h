@@ -51,14 +51,14 @@ typedef struct RBPropertyViewPrivate RBPropertyViewPrivate;
 
 struct _RBPropertyView
 {
-	GtkScrolledWindow parent;
+	GtkBox parent;
 
 	RBPropertyViewPrivate *priv;
 };
 
 struct _RBPropertyViewClass
 {
-	GtkScrolledWindowClass parent;
+	GtkBoxClass parent;
 
 	void (*property_selected)	(RBPropertyView *view, const char *name);
 	void (*properties_selected)	(RBPropertyView *view, GList *properties);

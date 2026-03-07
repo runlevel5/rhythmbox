@@ -129,7 +129,7 @@ enum
 
 static guint rb_property_view_signals[LAST_SIGNAL] = { 0 };
 
-G_DEFINE_TYPE_WITH_PRIVATE (RBPropertyView, rb_property_view, GTK_TYPE_SCROLLED_WINDOW)
+G_DEFINE_TYPE_WITH_PRIVATE (RBPropertyView, rb_property_view, GTK_TYPE_BOX)
 
 static void
 rb_property_view_class_init (RBPropertyViewClass *klass)
