@@ -18,8 +18,6 @@ widgets_headers = files(
 install_headers(widgets_headers, subdir: 'rhythmbox/widgets')
 
 widgets_sources = files(
-  'eggwrapbox-enums.c',
-  'eggwrapbox.c',
   'gossip-cell-renderer-expander.c',
   'nautilus-floating-bar.c',
   'rb-alert-dialog.c',
