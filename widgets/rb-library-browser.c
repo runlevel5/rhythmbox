@@ -261,9 +261,9 @@ rb_library_browser_constructed (GObject *object)
 					 "property-selection-reset",
 					 G_CALLBACK (view_selection_reset_cb),
 					 browser, 0);
-		gtk_widget_show_all (GTK_WIDGET (view));
-		gtk_widget_set_no_show_all (GTK_WIDGET (view), TRUE);
-		gtk_box_pack_start (GTK_BOX (browser), GTK_WIDGET (view), TRUE, TRUE, 0);
+		gtk_widget_show (GTK_WIDGET (view));
+		/* removed: no_show_all not needed in GTK4 */
+		gtk_box_append (GTK_BOX (browser), GTK_WIDGET (view));
 	}
 
 	update_browser_views_visibility (browser);

@@ -135,7 +135,7 @@ update_property_editor_for_preset (RBEncodingSettings *settings, const char *med
 		g_signal_handler_disconnect (settings->priv->encoder_property_editor,
 					     settings->priv->profile_changed_id);
 
-		gtk_container_remove (GTK_CONTAINER (settings->priv->encoder_property_holder),
+		gtk_box_remove (GTK_BOX (settings->priv->encoder_property_holder),
 				      settings->priv->encoder_property_editor);
 		settings->priv->profile_changed_id = 0;
 		settings->priv->encoder_property_editor = NULL;
@@ -177,7 +177,7 @@ update_property_editor_for_preset (RBEncodingSettings *settings, const char *med
 			gtk_grid_attach (GTK_GRID (settings->priv->encoder_property_holder),
 					 settings->priv->encoder_property_editor,
 					 0, 0, 1, 1);
-			gtk_widget_show_all (settings->priv->encoder_property_editor);
+			gtk_widget_show (settings->priv->encoder_property_editor);
 
 			settings->priv->preset_name = g_strdup (preset);
 		}
@@ -517,7 +517,7 @@ impl_constructed (GObject *object)
 
 	builder = rb_builder_load ("encoding-settings.ui", NULL);
 	grid = GTK_WIDGET (gtk_builder_get_object (builder, "encoding-settings-grid"));
-	gtk_container_add (GTK_CONTAINER (settings), grid);
+	gtk_box_append (GTK_BOX (settings), grid);
 
 	settings->priv->profile_model = GTK_TREE_MODEL (gtk_tree_store_new (3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_POINTER));
 	for (p = gst_encoding_target_get_profiles (settings->priv->target); p != NULL; p = p->next) {
@@ -564,7 +564,7 @@ impl_constructed (GObject *object)
 			  settings);
 
 	settings->priv->install_plugins_button = GTK_WIDGET (gtk_builder_get_object (builder, "install_plugins_button"));
-	gtk_widget_set_no_show_all (settings->priv->install_plugins_button, TRUE);
+	/* removed: no_show_all not needed in GTK4 */
 	g_signal_connect (G_OBJECT (settings->priv->install_plugins_button),
 			  "clicked",
 			  G_CALLBACK (install_plugins_cb),
@@ -573,7 +573,7 @@ impl_constructed (GObject *object)
 	settings->priv->encoder_property_holder = GTK_WIDGET (gtk_builder_get_object (builder, "encoder_property_holder"));
 
 	settings->priv->lossless_check = GTK_WIDGET (gtk_builder_get_object (builder, "transcode_lossless_check"));
-	gtk_widget_set_no_show_all (settings->priv->lossless_check, TRUE);
+	/* removed: no_show_all not needed in GTK4 */
 	if (settings->priv->show_lossless) {
 		gtk_widget_show (settings->priv->lossless_check);
 		g_settings_bind (settings->priv->gsettings,

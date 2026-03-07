@@ -972,8 +972,8 @@ rb_header_sync (RBHeader *header)
 	} else {
 		rb_debug ("not playing");
 		if (gtk_widget_get_parent (header->priv->not_playing) == NULL) {
-			gtk_container_remove (GTK_CONTAINER (header->priv->songbox), header->priv->song);
-			gtk_container_remove (GTK_CONTAINER (header->priv->songbox), header->priv->details);
+			gtk_box_remove (GTK_BOX (header->priv->songbox), header->priv->song);
+			gtk_box_remove (GTK_BOX (header->priv->songbox), header->priv->details);
 			gtk_grid_attach (GTK_GRID (header->priv->songbox), header->priv->not_playing, 0, 0, 1, 1);
 		}
 

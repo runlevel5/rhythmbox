@@ -159,7 +159,7 @@ rb_alert_dialog_init (RBAlertDialog *dialog)
 	gtk_box_append (GTK_BOX (vbox), expander);
 
 	content = gtk_dialog_get_content_area (GTK_DIALOG (dialog));
-	gtk_box_pack_start (GTK_BOX (content), hbox, FALSE, FALSE, 0);
+	gtk_box_append (GTK_BOX (content), hbox);
 
 	gtk_widget_show (hbox);
 	gtk_widget_hide (expander);

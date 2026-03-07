@@ -1544,7 +1544,7 @@ rb_entry_view_append_column (RBEntryView *view,
 		propid = RHYTHMDB_PROP_RATING;
 		sort_func = (GCompareDataFunc) rhythmdb_query_model_double_ceiling_sort_func;
 
-		gtk_icon_size_lookup (GTK_ICON_SIZE_MENU, &column_width, NULL);
+		column_width = 16;
 		column_width = column_width * 5 + 5;
 		resizable = FALSE;
 		title = _("Rating");
@@ -1867,19 +1867,11 @@ rb_entry_view_constructed (GObject *object)
 	gtk_tree_selection_set_mode (view->priv->selection, GTK_SELECTION_MULTIPLE);
 
 	if (view->priv->is_drag_source) {
-		rb_tree_dnd_add_drag_source_support (GTK_TREE_VIEW (view->priv->treeview),
-						     GDK_BUTTON1_MASK,
-						     rb_entry_view_drag_types,
-						     G_N_ELEMENTS (rb_entry_view_drag_types),
-						     GDK_ACTION_COPY);
+		/* TODO: set up GtkDragSource */
 	}
 
 	if (view->priv->is_drag_dest) {
-		rb_tree_dnd_add_drag_dest_support (GTK_TREE_VIEW (view->priv->treeview),
-						   RB_TREE_DEST_CAN_DROP_BETWEEN | RB_TREE_DEST_EMPTY_VIEW_DROP,
-						   rb_entry_view_drag_types,
-						   G_N_ELEMENTS (rb_entry_view_drag_types),
-						   GDK_ACTION_COPY | GDK_ACTION_MOVE);
+		/* TODO: set up GtkDropTarget */
 	}
 
 	gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (view->priv->scrolled_window), view->priv->treeview);
@@ -1927,7 +1919,7 @@ rb_entry_view_constructed (GObject *object)
 	g_object_unref (query_model);
 
 	view->priv->status = nautilus_floating_bar_new (NULL, NULL, FALSE);
-	gtk_widget_set_no_show_all (view->priv->status, TRUE);
+	/* removed: no_show_all not needed in GTK4 */
 	gtk_widget_set_halign (view->priv->status, GTK_ALIGN_END);
 	gtk_widget_set_valign (view->priv->status, GTK_ALIGN_END);
 	gtk_overlay_add_overlay (GTK_OVERLAY (view->priv->overlay), view->priv->status);
@@ -2459,9 +2451,7 @@ rb_entry_view_enable_drag_source (RBEntryView *view,
 {
 	g_return_if_fail (view != NULL);
 
-	rb_tree_dnd_add_drag_source_support (GTK_TREE_VIEW (view->priv->treeview),
-					 GDK_BUTTON1_MASK | GDK_BUTTON3_MASK,
-					 targets, n_targets, GDK_ACTION_COPY);
+	/* TODO: set up GtkDragSource */
 }
 
 static void
