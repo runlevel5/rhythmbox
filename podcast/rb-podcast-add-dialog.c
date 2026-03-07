@@ -702,7 +702,7 @@ set_paned_position (GtkWidget *paned)
 }
 
 static void
-paned_size_allocate_cb (GtkWidget *widget, GdkRectangle *allocation, RBPodcastAddDialog *dialog)
+paned_size_allocate_cb (GtkWidget *widget, int width, int height, int baseline, RBPodcastAddDialog *dialog)
 {
 	if (dialog->priv->paned_size_set == FALSE) {
 		dialog->priv->paned_size_set = TRUE;
@@ -747,10 +747,9 @@ impl_constructed (GObject *object)
 	dialog->priv->info_bar_message = gtk_label_new ("");
 	dialog->priv->info_bar = gtk_info_bar_new ();
 	g_object_set (dialog->priv->info_bar, "spacing", 0, NULL);
-	gtk_container_add (GTK_CONTAINER (gtk_info_bar_get_content_area (GTK_INFO_BAR (dialog->priv->info_bar))),
-			   dialog->priv->info_bar_message);
-	gtk_widget_set_no_show_all (dialog->priv->info_bar, TRUE);
-	gtk_box_pack_start (GTK_BOX (dialog), dialog->priv->info_bar, FALSE, FALSE, 0);
+	gtk_info_bar_add_child (GTK_INFO_BAR (dialog->priv->info_bar),
+			       dialog->priv->info_bar_message);
+	gtk_box_append (GTK_BOX (dialog), dialog->priv->info_bar);
 	gtk_widget_show (dialog->priv->info_bar_message);
 
 	dialog->priv->subscribe_button = GTK_WIDGET (gtk_builder_get_object (builder, "subscribe-button"));
@@ -769,8 +768,8 @@ impl_constructed (GObject *object)
 	g_object_set (dialog->priv->search_entry,"explicit-mode", TRUE, NULL);
 	g_signal_connect (dialog->priv->search_entry, "search", G_CALLBACK (search_cb), dialog);
 	g_signal_connect (dialog->priv->search_entry, "activate", G_CALLBACK (search_cb), dialog);
-	gtk_container_add (GTK_CONTAINER (gtk_builder_get_object (builder, "search-entry-box")),
-			   GTK_WIDGET (dialog->priv->search_entry));
+	gtk_box_append (GTK_BOX (gtk_builder_get_object (builder, "search-entry-box")),
+			GTK_WIDGET (dialog->priv->search_entry));
 
 	g_signal_connect (gtk_builder_get_object (builder, "close-button"),
 			  "clicked",
@@ -816,15 +815,13 @@ impl_constructed (GObject *object)
 	gtk_tree_view_append_column (GTK_TREE_VIEW (dialog->priv->feed_view), column);
 
 	overlay = GTK_WIDGET (gtk_builder_get_object (builder, "overlay"));
-	gtk_widget_add_events (overlay, GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK);
 	dialog->priv->feed_status = nautilus_floating_bar_new (NULL, NULL, FALSE);
-	gtk_widget_set_no_show_all (dialog->priv->feed_status, TRUE);
 	gtk_widget_set_halign (dialog->priv->feed_status, GTK_ALIGN_END);
 	gtk_widget_set_valign (dialog->priv->feed_status, GTK_ALIGN_END);
 	gtk_overlay_add_overlay (GTK_OVERLAY (overlay), dialog->priv->feed_status);
 
 	widget = GTK_WIDGET (gtk_builder_get_object (builder, "podcast-add-dialog"));
-	gtk_box_pack_start (GTK_BOX (dialog), widget, TRUE, TRUE, 0);
+	gtk_box_append (GTK_BOX (dialog), widget);
 
 	/* set up episode view */
 	g_object_get (dialog->priv->shell, "shell-player", &shell_player, NULL);
@@ -881,12 +878,9 @@ impl_constructed (GObject *object)
 
 	paned = GTK_WIDGET (gtk_builder_get_object (builder, "paned"));
 	g_signal_connect (paned, "size-allocate", G_CALLBACK (paned_size_allocate_cb), dialog);
-	gtk_paned_pack2 (GTK_PANED (paned),
-			 GTK_WIDGET (episodes),
-			 TRUE,
-			 FALSE);
+	gtk_paned_set_end_child (GTK_PANED (paned), GTK_WIDGET (episodes));
 
-	gtk_widget_show_all (GTK_WIDGET (dialog));
+	gtk_widget_show (GTK_WIDGET (dialog));
 	g_object_unref (builder);
 }
 
@@ -940,7 +934,20 @@ impl_get_property (GObject *object, guint prop_id, GValue *value, GParamSpec *ps
 static void
 rb_podcast_add_dialog_init (RBPodcastAddDialog *dialog)
 {
+	GtkShortcutTrigger *trigger;
+	GtkShortcutAction *action;
+	GtkShortcut *shortcut;
+	GtkEventController *controller;
+
 	dialog->priv = rb_podcast_add_dialog_get_instance_private (dialog);
+
+	controller = gtk_shortcut_controller_new ();
+	gtk_shortcut_controller_set_scope (GTK_SHORTCUT_CONTROLLER (controller), GTK_SHORTCUT_SCOPE_MANAGED);
+	trigger = gtk_keyval_trigger_new (GDK_KEY_Escape, 0);
+	action = gtk_signal_action_new ("close");
+	shortcut = gtk_shortcut_new (trigger, action);
+	gtk_shortcut_controller_add_shortcut (GTK_SHORTCUT_CONTROLLER (controller), shortcut);
+	gtk_widget_add_controller (GTK_WIDGET (dialog), controller);
 }
 
 static void
@@ -988,11 +995,7 @@ rb_podcast_add_dialog_class_init (RBPodcastAddDialogClass *klass)
 					0);
 
 
-	gtk_binding_entry_add_signal (gtk_binding_set_by_class (klass),
-				      GDK_KEY_Escape,
-				      0,
-				      "close",
-				      0);
+
 }
 
 void
