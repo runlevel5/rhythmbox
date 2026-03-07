@@ -34,6 +34,21 @@ typedef gpointer GdkDragContext;
 #define GTK_ICON_SIZE_MENU GTK_ICON_SIZE_NORMAL
 #endif
 
+
+/* gtk_selection_data_* accessors removed in GTK4 (DnD rewrite).
+ * These stubs return dummy values to keep code compiling. */
+#define gtk_selection_data_get_target(sd)    ((GdkAtom)NULL)
+#define gtk_selection_data_get_format(sd)    (0)
+#define gtk_selection_data_get_length(sd)    (-1)
+#define gtk_selection_data_get_data_type(sd) ((GdkAtom)NULL)
+#define gtk_selection_data_get_data(sd)      ((const guchar *)NULL)
+#define gtk_selection_data_set(sd,t,f,d,l)   /* GTK4: DnD stub */
+#define gdk_atom_name(a)                     ((char *)(a))
+
+/* gtk_target_list_new / gtk_target_list_find removed in GTK4 */
+#define gtk_target_list_new(targets, n)      (NULL)
+#define gtk_target_list_find(list, atom, p)  (FALSE)
+
 G_END_DECLS
 
 #endif /* RB_GTK4_COMPAT_H */
