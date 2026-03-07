@@ -91,7 +91,7 @@ task_list_changed_cb (RBListModel *model, int position, int removed, int added, 
 		GtkWidget *w;
 
 		w = g_array_index (list->priv->widgets, GtkWidget *, position);
-		gtk_container_remove (GTK_CONTAINER (list), w);
+		gtk_grid_remove (GTK_GRID (list), w);
 		g_array_remove_index (list->priv->widgets, position);
 	}
 
@@ -135,7 +135,6 @@ task_list_changed_cb (RBListModel *model, int position, int removed, int added, 
 
 		gtk_grid_insert_column (GTK_GRID (list), position + i);
 		gtk_grid_attach (GTK_GRID (list), entry, 0, position + i, 1, 1);
-		gtk_widget_show_all (entry);
 		g_array_insert_val (list->priv->widgets, position + i, entry);
 	}
 }
