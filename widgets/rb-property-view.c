@@ -68,9 +68,7 @@ static void rb_property_view_post_row_deleted_cb (GtkTreeModel *model,
 						  RBPropertyView *view);
 static gboolean rb_property_view_popup_menu_cb (GtkTreeView *treeview,
 						RBPropertyView *view);
-static gboolean rb_property_view_button_press_cb (GtkTreeView *tree,
-						  GdkEventButton *event,
-						  RBPropertyView *view);
+static void rb_property_view_button_press_cb (GtkGestureClick *gesture, int n_press, double x, double y, RBPropertyView *view);
 
 struct RBPropertyViewPrivate
 {
@@ -471,13 +469,8 @@ rb_property_view_new (RhythmDB *db,
 	RBPropertyView *view;
 
 	view = RB_PROPERTY_VIEW (g_object_new (RB_TYPE_PROPERTY_VIEW,
-					       "hadjustment", NULL,
-					       "vadjustment", NULL,
-					       "hscrollbar_policy", GTK_POLICY_AUTOMATIC,
-					       "vscrollbar_policy", GTK_POLICY_AUTOMATIC,
 					       "hexpand", TRUE,
 					       "vexpand", TRUE,
-					       "shadow_type", GTK_SHADOW_NONE,
 					       "db", db,
 					       "prop", propid,
 					       "title", title,
@@ -695,7 +688,15 @@ rb_property_view_constructed (GObject *object)
 
 	view = RB_PROPERTY_VIEW (object);
 
-	view->priv->treeview = GTK_WIDGET (gtk_tree_view_new_with_model (GTK_TREE_MODEL (view->priv->prop_model)));
+	{
+		GtkWidget *sw = gtk_scrolled_window_new ();
+		gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (sw), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+		view->priv->treeview = GTK_WIDGET (gtk_tree_view_new_with_model (GTK_TREE_MODEL (view->priv->prop_model)));
+		gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (sw), view->priv->treeview);
+		gtk_widget_set_hexpand (sw, TRUE);
+		gtk_widget_set_vexpand (sw, TRUE);
+		gtk_box_append (GTK_BOX (view), sw);
+	}
 
 
 	g_signal_connect_object (G_OBJECT (view->priv->treeview),
@@ -716,13 +717,13 @@ rb_property_view_constructed (GObject *object)
 				 view,
 				 0);
 
-	g_signal_connect_object (G_OBJECT (view->priv->treeview),
-			         "button_press_event",
-			         G_CALLBACK (rb_property_view_button_press_cb),
-			         view,
-				 0);
+	{
+		GtkGesture *click = gtk_gesture_click_new ();
+		gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (click), GDK_BUTTON_SECONDARY);
+		g_signal_connect_object (click, "pressed", G_CALLBACK (rb_property_view_button_press_cb), view, 0);
+		gtk_widget_add_controller (view->priv->treeview, GTK_EVENT_CONTROLLER (click));
+	}
 
-	gtk_container_add (GTK_CONTAINER (view), view->priv->treeview);
 
 	rb_property_view_set_model_internal (view, rhythmdb_property_model_new (view->priv->db, view->priv->propid));
 	if (view->priv->draggable)
@@ -971,41 +972,37 @@ rb_property_view_set_column_visible (RBPropertyView *view, gboolean visible)
 	gtk_tree_view_column_set_visible (view->priv->column, visible);
 }
 
-static gboolean
-rb_property_view_button_press_cb (GtkTreeView *tree,
-				  GdkEventButton *event,
+static void
+rb_property_view_button_press_cb (GtkGestureClick *gesture,
+				  int n_press,
+				  double x,
+				  double y,
 				  RBPropertyView *view)
 {
+	GtkTreeSelection *selection;
+	GtkTreePath *path;
 
-	if (event->button == 3) {
-		GtkTreeSelection *selection;
-		GtkTreePath *path;
+	selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (view->priv->treeview));
 
-		selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (view->priv->treeview));
+	gtk_tree_view_get_path_at_pos (GTK_TREE_VIEW (view->priv->treeview), (int)x, (int)y, &path, NULL, NULL, NULL);
+	if (path == NULL) {
+		gtk_tree_selection_unselect_all (selection);
+	} else {
+		GtkTreeModel *model;
+		GtkTreeIter iter;
+		char *val;
+		GList *lst = NULL;
 
-		gtk_tree_view_get_path_at_pos (GTK_TREE_VIEW (view->priv->treeview), event->x, event->y, &path, NULL, NULL, NULL);
-		if (path == NULL) {
-			gtk_tree_selection_unselect_all (selection);
-		} else {
-			GtkTreeModel *model;
-			GtkTreeIter iter;
-			char *val;
-			GList *lst = NULL;
-
-			model = gtk_tree_view_get_model (GTK_TREE_VIEW (view->priv->treeview));
-			if (gtk_tree_model_get_iter (model, &iter, path)) {
-				gtk_tree_model_get (model, &iter,
-						    RHYTHMDB_PROPERTY_MODEL_COLUMN_TITLE, &val, -1);
-				lst = g_list_prepend (lst, (gpointer) val);
-				rb_property_view_set_selection (view, lst);
-				g_free (val);
-			}
+		model = gtk_tree_view_get_model (GTK_TREE_VIEW (view->priv->treeview));
+		if (gtk_tree_model_get_iter (model, &iter, path)) {
+			gtk_tree_model_get (model, &iter,
+					    RHYTHMDB_PROPERTY_MODEL_COLUMN_TITLE, &val, -1);
+			lst = g_list_prepend (lst, (gpointer) val);
+			rb_property_view_set_selection (view, lst);
+			g_free (val);
 		}
-		g_signal_emit (G_OBJECT (view), rb_property_view_signals[SHOW_POPUP], 0);
-		return TRUE;
 	}
-
-	return FALSE;
+	g_signal_emit (G_OBJECT (view), rb_property_view_signals[SHOW_POPUP], 0);
 }
 
 /**
