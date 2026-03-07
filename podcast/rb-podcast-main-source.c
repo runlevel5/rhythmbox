@@ -209,7 +209,7 @@ error_dialog_response_cb (GtkDialog *dialog, int response, RBPodcastMainSource *
 		g_object_unref (pd);
 	}
 
-	gtk_widget_destroy (GTK_WIDGET (dialog));
+	gtk_window_destroy (GTK_WINDOW (dialog));
 }
 
 static void
@@ -235,7 +235,7 @@ feed_update_status_cb (RBPodcastManager *mgr, const char *url, RBPodcastFeedUpda
 		 * ask if the user wants to add it anyway; if it already
 		 * exists, there's nothing to do besides reporting the error.
 		 */
-		dialog = gtk_message_dialog_new (GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (source))),
+		dialog = gtk_message_dialog_new (GTK_WINDOW (gtk_widget_get_root (GTK_WIDGET (source))),
 						 GTK_DIALOG_DESTROY_WITH_PARENT,
 						 GTK_MESSAGE_ERROR,
 						 (entry != NULL) ? GTK_BUTTONS_OK : GTK_BUTTONS_YES_NO,
@@ -252,12 +252,11 @@ feed_update_status_cb (RBPodcastManager *mgr, const char *url, RBPodcastFeedUpda
 		g_free (nice_error);
 
 		gtk_window_set_title (GTK_WINDOW (dialog), "");
-		gtk_container_set_border_width (GTK_CONTAINER (dialog), 6);
 
 		g_object_set_data_full (G_OBJECT (dialog), "feed-url", g_strdup (url), g_free);
 		g_signal_connect (dialog, "response", G_CALLBACK (error_dialog_response_cb), source);
 
-		gtk_widget_show_all (dialog);
+		gtk_widget_show (dialog);
 
 		break;
 
@@ -278,16 +277,21 @@ feed_update_status_cb (RBPodcastManager *mgr, const char *url, RBPodcastFeedUpda
 }
 
 static void
-rb_podcast_main_source_btn_file_change_cb (GtkFileChooserButton *widget, RBPodcastSource *source)
+rb_podcast_main_source_btn_file_change_cb (GtkWidget *widget, RBPodcastSource *source)
 {
 	GSettings *settings;
+	GFile *file;
 	char *uri;
 
 	settings = g_settings_new (PODCAST_SETTINGS_SCHEMA);
 
-	uri = gtk_file_chooser_get_uri (GTK_FILE_CHOOSER (widget));
-	g_settings_set_string (settings, PODCAST_DOWNLOAD_DIR_KEY, uri);
-	g_free (uri);
+	file = gtk_file_chooser_get_file (GTK_FILE_CHOOSER (widget));
+	if (file != NULL) {
+		uri = g_file_get_uri (file);
+		g_settings_set_string (settings, PODCAST_DOWNLOAD_DIR_KEY, uri);
+		g_free (uri);
+		g_object_unref (file);
+	}
 
 	g_object_unref (settings);
 }
@@ -310,17 +314,26 @@ impl_get_config_widget (RBDisplayPage *page, RBShellPreferences *prefs)
 	source->priv->config_widget = GTK_WIDGET (gtk_builder_get_object (builder, "podcast_vbox"));
 
 	btn_file = GTK_WIDGET (gtk_builder_get_object (builder, "location_chooser"));
-	gtk_file_chooser_add_shortcut_folder (GTK_FILE_CHOOSER (btn_file),
-					      rb_music_dir (),
-					      NULL);
+	{
+		GFile *music_dir = g_file_new_for_path (rb_music_dir ());
+		gtk_file_chooser_add_shortcut_folder (GTK_FILE_CHOOSER (btn_file),
+						     music_dir,
+						     NULL);
+		g_object_unref (music_dir);
+	}
 
 	g_object_get (source,
 		      "podcast-manager", &podcast_mgr,
 		      NULL);
 	download_dir = rb_podcast_manager_get_podcast_dir (podcast_mgr);
 
-	gtk_file_chooser_set_current_folder_uri (GTK_FILE_CHOOSER (btn_file),
-						 download_dir);
+	{
+		GFile *folder = g_file_new_for_uri (download_dir);
+		gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (btn_file),
+						     folder,
+						     NULL);
+		g_object_unref (folder);
+	}
 	g_object_unref (podcast_mgr);
 	g_free (download_dir);
 
