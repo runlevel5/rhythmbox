@@ -21,6 +21,7 @@
 #define __RB_TREE_DND_H__
 
 #include <gtk/gtk.h>
+#include "rb-gtk4-compat.h"
 
 G_BEGIN_DECLS
 

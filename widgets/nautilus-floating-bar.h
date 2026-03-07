@@ -24,6 +24,7 @@
 #define __NAUTILUS_FLOATING_BAR_H__
 
 #include <gtk/gtk.h>
+#include "rb-gtk4-compat.h"
 
 #define NAUTILUS_FLOATING_BAR_ACTION_ID_STOP 1
 

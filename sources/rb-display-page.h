@@ -29,6 +29,7 @@
 #define RB_DISPLAY_PAGE_H
 
 #include <gtk/gtk.h>
+#include "rb-gtk4-compat.h"
 
 #include <shell/rb-shell-preferences.h>
 

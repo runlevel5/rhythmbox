@@ -31,6 +31,7 @@
 #include <math.h>
 
 #include <gtk/gtk.h>
+#include "rb-gtk4-compat.h"
 #include <glib/gi18n.h>
 
 #include "rb-cut-and-paste-code.h"

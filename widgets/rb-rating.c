@@ -30,6 +30,7 @@
 
 #include <string.h>
 #include <gtk/gtk.h>
+#include "rb-gtk4-compat.h"
 #include <gdk/gdkkeysyms.h>
 
 #include "rb-rating.h"

@@ -30,6 +30,7 @@
 #define __RB_ENTRY_VIEW_H
 
 #include <gtk/gtk.h>
+#include "rb-gtk4-compat.h"
 
 #include <rhythmdb/rhythmdb.h>
 #include <rhythmdb/rhythmdb-query-model.h>
@@ -90,7 +91,7 @@ struct _RBEntryView
 
 struct _RBEntryViewClass
 {
-	GtkScrolledWindowClass parent;
+	GtkBoxClass parent;
 
 	void (*entry_added)		(RBEntryView *view, RhythmDBEntry *entry);
 	void (*entry_deleted)		(RBEntryView *view, RhythmDBEntry *entry);

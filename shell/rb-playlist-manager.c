@@ -45,6 +45,7 @@
 #include <libxml/tree.h>
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
+#include "rb-gtk4-compat.h"
 
 #include "rb-playlist-manager.h"
 #include "rb-playlist-source.h"

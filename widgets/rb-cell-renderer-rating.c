@@ -28,6 +28,7 @@
 
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
+#include "rb-gtk4-compat.h"
 
 #include "rb-cell-renderer-rating.h"
 #include "rb-rating-helper.h"
