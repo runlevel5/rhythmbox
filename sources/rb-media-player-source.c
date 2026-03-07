@@ -527,7 +527,7 @@ properties_dialog_response_cb (GtkDialog *dialog,
 {
 	RBMediaPlayerSourcePrivate *priv = MEDIA_PLAYER_SOURCE_GET_PRIVATE (source);
 	rb_debug ("media player properties dialog closed");
-	gtk_widget_destroy (GTK_WIDGET (dialog));
+	gtk_window_destroy (GTK_WINDOW (dialog));
 	g_object_unref (priv->properties_dialog);
 	priv->properties_dialog = NULL;
 }
@@ -538,7 +538,7 @@ rb_media_player_source_show_properties (RBMediaPlayerSource *source)
 	RBMediaPlayerSourcePrivate *priv = MEDIA_PLAYER_SOURCE_GET_PRIVATE (source);
 	RBMediaPlayerSourceClass *klass = RB_MEDIA_PLAYER_SOURCE_GET_CLASS (source);
 	GtkBuilder *builder;
-	GtkContainer *container;
+	GtkWidget *container;
 	char *name;
 	char *text;
 
@@ -577,9 +577,9 @@ rb_media_player_source_show_properties (RBMediaPlayerSource *source)
 	rb_sync_state_ui_create_bar (&priv->volume_usage, rb_media_player_source_get_capacity (source), NULL);
 	rb_sync_state_ui_update_volume_usage (&priv->volume_usage, priv->sync_state);
 
-	gtk_widget_show_all (priv->volume_usage.widget);
-	container = GTK_CONTAINER (gtk_builder_get_object (builder, "device-usage-container"));
-	gtk_container_add (container, priv->volume_usage.widget);
+	gtk_widget_show (priv->volume_usage.widget);
+	container = GTK_WIDGET (gtk_builder_get_object (builder, "device-usage-container"));
+	gtk_box_append (GTK_BOX (container), priv->volume_usage.widget);
 
 
 	/* let the subclass fill in device type specific details (model names, device names,
@@ -593,22 +593,21 @@ rb_media_player_source_show_properties (RBMediaPlayerSource *source)
 	}
 
 	/* create sync UI */
-	container = GTK_CONTAINER (gtk_builder_get_object (builder, "sync-settings-ui-container"));
-	gtk_container_add (container, rb_sync_settings_ui_new (source, priv->sync_settings));
+	container = GTK_WIDGET (gtk_builder_get_object (builder, "sync-settings-ui-container"));
+	gtk_box_append (GTK_BOX (container), rb_sync_settings_ui_new (source, priv->sync_settings));
 
-	container = GTK_CONTAINER (gtk_builder_get_object (builder, "sync-state-ui-container"));
-	gtk_box_pack_start (GTK_BOX (container), rb_sync_state_ui_new (priv->sync_state), TRUE, TRUE, 0);
-	gtk_widget_show_all (GTK_WIDGET (container));
+	container = GTK_WIDGET (gtk_builder_get_object (builder, "sync-state-ui-container"));
+	gtk_box_append (GTK_BOX (container), rb_sync_state_ui_new (priv->sync_state));
+	gtk_widget_show (GTK_WIDGET (container));
 
 	/* create encoding settings UI */
 	if (priv->encoding_settings) {
-		container = GTK_CONTAINER (gtk_builder_get_object (builder, "encoding-settings-container"));
-		gtk_container_add (container, rb_encoding_settings_new (priv->encoding_settings, priv->encoding_target, TRUE));
-		gtk_widget_show_all (GTK_WIDGET (container));
+		container = GTK_WIDGET (gtk_builder_get_object (builder, "encoding-settings-container"));
+		gtk_box_append (GTK_BOX (container), rb_encoding_settings_new (priv->encoding_settings, priv->encoding_target, TRUE));
+		gtk_widget_show (GTK_WIDGET (container));
 	} else {
-		container = GTK_CONTAINER (gtk_builder_get_object (builder, "encoding-settings-frame"));
+		container = GTK_WIDGET (gtk_builder_get_object (builder, "encoding-settings-frame"));
 		gtk_widget_hide (GTK_WIDGET (container));
-		gtk_widget_set_no_show_all (GTK_WIDGET (container), TRUE);
 	}
 
 	gtk_widget_show (GTK_WIDGET (priv->properties_dialog));
@@ -855,7 +854,7 @@ sync_confirm_dialog_cb (GtkDialog *dialog,
 	g_signal_handler_disconnect (priv->sync_state, priv->sync_dialog_update_id);
 	priv->sync_dialog_update_id = 0;
 
-	gtk_widget_destroy (GTK_WIDGET (dialog));
+	gtk_window_destroy (GTK_WINDOW (dialog));
 	priv->sync_dialog = NULL;
 	priv->sync_dialog_label = NULL;
 
@@ -909,7 +908,7 @@ display_sync_settings_dialog (RBMediaPlayerSource *source)
 	builder = rb_builder_load ("sync-dialog.ui", NULL);
 	if (builder == NULL) {
 		g_warning ("Couldn't load sync-dialog.ui");
-		gtk_widget_show_all (priv->sync_dialog);
+		gtk_widget_show (priv->sync_dialog);
 		return;
 	}
 
@@ -917,15 +916,15 @@ display_sync_settings_dialog (RBMediaPlayerSource *source)
 	priv->sync_dialog_error_box = GTK_WIDGET (gtk_builder_get_object (builder, "sync-dialog-message"));
 
 	widget = GTK_WIDGET (gtk_builder_get_object (builder, "sync-settings-ui-container"));
-	gtk_container_add (GTK_CONTAINER (widget), rb_sync_settings_ui_new (source, priv->sync_settings));
+	gtk_box_append (GTK_BOX (widget), rb_sync_settings_ui_new (source, priv->sync_settings));
 
 	widget = GTK_WIDGET (gtk_builder_get_object (builder, "sync-state-ui-container"));
 	gtk_box_pack_start (GTK_BOX (widget), rb_sync_state_ui_new (priv->sync_state), TRUE, TRUE, 0);
 
 	widget = GTK_WIDGET (gtk_builder_get_object (builder, "sync-dialog"));
-	gtk_box_pack_start (GTK_BOX (content), widget, TRUE, TRUE, 0);
+	gtk_box_append (GTK_BOX (content), widget);
 
-	gtk_widget_show_all (priv->sync_dialog);
+	gtk_widget_show (priv->sync_dialog);
 	update_sync_settings_dialog (source);
 	g_object_unref (builder);
 }

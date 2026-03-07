@@ -102,7 +102,7 @@ static void library_settings_changed_cb (GSettings *settings, const char *key, R
 static void encoding_settings_changed_cb (GSettings *settings, const char *key, RBLibrarySource *source);
 static void db_settings_changed_cb (GSettings *settings, const char *key, RBLibrarySource *source);
 static gboolean rb_library_source_library_location_cb (GtkEntry *entry,
-						       GdkEventFocus *event,
+						       gpointer event,
 						       RBLibrarySource *source);
 static void rb_library_source_sync_child_sources (RBLibrarySource *source);
 static void rb_library_source_path_changed_cb (GtkComboBox *box,
@@ -339,10 +339,10 @@ rb_library_source_constructed (GObject *object)
 	g_object_get (source, "shell", &shell, NULL);
 	g_object_get (shell, "db", &source->priv->db, NULL);
 
-	gtk_container_add (GTK_CONTAINER (source), source->priv->notebook);
+	gtk_box_append (GTK_BOX (source), source->priv->notebook);
 
 	gtk_notebook_set_current_page (GTK_NOTEBOOK (source->priv->notebook), 0);
-	gtk_widget_show_all (source->priv->notebook);
+	gtk_widget_show (source->priv->notebook);
 
 	source->priv->settings = g_settings_new ("org.gnome.rhythmbox.library");
 	g_signal_connect_object (source->priv->settings, "changed", G_CALLBACK (library_settings_changed_cb), source, 0);
@@ -433,7 +433,7 @@ impl_pack_content (RBBrowserSource *bsource, GtkWidget *content)
 {
 	RBLibrarySource *source = RB_LIBRARY_SOURCE (bsource);
 	gtk_notebook_append_page (GTK_NOTEBOOK (source->priv->notebook), content, NULL);
-	gtk_widget_show_all (content);
+	gtk_widget_show (content);
 }
 
 static void
@@ -441,18 +441,21 @@ location_response_cb (GtkDialog *dialog, int response, RBLibrarySource *source)
 {
 	char *uri;
 
-	uri = gtk_file_chooser_get_uri (GTK_FILE_CHOOSER (dialog));
-	if (uri == NULL) {
-		uri = gtk_file_chooser_get_current_folder_uri (GTK_FILE_CHOOSER (dialog));
+	{
+		GFile *file = gtk_file_chooser_get_file (GTK_FILE_CHOOSER (dialog));
+		if (file != NULL) {
+			uri = g_file_get_uri (file);
+			g_object_unref (file);
+		}
 	}
-	gtk_widget_destroy (GTK_WIDGET (dialog));
+	gtk_window_destroy (GTK_WINDOW (dialog));
 
 	if (response == GTK_RESPONSE_ACCEPT) {
 		char *path;
 
 		path = g_uri_unescape_string (uri, NULL);
 
-		gtk_entry_set_text (GTK_ENTRY (source->priv->library_location_entry), path);
+		gtk_editable_set_text (GTK_EDITABLE (source->priv->library_location_entry), path);
 		rb_library_source_library_location_cb (GTK_ENTRY (source->priv->library_location_entry),
 						       NULL, source);
 		g_free (path);
@@ -470,7 +473,7 @@ rb_library_source_location_button_clicked_cb (GtkButton *button, RBLibrarySource
 				      GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
 				      FALSE);
 	g_signal_connect (dialog, "response", G_CALLBACK (location_response_cb), source);
-	gtk_widget_show_all (dialog);
+	gtk_widget_show (dialog);
 }
 
 static void
@@ -495,16 +498,16 @@ update_library_locations (RBLibrarySource *source)
 		gtk_widget_set_sensitive (source->priv->library_location_entry, TRUE);
 
 		path = g_uri_unescape_string (locations[0], NULL);
-		gtk_entry_set_text (GTK_ENTRY (source->priv->library_location_entry), path);
+		gtk_editable_set_text (GTK_EDITABLE (source->priv->library_location_entry), path);
 		g_free (path);
 	} else if (g_strv_length (locations) == 0) {
 		/* no library directories */
 		gtk_widget_set_sensitive (source->priv->library_location_entry, TRUE);
-		gtk_entry_set_text (GTK_ENTRY (source->priv->library_location_entry), "");
+		gtk_editable_set_text (GTK_EDITABLE (source->priv->library_location_entry), "");
 	} else {
 		/* multiple library directories */
 		gtk_widget_set_sensitive (source->priv->library_location_entry, FALSE);
-		gtk_entry_set_text (GTK_ENTRY (source->priv->library_location_entry), _("Multiple locations set"));
+		gtk_editable_set_text (GTK_EDITABLE (source->priv->library_location_entry), _("Multiple locations set"));
 	}
 
 	g_signal_handlers_unblock_by_func (G_OBJECT (source->priv->library_location_entry),
@@ -593,6 +596,14 @@ library_settings_changed_cb (GSettings *settings, const char *key, RBLibrarySour
 	}
 }
 
+
+static void
+library_location_focus_leave_cb (GtkEventControllerFocus *controller,
+				 RBLibrarySource *source)
+{
+	rb_library_source_library_location_cb (GTK_ENTRY (source->priv->library_location_entry),
+					       NULL, source);
+}
 static GtkWidget *
 impl_get_config_widget (RBDisplayPage *asource, RBShellPreferences *prefs)
 {
@@ -621,10 +632,14 @@ impl_get_config_widget (RBDisplayPage *asource, RBShellPreferences *prefs)
 			  "clicked",
 			  G_CALLBACK (rb_library_source_location_button_clicked_cb),
 			  asource);
-	g_signal_connect (source->priv->library_location_entry,
-			  "focus-out-event",
-			  G_CALLBACK (rb_library_source_library_location_cb),
-			  asource);
+	{
+		GtkEventController *focus_controller = gtk_event_controller_focus_new ();
+		g_signal_connect (focus_controller,
+				  "leave",
+				  G_CALLBACK (library_location_focus_leave_cb),
+				  asource);
+		gtk_widget_add_controller (source->priv->library_location_entry, focus_controller);
+	}
 
 	source->priv->watch_library_check = GTK_WIDGET (gtk_builder_get_object (builder, "watch_library_check"));
 	g_settings_bind (source->priv->db_settings, "monitor-library",
@@ -636,7 +651,7 @@ impl_get_config_widget (RBDisplayPage *asource, RBShellPreferences *prefs)
 	tmp = gtk_builder_get_object (builder, "layout_path_menu_box");
 	label = gtk_builder_get_object (builder, "layout_path_menu_label");
 	source->priv->layout_path_menu = gtk_combo_box_text_new ();
-	gtk_box_pack_start (GTK_BOX (tmp), source->priv->layout_path_menu, TRUE, TRUE, 0);
+	gtk_box_append (GTK_BOX (tmp), source->priv->layout_path_menu);
 	gtk_label_set_mnemonic_widget (GTK_LABEL (label), source->priv->layout_path_menu);
 	g_signal_connect (source->priv->layout_path_menu,
 			  "changed",
@@ -650,7 +665,7 @@ impl_get_config_widget (RBDisplayPage *asource, RBShellPreferences *prefs)
 	tmp = gtk_builder_get_object (builder, "layout_filename_menu_box");
 	label = gtk_builder_get_object (builder, "layout_filename_menu_label");
 	source->priv->layout_filename_menu = gtk_combo_box_text_new ();
-	gtk_box_pack_start (GTK_BOX (tmp), source->priv->layout_filename_menu, TRUE, TRUE, 0);
+	gtk_box_append (GTK_BOX (tmp), source->priv->layout_filename_menu);
 	gtk_label_set_mnemonic_widget (GTK_LABEL (label), source->priv->layout_filename_menu);
 	g_signal_connect (source->priv->layout_filename_menu,
 			  "changed",
@@ -662,10 +677,10 @@ impl_get_config_widget (RBDisplayPage *asource, RBShellPreferences *prefs)
 	}
 
 	holder = GTK_WIDGET (gtk_builder_get_object (builder, "encoding_settings_holder"));
-	gtk_container_add (GTK_CONTAINER (holder),
-			   rb_encoding_settings_new (source->priv->encoding_settings,
-						     rb_gst_get_default_encoding_target (),
-						     FALSE));
+	gtk_box_append (GTK_BOX (holder),
+			rb_encoding_settings_new (source->priv->encoding_settings,
+						  rb_gst_get_default_encoding_target (),
+						  FALSE));
 
 	source->priv->layout_example_label = GTK_WIDGET (gtk_builder_get_object (builder, "layout_example_label"));
 
@@ -679,7 +694,7 @@ impl_get_config_widget (RBDisplayPage *asource, RBShellPreferences *prefs)
 
 static gboolean
 rb_library_source_library_location_cb (GtkEntry *entry,
-				       GdkEventFocus *event,
+				       gpointer event,
 				       RBLibrarySource *source)
 {
 	const char *path;
@@ -687,7 +702,7 @@ rb_library_source_library_location_cb (GtkEntry *entry,
 	GFile *file;
 	char *uri;
 
-	path = gtk_entry_get_text (entry);
+	path = gtk_editable_get_text (GTK_EDITABLE (entry));
 	file = g_file_parse_name (path);
 	uri = g_file_get_uri (file);
 	g_object_unref (file);
@@ -1539,7 +1554,7 @@ rb_library_source_show_import_dialog (RBLibrarySource *source)
 				  G_CALLBACK (import_dialog_status_notify_cb),
 				  source);
 
-		gtk_widget_show_all (GTK_WIDGET (source->priv->import_dialog));
+		gtk_widget_show (GTK_WIDGET (source->priv->import_dialog));
 		gtk_notebook_append_page (GTK_NOTEBOOK (source->priv->notebook),
 					  source->priv->import_dialog,
 					  NULL);
