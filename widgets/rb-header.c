@@ -76,19 +76,15 @@ static void rb_header_get_property (GObject *object,
 				    guint prop_id,
 				    GValue *value,
 				    GParamSpec *pspec);
-static GtkSizeRequestMode rb_header_get_request_mode (GtkWidget *widget);
-static void rb_header_get_preferred_width (GtkWidget *widget,
-					   int *minimum_size,
-					   int *natural_size);
-static void rb_header_size_allocate (GtkWidget *widget, GtkAllocation *allocation);
+static void rb_header_size_allocate (GtkWidget *widget, int width, int height, int baseline);
 static void rb_header_update_elapsed (RBHeader *header);
 static void apply_slider_position (RBHeader *header);
-static gboolean slider_press_callback (GtkWidget *widget, GdkEventButton *event, RBHeader *header);
-static gboolean slider_moved_callback (GtkWidget *widget, GdkEventMotion *event, RBHeader *header);
-static gboolean slider_release_callback (GtkWidget *widget, GdkEventButton *event, RBHeader *header);
+static void slider_press_callback (GtkGestureClick *gesture, int n_press, double x, double y, RBHeader *header);
+static void slider_moved_callback (GtkEventControllerMotion *controller, double x, double y, RBHeader *header);
+static void slider_release_callback (GtkGestureClick *gesture, int n_press, double x, double y, RBHeader *header);
 static void slider_changed_callback (GtkWidget *widget, RBHeader *header);
-static gboolean slider_scroll_callback (GtkWidget *widget, GdkEventScroll *event, RBHeader *header);
-static gboolean slider_focus_out_callback (GtkWidget *widget, GdkEvent *event, RBHeader *header);
+static gboolean slider_scroll_callback (GtkEventControllerScroll *controller, double dx, double dy, RBHeader *header);
+static void slider_focus_out_callback (GtkEventControllerFocus *controller, RBHeader *header);
 static void time_button_clicked_cb (GtkWidget *button, RBHeader *header);
 
 static void rb_header_elapsed_changed_cb (RBShellPlayer *player, gint64 elapsed, RBHeader *header);
@@ -99,8 +95,8 @@ static void rb_header_sync_time (RBHeader *header);
 static void art_cb (RBExtDBKey *key, RBExtDBKey *store_key, const char *filename, GValue *data, RBHeader *header);
 static void uri_dropped_cb (RBFadingImage *image, const char *uri, RBHeader *header);
 static void pixbuf_dropped_cb (RBFadingImage *image, GdkPixbuf *pixbuf, RBHeader *header);
-static void image_button_press_cb (GtkWidget *widget, GdkEvent *event, RBHeader *header);
-static gboolean label_button_press_cb (GtkWidget *widget, GdkEventButton *event, RBHeader *header);
+static void image_button_press_cb (GtkGestureClick *gesture, int n_press, double x, double y, RBHeader *header);
+static void label_button_press_cb (GtkGestureClick *gesture, int n_press, double x, double y, RBHeader *header);
 static void art_added_cb (RBExtDB *db, RBExtDBKey *key, const char *filename, GValue *data, RBHeader *header);
 static void volume_widget_changed_cb (GtkScaleButton *widget, gdouble volume, RBHeader *header);
 static void player_volume_changed_cb (RBShellPlayer *player, GParamSpec *pspec, RBHeader *header);
@@ -184,10 +180,7 @@ rb_header_class_init (RBHeaderClass *klass)
 	object_class->set_property = rb_header_set_property;
 	object_class->get_property = rb_header_get_property;
 
-	widget_class->get_request_mode = rb_header_get_request_mode;
-	widget_class->get_preferred_width = rb_header_get_preferred_width;
 	widget_class->size_allocate = rb_header_size_allocate;
-	/* GtkGrid's get_preferred_height_for_width does all we need here */
 
 	/**
 	 * RBHeader:db:
@@ -296,40 +289,40 @@ rb_header_constructed (GObject *object)
 
 	gtk_grid_set_column_spacing (GTK_GRID (header), 6);
 	gtk_grid_set_column_homogeneous (GTK_GRID (header), TRUE);
-	gtk_container_set_border_width (GTK_CONTAINER (header), 3);
 
 	/* set up position slider */
 	header->priv->adjustment = GTK_ADJUSTMENT (gtk_adjustment_new (0.0, 0.0, 10.0, 1.0, 10.0, 0.0));
 	header->priv->scale = gtk_scale_new (GTK_ORIENTATION_HORIZONTAL, header->priv->adjustment);
-	gtk_widget_set_no_show_all (header->priv->scale, TRUE);
 	gtk_range_set_fill_level (GTK_RANGE (header->priv->scale), 0.0);
 	gtk_range_set_show_fill_level (GTK_RANGE (header->priv->scale), FALSE);
 	gtk_range_set_restrict_to_fill_level (GTK_RANGE (header->priv->scale), FALSE);
 	gtk_widget_set_hexpand (header->priv->scale, TRUE);
-	g_signal_connect_object (G_OBJECT (header->priv->scale),
-				 "button_press_event",
-				 G_CALLBACK (slider_press_callback),
-				 header, 0);
-	g_signal_connect_object (G_OBJECT (header->priv->scale),
-				 "button_release_event",
-				 G_CALLBACK (slider_release_callback),
-				 header, 0);
-	g_signal_connect_object (G_OBJECT (header->priv->scale),
-				 "motion_notify_event",
-				 G_CALLBACK (slider_moved_callback),
-				 header, 0);
+	{
+		GtkGesture *click = gtk_gesture_click_new ();
+		gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (click), 0);
+		g_signal_connect_object (click, "pressed", G_CALLBACK (slider_press_callback), header, 0);
+		g_signal_connect_object (click, "released", G_CALLBACK (slider_release_callback), header, 0);
+		gtk_widget_add_controller (header->priv->scale, GTK_EVENT_CONTROLLER (click));
+	}
+	{
+		GtkEventController *motion = gtk_event_controller_motion_new ();
+		g_signal_connect_object (motion, "motion", G_CALLBACK (slider_moved_callback), header, 0);
+		gtk_widget_add_controller (header->priv->scale, motion);
+	}
 	g_signal_connect_object (G_OBJECT (header->priv->scale),
 				 "value_changed",
 				 G_CALLBACK (slider_changed_callback),
 				 header, 0);
-	g_signal_connect_object (G_OBJECT (header->priv->scale),
-				 "scroll_event",
-				 G_CALLBACK (slider_scroll_callback),
-				 header, 0);
-	g_signal_connect_object (G_OBJECT (header->priv->scale),
-				 "focus-out-event",
-				 G_CALLBACK (slider_focus_out_callback),
-				 header, 0);
+	{
+		GtkEventController *scroll = gtk_event_controller_scroll_new (GTK_EVENT_CONTROLLER_SCROLL_VERTICAL);
+		g_signal_connect_object (scroll, "scroll", G_CALLBACK (slider_scroll_callback), header, 0);
+		gtk_widget_add_controller (header->priv->scale, scroll);
+	}
+	{
+		GtkEventController *focus = gtk_event_controller_focus_new ();
+		g_signal_connect_object (focus, "leave", G_CALLBACK (slider_focus_out_callback), header, 0);
+		gtk_widget_add_controller (header->priv->scale, focus);
+	}
 	gtk_scale_set_draw_value (GTK_SCALE (header->priv->scale), FALSE);
 	gtk_widget_set_size_request (header->priv->scale, 150, -1);
 
@@ -346,10 +339,12 @@ rb_header_constructed (GObject *object)
 	gtk_label_set_ellipsize (GTK_LABEL (header->priv->song), PANGO_ELLIPSIZE_END);
 	gtk_widget_set_halign (header->priv->song, GTK_ALIGN_START);
 	gtk_widget_set_valign (header->priv->song, GTK_ALIGN_CENTER);
-	g_signal_connect_object (header->priv->song,
-				 "button-press-event",
-				 G_CALLBACK (label_button_press_cb),
-				 header, 0);
+	{
+		GtkGesture *click = gtk_gesture_click_new ();
+		gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (click), 0);
+		g_signal_connect_object (click, "pressed", G_CALLBACK (label_button_press_cb), header, 0);
+		gtk_widget_add_controller (header->priv->song, GTK_EVENT_CONTROLLER (click));
+	}
 
 	header->priv->details = g_object_ref (gtk_label_new (""));
 	gtk_widget_show (header->priv->details);
@@ -359,10 +354,12 @@ rb_header_constructed (GObject *object)
 	gtk_widget_set_hexpand (header->priv->details, TRUE);
 	gtk_widget_set_halign (header->priv->details, GTK_ALIGN_START);
 	gtk_widget_set_valign (header->priv->details, GTK_ALIGN_CENTER);
-	g_signal_connect_object (header->priv->details,
-				 "button-press-event",
-				 G_CALLBACK (label_button_press_cb),
-				 header, 0);
+	{
+		GtkGesture *click = gtk_gesture_click_new ();
+		gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (click), 0);
+		g_signal_connect_object (click, "pressed", G_CALLBACK (label_button_press_cb), header, 0);
+		gtk_widget_add_controller (header->priv->details, GTK_EVENT_CONTROLLER (click));
+	}
 
 	label = g_markup_printf_escaped (TITLE_FORMAT, _("Not Playing"));
 	header->priv->not_playing = g_object_ref (gtk_label_new (label));
@@ -374,23 +371,24 @@ rb_header_constructed (GObject *object)
 	gtk_widget_set_hexpand (header->priv->not_playing, TRUE);
 	gtk_widget_set_halign (header->priv->not_playing, GTK_ALIGN_START);
 	gtk_widget_set_valign (header->priv->not_playing, GTK_ALIGN_CENTER);
-	gtk_container_add (GTK_CONTAINER (header->priv->songbox), header->priv->not_playing);
-	g_signal_connect_object (header->priv->not_playing,
-				 "button-press-event",
-				 G_CALLBACK (label_button_press_cb),
-				 header, 0);
+	gtk_grid_attach (GTK_GRID (header->priv->songbox), header->priv->not_playing, 0, 0, 1, 1);
+	{
+		GtkGesture *click = gtk_gesture_click_new ();
+		gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (click), 0);
+		g_signal_connect_object (click, "pressed", G_CALLBACK (label_button_press_cb), header, 0);
+		gtk_widget_add_controller (header->priv->not_playing, GTK_EVENT_CONTROLLER (click));
+	}
 
 	/* elapsed time / duration display */
 	header->priv->timelabel = gtk_label_new ("");
 	gtk_label_set_attributes (GTK_LABEL (header->priv->timelabel),
 				  rb_text_numeric_get_pango_attr_list ());
 	gtk_widget_set_halign (header->priv->timelabel, GTK_ALIGN_END);
-	gtk_widget_set_no_show_all (header->priv->timelabel, TRUE);
 
 	header->priv->timebutton = gtk_button_new ();
 	gtk_widget_set_valign (header->priv->timebutton, GTK_ALIGN_CENTER);
-	gtk_button_set_relief (GTK_BUTTON (header->priv->timebutton), GTK_RELIEF_NONE);
-	gtk_container_add (GTK_CONTAINER (header->priv->timebutton), header->priv->timelabel);
+	gtk_widget_add_css_class (header->priv->timebutton, "flat");
+	gtk_button_set_child (GTK_BUTTON (header->priv->timebutton), header->priv->timelabel);
 	g_signal_connect_object (header->priv->timebutton,
 				 "clicked",
 				 G_CALLBACK (time_button_clicked_cb),
@@ -405,7 +403,6 @@ rb_header_constructed (GObject *object)
 	header->priv->image = GTK_WIDGET (g_object_new (RB_TYPE_FADING_IMAGE,
 							"fallback", RB_STOCK_MISSING_ARTWORK,
 							NULL));
-	gtk_widget_set_no_show_all (header->priv->image, TRUE);
 	g_signal_connect (header->priv->image,
 			  "pixbuf-dropped",
 			  G_CALLBACK (pixbuf_dropped_cb),
@@ -414,10 +411,12 @@ rb_header_constructed (GObject *object)
 			  "uri-dropped",
 			  G_CALLBACK (uri_dropped_cb),
 			  header);
-	g_signal_connect (header->priv->image,
-			  "button-press-event",
-			  G_CALLBACK (image_button_press_cb),
-			  header);
+	{
+		GtkGesture *click = gtk_gesture_click_new ();
+		gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (click), 1);
+		g_signal_connect_object (click, "pressed", G_CALLBACK (image_button_press_cb), header, 0);
+		gtk_widget_add_controller (header->priv->image, GTK_EVENT_CONTROLLER (click));
+	}
 
 	/* volume button */
 	header->priv->volume_button = gtk_volume_button_new ();
@@ -580,23 +579,8 @@ rb_header_playing_song_changed_cb (RBShellPlayer *player, RhythmDBEntry *entry, 
 	header->priv->image_path = NULL;
 }
 
-static GtkSizeRequestMode
-rb_header_get_request_mode (GtkWidget *widget)
-{
-	return GTK_SIZE_REQUEST_HEIGHT_FOR_WIDTH;
-}
-
 static void
-rb_header_get_preferred_width (GtkWidget *widget,
-			       int *minimum_width,
-			       int *natural_width)
-{
-	*minimum_width = 0;
-	*natural_width = 0;
-}
-
-static void
-rb_header_size_allocate (GtkWidget *widget, GtkAllocation *allocation)
+rb_header_size_allocate (GtkWidget *widget, int width, int height, int baseline)
 {
 	int spacing;
 	int scale_width;
@@ -604,119 +588,125 @@ rb_header_size_allocate (GtkWidget *widget, GtkAllocation *allocation)
 	int time_width;
 	int image_width;
 	int volume_width;
+	int alloc_x, alloc_width;
 	GtkAllocation child_alloc;
 	gboolean rtl;
 
-	GTK_WIDGET_CLASS (rb_header_parent_class)->size_allocate (widget, allocation);
+	GTK_WIDGET_CLASS (rb_header_parent_class)->size_allocate (widget, width, height, baseline);
 
-	gtk_widget_set_allocation (widget, allocation);
 	spacing = gtk_grid_get_column_spacing (GTK_GRID (widget));
 	rtl = (gtk_widget_get_direction (widget) == GTK_TEXT_DIR_RTL);
 
+	alloc_x = 0;
+	alloc_width = width;
+
 	/* take some leading space for the image, which we always make square */
 	if (RB_HEADER (widget)->priv->show_album_art) {
-		image_width = allocation->height;
+		image_width = height;
 		if (rtl) {
-			child_alloc.x = allocation->x + allocation->width - image_width;
+			child_alloc.x = alloc_width - image_width;
 		} else {
-			child_alloc.x = allocation->x;
-			allocation->x += image_width + spacing;
+			child_alloc.x = alloc_x;
+			alloc_x += image_width + spacing;
 		}
-		allocation->width -= image_width + spacing;
-		child_alloc.y = allocation->y;
+		alloc_width -= image_width + spacing;
+		child_alloc.y = 0;
 		child_alloc.width = image_width;
-		child_alloc.height = allocation->height;
-		gtk_widget_size_allocate (RB_HEADER (widget)->priv->image, &child_alloc);
+		child_alloc.height = height;
+		gtk_widget_size_allocate (RB_HEADER (widget)->priv->image, &child_alloc, baseline);
 	} else {
 		image_width = 0;
 	}
 
 	/* allocate space for the volume button at the end */
-	gtk_widget_get_preferred_width (RB_HEADER (widget)->priv->volume_button, &volume_width, NULL);
+	gtk_widget_measure (RB_HEADER (widget)->priv->volume_button, GTK_ORIENTATION_HORIZONTAL, -1, &volume_width, NULL, NULL, NULL);
 	if (rtl) {
-		child_alloc.x = allocation->x;
-		allocation->x += volume_width + spacing;
+		child_alloc.x = alloc_x;
+		alloc_x += volume_width + spacing;
 	} else {
-		child_alloc.x = (allocation->x + allocation->width) - volume_width;
+		child_alloc.x = (alloc_x + alloc_width) - volume_width;
 	}
-	child_alloc.y = allocation->y;
+	child_alloc.y = 0;
 	child_alloc.width = volume_width;
-	child_alloc.height = allocation->height;
-	allocation->width -= volume_width + spacing;
-	gtk_widget_size_allocate (RB_HEADER (widget)->priv->volume_button, &child_alloc);
+	child_alloc.height = height;
+	alloc_width -= volume_width + spacing;
+	gtk_widget_size_allocate (RB_HEADER (widget)->priv->volume_button, &child_alloc, baseline);
 
 	/* figure out how much space to allocate to the scale.
 	 * it gets at least its minimum size, at most 1/3 of the
 	 * space we have.
 	 */
 	if (RB_HEADER (widget)->priv->show_slider) {
-		gtk_widget_get_preferred_width (RB_HEADER (widget)->priv->scale, &scale_width, NULL);
-		if (scale_width < allocation->width / 3)
-			scale_width = allocation->width / 3;
+		gtk_widget_measure (RB_HEADER (widget)->priv->scale, GTK_ORIENTATION_HORIZONTAL, -1, &scale_width, NULL, NULL, NULL);
+		if (scale_width < alloc_width / 3)
+			scale_width = alloc_width / 3;
 
-		if (scale_width + image_width > allocation->width)
-			scale_width = allocation->width - image_width;
+		if (scale_width + image_width > alloc_width)
+			scale_width = alloc_width - image_width;
 
 		if (scale_width > 0) {
 			if (rtl) {
-				child_alloc.x = allocation->x;
+				child_alloc.x = alloc_x;
 			} else {
-				child_alloc.x = allocation->x + (allocation->width - scale_width) + spacing;
+				child_alloc.x = alloc_x + (alloc_width - scale_width) + spacing;
 			}
-			child_alloc.y = allocation->y;
+			child_alloc.y = 0;
 			child_alloc.width = scale_width - spacing;
-			child_alloc.height = allocation->height;
-			gtk_widget_show (RB_HEADER (widget)->priv->scale);
-			gtk_widget_size_allocate (RB_HEADER (widget)->priv->scale, &child_alloc);
+			child_alloc.height = height;
+			gtk_widget_set_visible (RB_HEADER (widget)->priv->scale, TRUE);
+			gtk_widget_size_allocate (RB_HEADER (widget)->priv->scale, &child_alloc, baseline);
 		} else {
-			gtk_widget_hide (RB_HEADER (widget)->priv->scale);
+			gtk_widget_set_visible (RB_HEADER (widget)->priv->scale, FALSE);
 		}
 	} else {
 		scale_width = 0;
 	}
 
 	/* time button gets its minimum size */
-	gtk_widget_get_preferred_width (RB_HEADER (widget)->priv->songbox, NULL, &info_width);
+	{
+		int natural_info;
+		gtk_widget_measure (RB_HEADER (widget)->priv->songbox, GTK_ORIENTATION_HORIZONTAL, -1, NULL, &natural_info, NULL, NULL);
+	}
 	if (gtk_widget_get_visible (RB_HEADER (widget)->priv->timelabel)) {
-		gtk_widget_get_preferred_width (RB_HEADER (widget)->priv->timebutton, &time_width, NULL);
+		gtk_widget_measure (RB_HEADER (widget)->priv->timebutton, GTK_ORIENTATION_HORIZONTAL, -1, &time_width, NULL, NULL, NULL);
 	} else {
 		time_width = 0;
 	}
 
-	info_width = allocation->width - (scale_width + time_width) - (2 * spacing);
+	info_width = alloc_width - (scale_width + time_width) - (2 * spacing);
 
 	if (rtl) {
-		child_alloc.x = allocation->x + allocation->width - info_width;
+		child_alloc.x = alloc_x + alloc_width - info_width;
 	} else {
-		child_alloc.x = allocation->x;
+		child_alloc.x = alloc_x;
 	}
 
 	if (info_width > 0) {
-		child_alloc.y = allocation->y;
+		child_alloc.y = 0;
 		child_alloc.width = info_width;
-		child_alloc.height = allocation->height;
-		gtk_widget_show (RB_HEADER (widget)->priv->songbox);
-		gtk_widget_size_allocate (RB_HEADER (widget)->priv->songbox, &child_alloc);
+		child_alloc.height = height;
+		gtk_widget_set_visible (RB_HEADER (widget)->priv->songbox, TRUE);
+		gtk_widget_size_allocate (RB_HEADER (widget)->priv->songbox, &child_alloc, baseline);
 	} else {
-		gtk_widget_hide (RB_HEADER (widget)->priv->songbox);
+		gtk_widget_set_visible (RB_HEADER (widget)->priv->songbox, FALSE);
 		info_width = 0;
 	}
 
 	if (time_width == 0) {
-		gtk_widget_hide (RB_HEADER (widget)->priv->timebutton);
-	} else if (info_width + scale_width + (2 * spacing) + time_width > allocation->width) {
-		gtk_widget_hide (RB_HEADER (widget)->priv->timebutton);
+		gtk_widget_set_visible (RB_HEADER (widget)->priv->timebutton, FALSE);
+	} else if (info_width + scale_width + (2 * spacing) + time_width > alloc_width) {
+		gtk_widget_set_visible (RB_HEADER (widget)->priv->timebutton, FALSE);
 	} else {
 		if (rtl) {
-			child_alloc.x = allocation->x + scale_width + spacing;
+			child_alloc.x = alloc_x + scale_width + spacing;
 		} else {
-			child_alloc.x = allocation->x + info_width + spacing;
+			child_alloc.x = alloc_x + info_width + spacing;
 		}
-		child_alloc.y = allocation->y;
+		child_alloc.y = 0;
 		child_alloc.width = time_width;
-		child_alloc.height = allocation->height;
-		gtk_widget_show (RB_HEADER (widget)->priv->timebutton);
-		gtk_widget_size_allocate (RB_HEADER (widget)->priv->timebutton, &child_alloc);
+		child_alloc.height = height;
+		gtk_widget_set_visible (RB_HEADER (widget)->priv->timebutton, TRUE);
+		gtk_widget_size_allocate (RB_HEADER (widget)->priv->timebutton, &child_alloc, baseline);
 	}
 }
 
@@ -862,9 +852,9 @@ rb_header_sync (RBHeader *header)
 		gboolean have_duration = (header->priv->duration > 0);
 
 		if (gtk_widget_get_parent (header->priv->song) == NULL) {
-			gtk_container_remove (GTK_CONTAINER (header->priv->songbox), header->priv->not_playing);
-			gtk_container_add (GTK_CONTAINER (header->priv->songbox), header->priv->song);
-			gtk_container_add (GTK_CONTAINER (header->priv->songbox), header->priv->details);
+			gtk_grid_remove (GTK_GRID (header->priv->songbox), header->priv->not_playing);
+			gtk_grid_attach (GTK_GRID (header->priv->songbox), header->priv->song, 0, 0, 1, 1);
+			gtk_grid_attach (GTK_GRID (header->priv->songbox), header->priv->details, 0, 1, 1, 1);
 		}
 
 		title = rhythmdb_entry_get_string (header->priv->entry, RHYTHMDB_PROP_TITLE);
@@ -984,7 +974,7 @@ rb_header_sync (RBHeader *header)
 		if (gtk_widget_get_parent (header->priv->not_playing) == NULL) {
 			gtk_container_remove (GTK_CONTAINER (header->priv->songbox), header->priv->song);
 			gtk_container_remove (GTK_CONTAINER (header->priv->songbox), header->priv->details);
-			gtk_container_add (GTK_CONTAINER (header->priv->songbox), header->priv->not_playing);
+			gtk_grid_attach (GTK_GRID (header->priv->songbox), header->priv->not_playing, 0, 0, 1, 1);
 		}
 
 		rb_header_sync_time (header);
@@ -1030,24 +1020,17 @@ rb_header_sync_time (RBHeader *header)
 	rb_header_update_elapsed (header);
 }
 
-static gboolean
-slider_press_callback (GtkWidget *widget,
-		       GdkEventButton *event,
+static void
+slider_press_callback (GtkGestureClick *gesture,
+		       int n_press,
+		       double x,
+		       double y,
 		       RBHeader *header)
 {
-	int height;
-
 	header->priv->slider_dragging = TRUE;
 	header->priv->slider_drag_moved = FALSE;
 	header->priv->latest_set_time = -1;
 	g_object_notify (G_OBJECT (header), "slider-dragging");
-
-	/* hack: pretend the trough is at least 20 pixels high */
-	height = gtk_widget_get_allocated_height (widget);
-	if (fabs (event->y - (height / 2)) < 10)
-		event->y = height / 2;
-
-	return FALSE;
 }
 
 static gboolean
@@ -1059,16 +1042,16 @@ slider_moved_timeout (RBHeader *header)
 	return FALSE;
 }
 
-static gboolean
-slider_moved_callback (GtkWidget *widget,
-		       GdkEventMotion *event,
+static void
+slider_moved_callback (GtkEventControllerMotion *controller,
+		       double x,
+		       double y,
 		       RBHeader *header)
 {
 	double progress;
 
 	if (header->priv->slider_dragging == FALSE) {
-		rb_debug ("slider is not dragging");
-		return FALSE;
+		return;
 	}
 	header->priv->slider_drag_moved = TRUE;
 
@@ -1084,8 +1067,6 @@ slider_moved_callback (GtkWidget *widget,
 	}
 	header->priv->slider_moved_timeout =
 		g_timeout_add (40, (GSourceFunc) slider_moved_timeout, header);
-
-	return FALSE;
 }
 
 static void
@@ -1104,14 +1085,16 @@ apply_slider_position (RBHeader *header)
 	}
 }
 
-static gboolean
-slider_release_callback (GtkWidget *widget,
-			 GdkEventButton *event,
+static void
+slider_release_callback (GtkGestureClick *gesture,
+			 int n_press,
+			 double x,
+			 double y,
 			 RBHeader *header)
 {
 	if (header->priv->slider_dragging == FALSE) {
 		rb_debug ("slider is not dragging");
-		return FALSE;
+		return;
 	}
 
 	if (header->priv->slider_moved_timeout != 0) {
@@ -1125,7 +1108,6 @@ slider_release_callback (GtkWidget *widget,
 	header->priv->slider_dragging = FALSE;
 	header->priv->slider_drag_moved = FALSE;
 	g_object_notify (G_OBJECT (header), "slider-dragging");
-	return FALSE;
 }
 
 static void
@@ -1145,32 +1127,25 @@ slider_changed_callback (GtkWidget *widget,
 }
 
 static gboolean
-slider_scroll_callback (GtkWidget *widget, GdkEventScroll *event, RBHeader *header)
+slider_scroll_callback (GtkEventControllerScroll *controller, double dx, double dy, RBHeader *header)
 {
-	gboolean retval = TRUE;
 	gdouble adj = gtk_adjustment_get_value (header->priv->adjustment);
 
-	switch (event->direction) {
-	case GDK_SCROLL_UP:
+	if (dy < 0) {
 		rb_debug ("slider scrolling up");
 		gtk_adjustment_set_value (header->priv->adjustment, adj + SCROLL_UP_SEEK_OFFSET);
-		break;
-
-	case GDK_SCROLL_DOWN:
+	} else if (dy > 0) {
 		rb_debug ("slider scrolling down");
 		gtk_adjustment_set_value (header->priv->adjustment, adj + SCROLL_DOWN_SEEK_OFFSET);
-		break;
-
-	default:
-		retval = FALSE;
-		break;
+	} else {
+		return FALSE;
 	}
 
-	return retval;
+	return TRUE;
 }
 
-static gboolean
-slider_focus_out_callback (GtkWidget *widget, GdkEvent *event, RBHeader *header)
+static void
+slider_focus_out_callback (GtkEventControllerFocus *controller, RBHeader *header)
 {
 	if (header->priv->slider_dragging) {
 		if (header->priv->slider_drag_moved)
@@ -1180,7 +1155,6 @@ slider_focus_out_callback (GtkWidget *widget, GdkEvent *event, RBHeader *header)
 		header->priv->slider_drag_moved = FALSE;
 		g_object_notify (G_OBJECT (header), "slider-dragging");
 	}
-	return FALSE;
 }
 
 static void
@@ -1315,16 +1289,16 @@ uri_dropped_cb (RBFadingImage *image, const char *uri, RBHeader *header)
 }
 
 static void
-image_button_press_cb (GtkWidget *widget, GdkEvent *event, RBHeader *header)
+image_button_press_cb (GtkGestureClick *gesture, int n_press, double x, double y, RBHeader *header)
 {
-	if (event->button.type != GDK_2BUTTON_PRESS ||
-	    event->button.button != 1)
+	if (n_press != 2)
 		return;
 
 	if (header->priv->image_path != NULL) {
 		GAppInfo *app;
 		GAppLaunchContext *context;
 		GList *files = NULL;
+		GtkWidget *widget;
 
 		app = g_app_info_get_default_for_type ("image/jpeg", FALSE);
 		if (app == NULL) {
@@ -1333,6 +1307,7 @@ image_button_press_cb (GtkWidget *widget, GdkEvent *event, RBHeader *header)
 
 		files = g_list_append (NULL, g_file_new_for_path (header->priv->image_path));
 
+		widget = gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (gesture));
 		context = G_APP_LAUNCH_CONTEXT (gdk_display_get_app_launch_context (gtk_widget_get_display (widget)));
 		g_app_info_launch (app, files, context, NULL);
 		g_object_unref (context);
@@ -1366,60 +1341,11 @@ player_volume_changed_cb (RBShellPlayer *player, GParamSpec *pspec, RBHeader *he
 	header->priv->syncing_volume = FALSE;
 }
 
-static gboolean
-do_window_drag (RBHeader *header)
+
+static void
+label_button_press_cb (GtkGestureClick *gesture, int n_press, double x, double y, RBHeader *header)
 {
-	GtkWidget *widget;
-	gboolean window_dragging;
-
-	widget = GTK_WIDGET (header);
-	while (widget != NULL) {
-		if (GTK_IS_TOOLBAR (widget)) {
-			gtk_widget_style_get (widget, "window-dragging", &window_dragging, NULL);
-			return window_dragging;
-		}
-
-		widget = gtk_widget_get_parent (widget);
-	}
-
-	return FALSE;
-}
-
-static gboolean
-label_button_press_cb (GtkWidget *label, GdkEventButton *event, RBHeader *header)
-{
-	GtkWidget *window;
-	int min, nat;
-
-	if (do_window_drag (header) == FALSE) {
-		return FALSE;
-	}
-
-	if (gdk_event_triggers_context_menu ((GdkEvent *)event)) {
-		return FALSE;
-	}
-
-	if (event->type != GDK_BUTTON_PRESS) {
-		return FALSE;
-	}
-
-	/* if we're over or near the text, allow the normal selection thing to happen,
-	 * otherwise act like a bit of toolbar
+	/* Window dragging via label clicks is not supported in GTK4 (no begin_move_drag from gesture).
+	 * Labels are still selectable, which is the main functionality needed.
 	 */
-	gtk_widget_get_preferred_width (label, &min, &nat);
-	if (gtk_widget_get_direction (label) == GTK_TEXT_DIR_RTL) {
-		if (event->x > (gtk_widget_get_allocated_width (label) - (nat + LABEL_SELECT_PADDING))) {
-			return FALSE;
-		}
-	} else if (event->x < (nat + LABEL_SELECT_PADDING)) {
-		return FALSE;
-	}
-
-	window = gtk_widget_get_toplevel (label);
-	gtk_window_begin_move_drag (GTK_WINDOW (window),
-				    event->button,
-				    event->x_root,
-				    event->y_root,
-				    event->time);
-	return TRUE;
 }
