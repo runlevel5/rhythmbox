@@ -99,8 +99,8 @@ typedef struct
 	GtkWidget *sort_desc;
 } RBQueryCreatorPrivate;
 
-G_DEFINE_TYPE (RBQueryCreator, rb_query_creator, GTK_TYPE_DIALOG)
-#define QUERY_CREATOR_GET_PRIVATE(o)  (G_TYPE_INSTANCE_GET_PRIVATE ((o), rb_query_creator_get_type(), RBQueryCreatorPrivate))
+G_DEFINE_TYPE_WITH_PRIVATE (RBQueryCreator, rb_query_creator, GTK_TYPE_DIALOG)
+#define QUERY_CREATOR_GET_PRIVATE(o) (rb_query_creator_get_instance_private (RB_QUERY_CREATOR (o)))
 
 /**
  * SECTION:rbquerycreator
@@ -163,7 +163,6 @@ rb_query_creator_class_init (RBQueryCreatorClass *klass)
 							       TRUE,
 							       G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
-	g_type_class_add_private (klass, sizeof (RBQueryCreatorPrivate));
 }
 
 static void

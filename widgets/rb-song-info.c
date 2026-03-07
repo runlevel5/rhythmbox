@@ -159,7 +159,7 @@ struct RBSongInfoPrivate
 	RhythmDBPropertyModel* genres;
 };
 
-#define RB_SONG_INFO_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_SONG_INFO, RBSongInfoPrivate))
+#define RB_SONG_INFO_GET_PRIVATE(o) (rb_song_info_get_instance_private (o))
 
 /**
  * SECTION:rbsonginfo
@@ -208,7 +208,7 @@ enum
 
 static guint rb_song_info_signals[LAST_SIGNAL] = { 0 };
 
-G_DEFINE_TYPE (RBSongInfo, rb_song_info, GTK_TYPE_DIALOG)
+G_DEFINE_TYPE_WITH_PRIVATE (RBSongInfo, rb_song_info, GTK_TYPE_DIALOG)
 
 static void
 rb_song_info_class_init (RBSongInfoClass *klass)
@@ -320,7 +320,6 @@ rb_song_info_class_init (RBSongInfoClass *klass)
 			      1,
 			      RHYTHMDB_TYPE_ENTRY);
 
-	g_type_class_add_private (klass, sizeof (RBSongInfoPrivate));
 }
 
 static void

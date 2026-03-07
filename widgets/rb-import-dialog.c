@@ -110,7 +110,7 @@ struct RBImportDialogPrivate
 
 static guint signals[LAST_SIGNAL] = {0,};
 
-G_DEFINE_TYPE (RBImportDialog, rb_import_dialog, GTK_TYPE_GRID);
+G_DEFINE_TYPE_WITH_PRIVATE (RBImportDialog, rb_import_dialog, GTK_TYPE_GRID);
 
 static void
 rb_import_dialog_entry_type_class_init (RBImportDialogEntryTypeClass *klass)
@@ -715,9 +715,7 @@ impl_get_property (GObject *object, guint prop_id, GValue *value, GParamSpec *ps
 static void
 rb_import_dialog_init (RBImportDialog *dialog)
 {
-	dialog->priv = G_TYPE_INSTANCE_GET_PRIVATE (dialog,
-						    RB_TYPE_IMPORT_DIALOG,
-						    RBImportDialogPrivate);
+	dialog->priv = rb_import_dialog_get_instance_private (dialog);
 }
 
 static void
@@ -757,7 +755,6 @@ rb_import_dialog_class_init (RBImportDialogClass *klass)
 					G_TYPE_NONE,
 					0);
 
-	g_type_class_add_private (object_class, sizeof (RBImportDialogPrivate));
 
 	gtk_binding_entry_add_signal (gtk_binding_set_by_class (klass),
 				      GDK_KEY_Escape,

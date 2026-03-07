@@ -236,7 +236,7 @@ enum
 	PROP_VISIBLE_COLUMNS
 };
 
-G_DEFINE_TYPE (RBEntryView, rb_entry_view, GTK_TYPE_BOX)
+G_DEFINE_TYPE_WITH_PRIVATE (RBEntryView, rb_entry_view, GTK_TYPE_BOX)
 
 static guint rb_entry_view_signals[LAST_SIGNAL] = { 0 };
 
@@ -506,7 +506,6 @@ rb_entry_view_class_init (RBEntryViewClass *klass)
 			      1,
 			      G_TYPE_BOOLEAN);
 
-	g_type_class_add_private (klass, sizeof (RBEntryViewPrivate));
 
 	rb_entry_view_column_always_visible = g_quark_from_static_string ("rb_entry_view_column_always_visible");
 }
@@ -514,7 +513,7 @@ rb_entry_view_class_init (RBEntryViewClass *klass)
 static void
 rb_entry_view_init (RBEntryView *view)
 {
-	view->priv = G_TYPE_INSTANCE_GET_PRIVATE (view, RB_TYPE_ENTRY_VIEW, RBEntryViewPrivate);
+	view->priv = rb_entry_view_get_instance_private (view);
 
 	view->priv->propid_column_map = g_hash_table_new (NULL, NULL);
 	view->priv->column_sort_data_map = g_hash_table_new_full (NULL, NULL, NULL, g_free);

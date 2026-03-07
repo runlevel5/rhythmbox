@@ -47,7 +47,7 @@ struct _RBButtonBarPrivate
 	int position;
 };
 
-G_DEFINE_TYPE (RBButtonBar, rb_button_bar, GTK_TYPE_GRID);
+G_DEFINE_TYPE_WITH_PRIVATE (RBButtonBar, rb_button_bar, GTK_TYPE_GRID);
 
 enum {
 	PROP_0,
@@ -306,7 +306,7 @@ impl_set_property (GObject *object, guint prop_id, const GValue *value, GParamSp
 static void
 rb_button_bar_init (RBButtonBar *bar)
 {
-	bar->priv = G_TYPE_INSTANCE_GET_PRIVATE (bar, RB_TYPE_BUTTON_BAR, RBButtonBarPrivate);
+	bar->priv = rb_button_bar_get_instance_private (bar);
 }
 
 static void
@@ -314,7 +314,6 @@ rb_button_bar_class_init (RBButtonBarClass *klass)
 {
 	GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
 
-	g_type_class_add_private (klass, sizeof (RBButtonBarPrivate));
 
 	gobject_class->constructed = impl_constructed;
 	gobject_class->dispose = impl_dispose;

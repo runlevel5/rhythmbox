@@ -91,7 +91,7 @@ struct RBPropertyViewPrivate
 	guint update_selection_id;
 };
 
-#define RB_PROPERTY_VIEW_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_PROPERTY_VIEW, RBPropertyViewPrivate))
+#define RB_PROPERTY_VIEW_GET_PRIVATE(o) (rb_property_view_get_instance_private (o))
 
 /**
  * SECTION:rbpropertyview
@@ -129,7 +129,7 @@ enum
 
 static guint rb_property_view_signals[LAST_SIGNAL] = { 0 };
 
-G_DEFINE_TYPE (RBPropertyView, rb_property_view, GTK_TYPE_SCROLLED_WINDOW)
+G_DEFINE_TYPE_WITH_PRIVATE (RBPropertyView, rb_property_view, GTK_TYPE_SCROLLED_WINDOW)
 
 static void
 rb_property_view_class_init (RBPropertyViewClass *klass)
@@ -300,7 +300,6 @@ rb_property_view_class_init (RBPropertyViewClass *klass)
 			      G_TYPE_NONE,
 			      0);
 
-	g_type_class_add_private (klass, sizeof (RBPropertyViewPrivate));
 }
 
 static void

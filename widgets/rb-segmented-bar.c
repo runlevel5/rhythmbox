@@ -88,8 +88,8 @@ struct _RBSegmentedBarPrivate {
 	char *a11y_locale;
 };
 
-G_DEFINE_TYPE (RBSegmentedBar, rb_segmented_bar, GTK_TYPE_WIDGET)
-#define RB_SEGMENTED_BAR_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_SEGMENTED_BAR, RBSegmentedBarPrivate))
+G_DEFINE_TYPE_WITH_PRIVATE (RBSegmentedBar, rb_segmented_bar, GTK_TYPE_WIDGET)
+#define RB_SEGMENTED_BAR_GET_PRIVATE(o) (rb_segmented_bar_get_instance_private (RB_SEGMENTED_BAR (o)))
 
 struct _Color {
 	gdouble red;
@@ -201,7 +201,6 @@ rb_segmented_bar_class_init (RBSegmentedBarClass *klass)
 							    MINIMUM_HEIGHT, G_MAXUINT, MINIMUM_HEIGHT,
 							    G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
 
-	g_type_class_add_private (klass, sizeof (RBSegmentedBarPrivate));
 }
 
 static void

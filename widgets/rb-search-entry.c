@@ -72,8 +72,8 @@ struct RBSearchEntryPrivate
 	guint timeout;
 };
 
-G_DEFINE_TYPE (RBSearchEntry, rb_search_entry, GTK_TYPE_BOX)
-#define RB_SEARCH_ENTRY_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_SEARCH_ENTRY, RBSearchEntryPrivate))
+G_DEFINE_TYPE_WITH_PRIVATE (RBSearchEntry, rb_search_entry, GTK_TYPE_BOX)
+#define RB_SEARCH_ENTRY_GET_PRIVATE(o) (rb_search_entry_get_instance_private (o))
 
 /**
  * SECTION:rbsearchentry
@@ -197,7 +197,6 @@ rb_search_entry_class_init (RBSearchEntryClass *klass)
 							       FALSE,
 							       G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
-	g_type_class_add_private (klass, sizeof (RBSearchEntryPrivate));
 }
 
 static void

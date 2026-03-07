@@ -70,8 +70,8 @@ struct _RBRatingPrivate
 	RBRatingPixbufs *pixbufs;
 };
 
-G_DEFINE_TYPE (RBRating, rb_rating, GTK_TYPE_WIDGET)
-#define RB_RATING_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_RATING, RBRatingPrivate))
+G_DEFINE_TYPE_WITH_PRIVATE (RBRating, rb_rating, GTK_TYPE_WIDGET)
+#define RB_RATING_GET_PRIVATE(o) (rb_rating_get_instance_private (o))
 
 /**
  * SECTION:rbrating
@@ -196,7 +196,6 @@ rb_rating_class_init (RBRatingClass *klass)
 	gtk_binding_entry_add_signal (binding_set, GDK_KEY_Left, 0, "adjust-rating", 1, G_TYPE_DOUBLE, -1.0);
 	gtk_binding_entry_add_signal (binding_set, GDK_KEY_KP_Left, 0, "adjust-rating", 1, G_TYPE_DOUBLE, -1.0);
 	
-	g_type_class_add_private (klass, sizeof (RBRatingPrivate));
 }
 
 static void

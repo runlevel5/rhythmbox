@@ -22,7 +22,7 @@
 
 #include "gossip-cell-renderer-expander.h"
 
-#define GET_PRIV(obj) (G_TYPE_INSTANCE_GET_PRIVATE ((obj), GOSSIP_TYPE_CELL_RENDERER_EXPANDER, GossipCellRendererExpanderPriv))
+#define GET_PRIV(obj) (gossip_cell_renderer_expander_get_instance_private (GOSSIP_CELL_RENDERER_EXPANDER (obj)))
 
 static void     gossip_cell_renderer_expander_init         (GossipCellRendererExpander      *expander);
 static void     gossip_cell_renderer_expander_class_init   (GossipCellRendererExpanderClass *klass);
@@ -72,7 +72,9 @@ struct _GossipCellRendererExpanderPriv {
 	GtkExpanderStyle     expander_style;
 };
 
-G_DEFINE_TYPE (GossipCellRendererExpander, gossip_cell_renderer_expander, GTK_TYPE_CELL_RENDERER)
+typedef GossipCellRendererExpanderPriv GossipCellRendererExpanderPrivate;
+
+G_DEFINE_TYPE_WITH_PRIVATE (GossipCellRendererExpander, gossip_cell_renderer_expander, GTK_TYPE_CELL_RENDERER)
 
 static void
 gossip_cell_renderer_expander_init (GossipCellRendererExpander *expander)
@@ -133,7 +135,6 @@ gossip_cell_renderer_expander_class_init (GossipCellRendererExpanderClass *klass
 							       TRUE,
 							       G_PARAM_READWRITE));
 
-	g_type_class_add_private (object_class, sizeof (GossipCellRendererExpanderPriv));
 }
 
 static void

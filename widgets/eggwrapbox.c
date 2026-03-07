@@ -145,6 +145,7 @@ static void egg_wrap_box_get_preferred_width_for_height (GtkWidget           *bo
 
 
 G_DEFINE_TYPE_WITH_CODE (EggWrapBox, egg_wrap_box, GTK_TYPE_CONTAINER,
+                         G_ADD_PRIVATE (EggWrapBox)
                          G_IMPLEMENT_INTERFACE (GTK_TYPE_ORIENTABLE, NULL))
 
 
@@ -319,7 +320,6 @@ egg_wrap_box_class_init (EggWrapBoxClass *class)
                                                EGG_TYPE_WRAP_BOX_PACKING, 0,
                                                GTK_PARAM_READWRITE));
 
-  g_type_class_add_private (class, sizeof (EggWrapBoxPrivate));
 }
 
 static void
@@ -328,7 +328,7 @@ egg_wrap_box_init (EggWrapBox *box)
   EggWrapBoxPrivate *priv;
 
   box->priv = priv =
-    G_TYPE_INSTANCE_GET_PRIVATE (box, EGG_TYPE_WRAP_BOX, EggWrapBoxPrivate);
+    egg_wrap_box_get_instance_private (box);
 
   priv->orientation          = GTK_ORIENTATION_HORIZONTAL;
   priv->mode                 = EGG_WRAP_ALLOCATE_FREE;
