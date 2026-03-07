@@ -83,13 +83,6 @@ source_selected_cb (GObject *object, GParamSpec *pspec, RBSourceToolbar *toolbar
 	if (selected) {
 		if (toolbar->priv->search_entry != NULL) {
 			rb_search_entry_set_mnemonic (toolbar->priv->search_entry, TRUE);
-
-			gtk_widget_add_accelerator (GTK_WIDGET (toolbar->priv->search_entry),
-						    "grab-focus",
-						    toolbar->priv->accel_group,
-						    gdk_unicode_to_keyval ('f'),
-						    GDK_CONTROL_MASK,
-						    0);
 		}
 
 		if (toolbar->priv->button_bar != NULL) {
@@ -99,11 +92,6 @@ source_selected_cb (GObject *object, GParamSpec *pspec, RBSourceToolbar *toolbar
 	} else {
 		if (toolbar->priv->search_entry != NULL) {
 			rb_search_entry_set_mnemonic (toolbar->priv->search_entry, FALSE);
-
-			gtk_widget_remove_accelerator (GTK_WIDGET (toolbar->priv->search_entry),
-						       toolbar->priv->accel_group,
-						       gdk_unicode_to_keyval ('f'),
-						       GDK_CONTROL_MASK);
 		}
 
 		if (toolbar->priv->button_bar != NULL) {
@@ -130,9 +118,7 @@ search_cb (RBSearchEntry *search_entry, const char *text, RBSourceToolbar *toolb
 static void
 show_popup_cb (RBSearchEntry *search_entry, RBSourceToolbar *toolbar)
 {
-	gtk_menu_popup (GTK_MENU (toolbar->priv->search_popup),
-			NULL, NULL, NULL, NULL, 3,
-			gtk_get_current_event_time ());
+	gtk_popover_popup (GTK_POPOVER (toolbar->priv->search_popup));
 }
 
 
@@ -152,8 +138,8 @@ impl_dispose (GObject *object)
 {
 	RBSourceToolbar *toolbar = RB_SOURCE_TOOLBAR (object);
 
-	g_clear_object (&toolbar->priv->accel_group);
-	g_clear_object (&toolbar->priv->search_popup);
+	toolbar->priv->accel_group = NULL;
+	g_clear_pointer (&toolbar->priv->search_popup, gtk_widget_unparent);
 
 	G_OBJECT_CLASS (rb_source_toolbar_parent_class)->dispose (object);
 }
@@ -174,13 +160,11 @@ impl_constructed (GObject *object)
 		      NULL);
 	if (toolbar_menu != NULL) {
 		toolbar->priv->button_bar = rb_button_bar_new (toolbar_menu, G_OBJECT (toolbar->priv->page));
-		gtk_widget_show_all (toolbar->priv->button_bar);
 		gtk_grid_attach (GTK_GRID (toolbar), toolbar->priv->button_bar, 0, 0, 2 ,1);
 		g_object_unref (toolbar_menu);
 	} else {
-		blank = gtk_toolbar_new ();
+		blank = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
 		gtk_widget_set_hexpand (blank, TRUE);
-		gtk_toolbar_set_style (GTK_TOOLBAR (blank), GTK_TOOLBAR_TEXT);
 		gtk_grid_attach (GTK_GRID (toolbar), blank, 0, 0, 2 ,1);
 	}
 
@@ -266,7 +250,7 @@ rb_source_toolbar_class_init (RBSourceToolbarClass *klass)
 					 g_param_spec_object ("accel-group",
 							      "accel group",
 							      "gpointer instance",
-							      GTK_TYPE_ACCEL_GROUP,
+							      G_TYPE_OBJECT,
 							      G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -346,9 +330,8 @@ rb_source_toolbar_add_search_entry_menu (RBSourceToolbar *toolbar, GMenuModel *s
 
 	add_search_entry (toolbar, TRUE);
 
-	toolbar->priv->search_popup = gtk_menu_new_from_model (search_menu);
-	gtk_menu_attach_to_widget (GTK_MENU (toolbar->priv->search_popup), GTK_WIDGET (toolbar), NULL);
-	g_object_ref_sink (toolbar->priv->search_popup);
+	toolbar->priv->search_popup = gtk_popover_menu_new_from_model (search_menu);
+	gtk_widget_set_parent (toolbar->priv->search_popup, GTK_WIDGET (toolbar));
 	toolbar->priv->search_action = g_object_ref (search_action);
 
 	g_signal_connect (toolbar->priv->search_entry, "show-popup", G_CALLBACK (show_popup_cb), toolbar);
