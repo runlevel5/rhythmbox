@@ -175,7 +175,7 @@ static void
 clear_info_bar (RBImportDialog *dialog)
 {
 	if (dialog->priv->info_bar != NULL) {
-		gtk_container_remove (GTK_CONTAINER (dialog->priv->info_bar_container), dialog->priv->info_bar);
+		gtk_box_remove (GTK_BOX (dialog->priv->info_bar_container), dialog->priv->info_bar);
 		dialog->priv->info_bar = NULL;
 	}
 }
@@ -364,7 +364,11 @@ device_info_bar_response_cb (GtkInfoBar *bar, gint response, RBImportDialog *dia
 
 	hide_import_job (dialog);
 	g_signal_emit (dialog, signals[CLOSED], 0);
-	uri = gtk_file_chooser_get_uri (GTK_FILE_CHOOSER (dialog->priv->file_chooser));
+	{
+		GFile *_file = gtk_file_chooser_get_file (GTK_FILE_CHOOSER (dialog->priv->file_chooser));
+		uri = _file ? g_file_get_uri (_file) : NULL;
+		g_clear_object (&_file);
+	}
 	source = rb_shell_guess_source_for_uri (dialog->priv->shell, uri);
 	rb_shell_activate_source (dialog->priv->shell, source, FALSE, NULL);
 }
@@ -380,7 +384,11 @@ current_folder_changed_cb (GtkFileChooser *chooser, RBImportDialog *dialog)
 	char **locations;
 	int i;
 	
-	uri = gtk_file_chooser_get_uri (chooser);
+	{
+		GFile *_file = gtk_file_chooser_get_file (chooser);
+		uri = _file ? g_file_get_uri (_file) : NULL;
+		g_clear_object (&_file);
+	}
 	if (g_strcmp0 (uri, dialog->priv->current_uri) == 0)
 		return;
 	g_free (dialog->priv->current_uri);
@@ -397,7 +405,6 @@ current_folder_changed_cb (GtkFileChooser *chooser, RBImportDialog *dialog)
 		if (RB_IS_DEVICE_SOURCE (source)) {
 			char *msg;
 			char *name;
-			GtkWidget *content;
 
 			rhythmdb_entry_delete_by_type (dialog->priv->db, dialog->priv->entry_type);
 			rhythmdb_entry_delete_by_type (dialog->priv->db, dialog->priv->ignore_type);
@@ -412,8 +419,7 @@ current_folder_changed_cb (GtkFileChooser *chooser, RBImportDialog *dialog)
 			msg = g_strdup_printf (_("The location you have selected is on the device %s."), name);
 			label = gtk_label_new (msg);
 			g_free (msg);
-			content = gtk_info_bar_get_content_area (GTK_INFO_BAR (dialog->priv->info_bar));
-			gtk_container_add (GTK_CONTAINER (content), label);
+			gtk_info_bar_add_child (GTK_INFO_BAR (dialog->priv->info_bar), label);
 
 			msg = g_strdup_printf (_("Show %s"), name);
 			gtk_info_bar_add_button (GTK_INFO_BAR (dialog->priv->info_bar), msg, GTK_RESPONSE_ACCEPT);
@@ -421,8 +427,8 @@ current_folder_changed_cb (GtkFileChooser *chooser, RBImportDialog *dialog)
 
 			g_signal_connect (dialog->priv->info_bar, "response", G_CALLBACK (device_info_bar_response_cb), dialog);
 
-			gtk_widget_show_all (dialog->priv->info_bar);
-			gtk_container_add (GTK_CONTAINER (dialog->priv->info_bar_container), dialog->priv->info_bar);
+			gtk_widget_set_visible (dialog->priv->info_bar, TRUE);
+			gtk_box_append (GTK_BOX (dialog->priv->info_bar_container), dialog->priv->info_bar);
 			return;
 		}
 	}
@@ -471,7 +477,7 @@ update_status_idle (RBImportDialog *dialog)
 	text = g_strdup_printf (fmt, count);
 	gtk_button_set_label (GTK_BUTTON (dialog->priv->import_button), text);
 	/* a new child label is created each time button label is set */
-	gtk_label_set_attributes (GTK_LABEL (gtk_bin_get_child (GTK_BIN (dialog->priv->import_button))),
+	gtk_label_set_attributes (GTK_LABEL (gtk_button_get_child (GTK_BUTTON (dialog->priv->import_button))),
 				  rb_text_numeric_get_pango_attr_list ());
 	g_free (text);
 
@@ -559,8 +565,7 @@ impl_constructed (GObject *object)
 	builder = rb_builder_load ("import-dialog.ui", NULL);
 
 	dialog->priv->import_button = GTK_WIDGET (gtk_builder_get_object (builder, "import-button"));
-	context = gtk_widget_get_style_context (GTK_WIDGET (dialog->priv->import_button));
-	gtk_style_context_add_class (context, GTK_STYLE_CLASS_SUGGESTED_ACTION);
+	gtk_widget_add_css_class (GTK_WIDGET (dialog->priv->import_button), "suggested-action");
 	g_signal_connect_object (dialog->priv->import_button, "clicked", G_CALLBACK (import_clicked_cb), dialog, 0);
 	gtk_widget_set_sensitive (dialog->priv->import_button, FALSE);
 
@@ -583,8 +588,11 @@ impl_constructed (GObject *object)
 	} else {
 		dialog->priv->current_uri = g_filename_to_uri (rb_music_dir (), NULL, NULL);
 	}
-	gtk_file_chooser_set_current_folder_uri (GTK_FILE_CHOOSER (dialog->priv->file_chooser),
-						 dialog->priv->current_uri);
+	{
+		GFile *_folder = g_file_new_for_uri (dialog->priv->current_uri);
+		gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog->priv->file_chooser), _folder, NULL);
+		g_object_unref (_folder);
+	}
 	g_strfreev (locations);
 	g_object_unref (settings);
 
@@ -624,7 +632,7 @@ impl_constructed (GObject *object)
 			  dialog);
 	rb_entry_view_set_sorting_order (dialog->priv->entry_view, "Album", GTK_SORT_ASCENDING);
 
-	gtk_container_add (GTK_CONTAINER (gtk_builder_get_object (builder, "entry-view-container")),
+	gtk_box_append (GTK_BOX (gtk_builder_get_object (builder, "entry-view-container")),
 			   GTK_WIDGET (dialog->priv->entry_view));
 
 	dialog->priv->query_model = rhythmdb_query_model_new_empty (dialog->priv->db);
@@ -638,9 +646,9 @@ impl_constructed (GObject *object)
 	g_signal_connect (dialog->priv->query_model, "post-entry-delete", G_CALLBACK (entry_deleted_cb), dialog);
 	g_signal_connect (dialog->priv->query_model, "row-inserted", G_CALLBACK (entry_inserted_cb), dialog);
 
-	gtk_container_add (GTK_CONTAINER (dialog), GTK_WIDGET (gtk_builder_get_object (builder, "import-dialog")));
+	gtk_grid_attach (GTK_GRID (dialog), GTK_WIDGET (gtk_builder_get_object (builder, "import-dialog")), 0, 0, 1, 1);
 
-	gtk_widget_show_all (GTK_WIDGET (dialog));
+	
 	g_object_unref (builder);
 }
 
@@ -722,6 +730,7 @@ static void
 rb_import_dialog_class_init (RBImportDialogClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
+	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
 	object_class->constructed = impl_constructed;
 	object_class->dispose = impl_dispose;
@@ -756,11 +765,9 @@ rb_import_dialog_class_init (RBImportDialogClass *klass)
 					0);
 
 
-	gtk_binding_entry_add_signal (gtk_binding_set_by_class (klass),
-				      GDK_KEY_Escape,
-				      0,
-				      "close",
-				      0);
+	gtk_widget_class_add_binding_signal (widget_class,
+						    GDK_KEY_Escape, 0,
+						    "close", NULL);
 }
 
 void
