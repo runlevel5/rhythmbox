@@ -48,8 +48,6 @@ static gpointer parent_class;
 static void rb_alert_dialog_finalize     (GObject             *object);
 static void rb_alert_dialog_class_init   (RBAlertDialogClass *klass);
 static void rb_alert_dialog_init         (RBAlertDialog      *dialog);
-static void rb_alert_dialog_style_set    (GtkWidget           *widget,
-					  GtkStyle            *prev_style);
 static void rb_alert_dialog_set_property (GObject             *object,
 					  guint                prop_id,
 					  const GValue        *value,
@@ -66,29 +64,16 @@ G_DEFINE_TYPE (RBAlertDialog, rb_alert_dialog, GTK_TYPE_DIALOG)
 static void
 rb_alert_dialog_class_init (RBAlertDialogClass *class)
 {
-	GtkWidgetClass *widget_class;
 	GObjectClass   *gobject_class;
 
-	widget_class = GTK_WIDGET_CLASS (class);
 	gobject_class = G_OBJECT_CLASS (class);
 
 	parent_class = g_type_class_peek_parent (class);
 
 	G_OBJECT_CLASS (class)->finalize = rb_alert_dialog_finalize;
 
-	widget_class->style_set = rb_alert_dialog_style_set;
-
 	gobject_class->set_property = rb_alert_dialog_set_property;
 	gobject_class->get_property = rb_alert_dialog_get_property;
-
-	gtk_widget_class_install_style_property (widget_class,
-	                                         g_param_spec_int ("alert_border",
-	                                         _("Image/label border"),
-	                                         _("Width of border around the label and image in the alert dialog"),
-	                                         0,
-	                                         G_MAXINT,
-	                                         5,
-	                                         G_PARAM_READABLE));
 
 	g_object_class_install_property (gobject_class,
 	                                 PROP_ALERT_TYPE,
@@ -135,55 +120,48 @@ rb_alert_dialog_init (RBAlertDialog *dialog)
 	dialog->details->primary_label = gtk_label_new (NULL);
 	dialog->details->secondary_label = gtk_label_new (NULL);
 	dialog->details->details_label = gtk_label_new (NULL);
-	dialog->details->image = gtk_image_new_from_icon_name ("broken-image", GTK_ICON_SIZE_DIALOG);
+	dialog->details->image = gtk_image_new_from_icon_name ("broken-image");
 	gtk_widget_set_halign (dialog->details->image, GTK_ALIGN_CENTER);
 	gtk_widget_set_valign (dialog->details->image, GTK_ALIGN_START);
 
-	gtk_label_set_line_wrap (GTK_LABEL (dialog->details->primary_label), TRUE);
+	gtk_label_set_wrap (GTK_LABEL (dialog->details->primary_label), TRUE);
 	gtk_label_set_selectable (GTK_LABEL (dialog->details->primary_label), TRUE);
 	gtk_label_set_use_markup (GTK_LABEL (dialog->details->primary_label), TRUE);
 	gtk_widget_set_halign (dialog->details->primary_label, GTK_ALIGN_START);
 	gtk_widget_set_valign (dialog->details->primary_label, GTK_ALIGN_CENTER);
 
-	gtk_label_set_line_wrap (GTK_LABEL (dialog->details->secondary_label), TRUE);
+	gtk_label_set_wrap (GTK_LABEL (dialog->details->secondary_label), TRUE);
 	gtk_label_set_selectable (GTK_LABEL (dialog->details->secondary_label), TRUE);
 	gtk_widget_set_halign (dialog->details->secondary_label, GTK_ALIGN_START);
 	gtk_widget_set_valign (dialog->details->secondary_label, GTK_ALIGN_CENTER);
 
-	gtk_label_set_line_wrap (GTK_LABEL (dialog->details->details_label), TRUE);
+	gtk_label_set_wrap (GTK_LABEL (dialog->details->details_label), TRUE);
 	gtk_label_set_selectable (GTK_LABEL (dialog->details->details_label), TRUE);
 	gtk_widget_set_halign (dialog->details->details_label, GTK_ALIGN_START);
 	gtk_widget_set_valign (dialog->details->details_label, GTK_ALIGN_CENTER);
 
 	hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 12);
-	gtk_container_set_border_width (GTK_CONTAINER (hbox), 5);
 
-	gtk_box_pack_start (GTK_BOX (hbox), dialog->details->image,
-	                    FALSE, FALSE, 0);
+	gtk_box_append (GTK_BOX (hbox), dialog->details->image);
 
 	vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 12);
 
-	gtk_box_pack_start (GTK_BOX (hbox), vbox,
-	                    FALSE, FALSE, 0);
+	gtk_box_append (GTK_BOX (hbox), vbox);
 
-	gtk_box_pack_start (GTK_BOX (vbox), dialog->details->primary_label,
-	                    FALSE, FALSE, 0);
+	gtk_box_append (GTK_BOX (vbox), dialog->details->primary_label);
 
-	gtk_box_pack_start (GTK_BOX (vbox), dialog->details->secondary_label,
-	                    FALSE, FALSE, 0);
+	gtk_box_append (GTK_BOX (vbox), dialog->details->secondary_label);
 
 	expander = gtk_expander_new_with_mnemonic (_("Show more _details"));
 	dialog->details->details_expander = expander;
-	gtk_expander_set_spacing (GTK_EXPANDER (expander), 6);
-	gtk_container_add (GTK_CONTAINER (expander), dialog->details->details_label);
+	gtk_expander_set_child (GTK_EXPANDER (expander), dialog->details->details_label);
 
-	gtk_box_pack_start (GTK_BOX (vbox), expander,
-			    FALSE, FALSE, 0);
+	gtk_box_append (GTK_BOX (vbox), expander);
 
 	content = gtk_dialog_get_content_area (GTK_DIALOG (dialog));
 	gtk_box_pack_start (GTK_BOX (content), hbox, FALSE, FALSE, 0);
 
-	gtk_widget_show_all (hbox);
+	gtk_widget_show (hbox);
 	gtk_widget_hide (expander);
 
 }
@@ -211,7 +189,7 @@ setup_type (RBAlertDialog *dialog,
 			break;
 	}
 
-	gtk_image_set_from_icon_name (GTK_IMAGE (dialog->details->image), icon_name, GTK_ICON_SIZE_DIALOG);
+	gtk_image_set_from_icon_name (GTK_IMAGE (dialog->details->image), icon_name);
 }
 
 static void
@@ -318,11 +296,12 @@ rb_alert_dialog_new (GtkWindow     *parent,
 	                       "alert_type", type,
 	                       "buttons", buttons,
 	                       NULL);
-	atk_object_set_role (gtk_widget_get_accessible (widget), ATK_ROLE_ALERT);
+	gtk_accessible_update_property (GTK_ACCESSIBLE (widget),
+					GTK_ACCESSIBLE_PROPERTY_LABEL, primary_message,
+					-1);
 
 	dialog = GTK_DIALOG (widget);
 
-	gtk_container_set_border_width (GTK_CONTAINER (dialog), 5);
 	content = gtk_dialog_get_content_area (dialog);
 	gtk_box_set_spacing (GTK_BOX (content), 14);
 	gtk_window_set_resizable (GTK_WINDOW (dialog), FALSE);
@@ -331,7 +310,6 @@ rb_alert_dialog_new (GtkWindow     *parent,
          * HIG says that alert dialogs should not have window title
          */
 	gtk_window_set_title (GTK_WINDOW (dialog), "");
-	gtk_window_set_skip_taskbar_hint (GTK_WINDOW (dialog), TRUE);
 
 	rb_alert_dialog_set_primary_label (RB_ALERT_DIALOG (dialog),
 	                                    primary_message);
@@ -413,26 +391,4 @@ rb_alert_dialog_add_buttons (RBAlertDialog* alert_dialog,
 	g_object_notify (G_OBJECT (alert_dialog), "buttons");
 }
 
-static void
-rb_alert_dialog_style_set (GtkWidget *widget,
-                            GtkStyle  *prev_style)
-{
-	GtkWidget *parent;
-	gint border_width;
 
-	border_width = 0;
-
-	parent = gtk_widget_get_parent (RB_ALERT_DIALOG (widget)->details->image);
-
-	if (parent != NULL) {
-		gtk_widget_style_get (widget, "alert_border",
-		                      &border_width, NULL);
-
-		gtk_container_set_border_width (GTK_CONTAINER (parent),
-		                                border_width);
-	}
-
-	if (GTK_WIDGET_CLASS (parent_class)->style_set) {
-		(GTK_WIDGET_CLASS (parent_class)->style_set) (widget, prev_style);
-	}
-}
