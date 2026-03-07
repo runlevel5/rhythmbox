@@ -33,7 +33,7 @@
 #include <glib.h>
 #include <glib-object.h>
 
-#include <libpeas-gtk/peas-gtk.h>
+#include <libpeas.h>
 
 #include <lib/rb-builder-helpers.h>
 #include <lib/rb-debug.h>

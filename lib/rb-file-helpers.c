@@ -40,7 +40,7 @@
 #include <glib.h>
 #include <glib/gi18n.h>
 #include <glib/gstdio.h>
-#include <libpeas/peas.h>
+#include <libpeas.h>
 
 #include <stdio.h>
 #include <string.h>

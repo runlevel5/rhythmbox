@@ -28,7 +28,7 @@
 #ifndef RB_PLUGIN_MACROS_H
 #define RB_PLUGIN_MACROS_H
 
-#include <libpeas/peas.h>
+#include <libpeas.h>
 
 G_BEGIN_DECLS
 

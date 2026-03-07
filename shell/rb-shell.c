@@ -57,8 +57,7 @@
 #include <girepository.h>
 #endif
 
-#include <libpeas/peas.h>
-#include <libpeas-gtk/peas-gtk.h>
+#include <libpeas.h>
 
 #include <gst/gst.h>
 
@@ -805,8 +804,6 @@ construct_plugins (RBShell *shell)
 		return;
 	}
 
-	g_type_ensure (PEAS_GTK_TYPE_PLUGIN_MANAGER);
-
 	rb_profile_start ("loading plugins");
 	shell->priv->plugin_settings = g_settings_new ("org.gnome.rhythmbox.plugins");
 
@@ -836,13 +833,8 @@ construct_plugins (RBShell *shell)
 	}
 	g_free (typelib_dir);
 
-	if (g_irepository_require (g_irepository_get_default (), "Peas", "1.0", 0, &error) == FALSE) {
+	if (g_irepository_require (g_irepository_get_default (), "Peas", "2", 0, &error) == FALSE) {
 		g_warning ("Could not load Peas typelib: %s", error->message);
-		g_clear_error (&error);
-	}
-
-	if (g_irepository_require (g_irepository_get_default (), "PeasGtk", "1.0", 0, &error) == FALSE) {
-		g_warning ("Could not load PeasGtk typelib: %s", error->message);
 		g_clear_error (&error);
 	}
 

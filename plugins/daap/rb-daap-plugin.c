@@ -37,7 +37,7 @@
 
 #include <libsoup/soup.h>
 
-#include <libpeas-gtk/peas-gtk.h>
+#include <libpeas.h>
 
 #include "rb-plugin-macros.h"
 #include "rb-daap-plugin.h"
