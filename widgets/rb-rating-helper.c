@@ -99,36 +99,48 @@ rb_rating_install_rating_property (GObjectClass *klass, gulong prop)
  * Return value: #RBRatingPixbufs structure, or NULL if not all of
  * the pixbufs could be loaded.
  */
+static GdkPixbuf *
+load_icon_as_pixbuf (GtkIconTheme *theme, const char *name, int size)
+{
+	GtkIconPaintable *paintable;
+	GdkPixbuf *pixbuf = NULL;
+	GFile *file;
+
+	paintable = gtk_icon_theme_lookup_icon (theme, name, NULL, size, 1, GTK_TEXT_DIR_NONE, 0);
+	if (paintable == NULL)
+		return NULL;
+
+	file = gtk_icon_paintable_get_file (paintable);
+	if (file != NULL) {
+		GInputStream *stream = G_INPUT_STREAM (g_file_read (file, NULL, NULL));
+		if (stream != NULL) {
+			pixbuf = gdk_pixbuf_new_from_stream (stream, NULL, NULL);
+			g_object_unref (stream);
+		}
+		g_object_unref (file);
+	}
+	g_object_unref (paintable);
+	return pixbuf;
+}
+
 RBRatingPixbufs *
 rb_rating_pixbufs_load (void)
 {
 	RBRatingPixbufs *pixbufs;
 	GtkIconTheme *theme;
-	gint width;
+	gint width = 16;
 
 	pixbufs = g_new0 (RBRatingPixbufs, 1);
 	if (pixbufs == NULL) {
 		return NULL;
 	}
 
-	theme = gtk_icon_theme_get_default ();
-	gtk_icon_size_lookup (GTK_ICON_SIZE_MENU, NULL, &width);
+	theme = gtk_icon_theme_get_for_display (gdk_display_get_default ());
 
-	pixbufs->pix_star = gtk_icon_theme_load_icon (theme,
-						      RB_STOCK_SET_STAR,
-						      width,
-						      0,
-						      NULL);
-	pixbufs->pix_dot = gtk_icon_theme_load_icon (theme,
-						     RB_STOCK_UNSET_STAR,
-						     width,
-						     0,
-						     NULL);
-	pixbufs->pix_blank = gtk_icon_theme_load_icon (theme,
-						       RB_STOCK_NO_STAR,
-						       width,
-						       0,
-						       NULL);
+	pixbufs->pix_star = load_icon_as_pixbuf (theme, RB_STOCK_SET_STAR, width);
+	pixbufs->pix_dot = load_icon_as_pixbuf (theme, RB_STOCK_UNSET_STAR, width);
+	pixbufs->pix_blank = load_icon_as_pixbuf (theme, RB_STOCK_NO_STAR, width);
+
 	if (pixbufs->pix_star != NULL &&
 	    pixbufs->pix_dot != NULL &&
 	    pixbufs->pix_blank != NULL) {
@@ -175,7 +187,7 @@ rb_rating_render_stars (GtkWidget *widget,
 	g_return_val_if_fail (pixbufs != NULL, FALSE);
 
 	rtl = (gtk_widget_get_direction (widget) == GTK_TEXT_DIR_RTL);
-	gtk_icon_size_lookup (GTK_ICON_SIZE_MENU, &icon_width, NULL);
+	icon_width = 16;
 
 	for (i = 0; i < RB_RATING_MAX_SCORE; i++) {
 		GdkPixbuf *buf;
@@ -200,7 +212,7 @@ rb_rating_render_stars (GtkWidget *widget,
 			return FALSE;
 		}
 
-		gtk_style_context_get_color (gtk_widget_get_style_context (widget), gtk_widget_get_state_flags (widget), &color);
+		gtk_style_context_get_color (gtk_widget_get_style_context (widget), &color);
 		buf = eel_create_colorized_pixbuf (buf,
 						   ((guint16)(color.red * G_MAXUINT16) + offset) >> 8,
 						   ((guint16)(color.green * G_MAXUINT16) + offset) >> 8,
@@ -246,7 +258,7 @@ rb_rating_get_rating_from_widget (GtkWidget *widget,
 	int icon_width;
 	double rating = -1.0;
 
-	gtk_icon_size_lookup (GTK_ICON_SIZE_MENU, &icon_width, NULL);
+	icon_width = 16;
 
 	/* ensure the user clicks within the good cell */
 	if (widget_x >= 0 && widget_x <= widget_width) {
@@ -288,11 +300,8 @@ rb_rating_get_rating_from_widget (GtkWidget *widget,
 void
 rb_rating_set_accessible_description (GtkWidget *widget, gdouble rating)
 {
-	AtkObject *aobj;
 	int stars;
-	g_autofree gchar *adescription;
-
-	aobj = gtk_widget_get_accessible (widget);
+	g_autofree gchar *adescription = NULL;
 
 	stars = floor (rating);
 	if (stars == 0) {
@@ -301,6 +310,8 @@ rb_rating_set_accessible_description (GtkWidget *widget, gdouble rating)
 		adescription = g_strdup_printf (ngettext ("%d Star", "%d Stars", stars), stars);
 	}
 
-	atk_object_set_description (aobj, adescription);
+	gtk_accessible_update_property (GTK_ACCESSIBLE (widget),
+					GTK_ACCESSIBLE_PROPERTY_DESCRIPTION, adescription,
+					-1);
 }
 
