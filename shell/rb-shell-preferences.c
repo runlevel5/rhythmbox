@@ -66,9 +66,8 @@ static void rb_shell_preferences_class_init (RBShellPreferencesClass *klass);
 static void rb_shell_preferences_init (RBShellPreferences *shell_preferences);
 static void impl_finalize (GObject *object);
 static void impl_dispose (GObject *object);
-static gboolean rb_shell_preferences_window_delete_cb (GtkWidget *window,
-				                       GdkEventAny *event,
-				                       RBShellPreferences *shell_preferences);
+static gboolean rb_shell_preferences_window_close_request_cb (GtkWindow *window,
+				                               RBShellPreferences *shell_preferences);
 static void rb_shell_preferences_response_cb (GtkDialog *dialog,
 				              int response_id,
 				              RBShellPreferences *shell_preferences);
@@ -150,20 +149,8 @@ static void
 help_cb (GtkWidget *widget,
 	 RBShellPreferences *shell_preferences)
 {
-	GError *error = NULL;
-
-	gtk_show_uri (gtk_widget_get_screen (widget),
-		      "help:rhythmbox/prefs",
-		      gtk_get_current_event_time (),
-		      &error);
-
-	if (error != NULL) {
-		rb_error_dialog (NULL,
-				 _("Couldn't display help"),
-				 "%s", error->message);
-
-		g_error_free (error);
-	}
+	GtkWindow *window = GTK_WINDOW (gtk_widget_get_root (widget));
+	gtk_show_uri (window, "help:rhythmbox/prefs", GDK_CURRENT_TIME);
 }
 
 static void
@@ -177,8 +164,8 @@ rb_shell_preferences_init (RBShellPreferences *shell_preferences)
 	shell_preferences->priv = rb_shell_preferences_get_instance_private (shell_preferences);
 
 	g_signal_connect_object (shell_preferences,
-				 "delete_event",
-				 G_CALLBACK (rb_shell_preferences_window_delete_cb),
+				 "close-request",
+				 G_CALLBACK (rb_shell_preferences_window_close_request_cb),
 				 shell_preferences, 0);
 	g_signal_connect_object (shell_preferences,
 				 "response",
@@ -200,13 +187,11 @@ rb_shell_preferences_init (RBShellPreferences *shell_preferences)
 	gtk_window_set_resizable (GTK_WINDOW (shell_preferences), FALSE);
 
 	shell_preferences->priv->notebook = GTK_WIDGET (gtk_notebook_new ());
-	gtk_container_set_border_width (GTK_CONTAINER (shell_preferences->priv->notebook), 5);
 
 	content_area = gtk_dialog_get_content_area (GTK_DIALOG (shell_preferences));
-	gtk_container_add (GTK_CONTAINER (content_area),
-			   shell_preferences->priv->notebook);
+	gtk_box_append (GTK_BOX (content_area),
+			shell_preferences->priv->notebook);
 
-	gtk_container_set_border_width (GTK_CONTAINER (shell_preferences), 5);
 	gtk_box_set_spacing (GTK_BOX (content_area), 2);
 
 	shell_preferences->priv->source_settings = g_settings_new ("org.gnome.rhythmbox.sources");
@@ -235,10 +220,18 @@ rb_shell_preferences_init (RBShellPreferences *shell_preferences)
 	/* browser options */
 	rb_builder_boldify_label (builder, "browser_views_label");
 
-	tmp = GTK_WIDGET (gtk_builder_get_object (builder, "library_browser_views_radio"));
+	/* In GTK4, radio buttons are GtkCheckButton with set_group.
+	 * Build the group list manually from builder objects. */
+	shell_preferences->priv->browser_views_group = NULL;
 	shell_preferences->priv->browser_views_group =
-		g_slist_reverse (g_slist_copy (gtk_radio_button_get_group
-					       (GTK_RADIO_BUTTON (tmp))));
+		g_slist_append (shell_preferences->priv->browser_views_group,
+			GTK_WIDGET (gtk_builder_get_object (builder, "library_browser_views_radio")));
+	shell_preferences->priv->browser_views_group =
+		g_slist_append (shell_preferences->priv->browser_views_group,
+			GTK_WIDGET (gtk_builder_get_object (builder, "radio2")));
+	shell_preferences->priv->browser_views_group =
+		g_slist_append (shell_preferences->priv->browser_views_group,
+			GTK_WIDGET (gtk_builder_get_object (builder, "radio3")));
 
 	gtk_notebook_append_page (GTK_NOTEBOOK (shell_preferences->priv->notebook),
 				  GTK_WIDGET (gtk_builder_get_object (builder, "general_vbox")),
@@ -429,11 +422,10 @@ rb_shell_preferences_new (GList *views)
 }
 
 static gboolean
-rb_shell_preferences_window_delete_cb (GtkWidget *window,
-				       GdkEventAny *event,
-				       RBShellPreferences *shell_preferences)
+rb_shell_preferences_window_close_request_cb (GtkWindow *window,
+					       RBShellPreferences *shell_preferences)
 {
-	gtk_widget_hide (GTK_WIDGET (shell_preferences));
+	gtk_widget_set_visible (GTK_WIDGET (shell_preferences), FALSE);
 
 	return TRUE;
 }
@@ -472,7 +464,7 @@ column_check_toggled_cb (GtkWidget *widget, RBShellPreferences *preferences)
 	g_variant_unref (v);
 
 	/* if enabled, add it */
-	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget))) {
+	if (gtk_check_button_get_active (GTK_CHECK_BUTTON (widget))) {
 		g_variant_builder_add (b, "s", prop_name);
 	}
 
@@ -515,7 +507,7 @@ source_settings_changed_cb (GSettings *settings, const char *key, RBShellPrefere
 		view = g_settings_get_enum (preferences->priv->source_settings, "browser-views");
 		widget = GTK_WIDGET (g_slist_nth_data (preferences->priv->browser_views_group, view));
 		preferences->priv->applying_settings = TRUE;
-		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+		gtk_check_button_set_active (GTK_CHECK_BUTTON (widget), TRUE);
 		preferences->priv->applying_settings = FALSE;
 
 	} else if (g_strcmp0 (key, "visible-columns") == 0) {
@@ -531,7 +523,7 @@ source_settings_changed_cb (GSettings *settings, const char *key, RBShellPrefere
 			gboolean enabled;
 
 			enabled = rb_str_in_strv (name_ptr, (const char **)columns);
-			gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget_ptr), enabled);
+			gtk_check_button_set_active (GTK_CHECK_BUTTON (widget_ptr), enabled);
 		}
 
 		g_strfreev (columns);
@@ -599,7 +591,7 @@ rb_shell_preferences_add_widget (RBShellPreferences *prefs,
 	GtkWidget *box;
 
 	box = get_box_for_location (prefs, location);
-	gtk_box_pack_start (GTK_BOX (box), widget, expand, fill, 0);
+	gtk_box_append (GTK_BOX (box), widget);
 }
 
 /**
@@ -618,7 +610,7 @@ rb_shell_preferences_remove_widget (RBShellPreferences *prefs,
 	GtkWidget *box;
 
 	box = get_box_for_location (prefs, location);
-	gtk_container_remove (GTK_CONTAINER (box), widget);
+	gtk_box_remove (GTK_BOX (box), widget);
 }
 
 #define ENUM_ENTRY(NAME, DESC) { NAME, "" #NAME "", DESC }
