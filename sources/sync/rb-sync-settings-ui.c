@@ -304,7 +304,7 @@ impl_constructed (GObject *object)
 	/* Set up the treeview */
 	tree_view = gtk_tree_view_new ();
 	gtk_tree_view_set_headers_visible (GTK_TREE_VIEW (tree_view), FALSE);
-	gtk_box_pack_start (GTK_BOX (ui), tree_view, TRUE, TRUE, 0);
+	gtk_box_append (GTK_BOX (ui), tree_view);
 
 	/* First column */
 	renderer = gtk_cell_renderer_toggle_new ();
@@ -334,7 +334,7 @@ impl_constructed (GObject *object)
 	g_object_unref (shell);
 	g_object_unref (db);
 
-	gtk_widget_show_all (GTK_WIDGET (ui));
+	gtk_widget_show (GTK_WIDGET (ui));
 
 	RB_CHAIN_GOBJECT_METHOD(rb_sync_settings_ui_parent_class, constructed, object);
 }

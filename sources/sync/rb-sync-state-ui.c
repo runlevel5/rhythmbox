@@ -81,14 +81,9 @@ rb_sync_state_ui_create_bar (RBSyncBarData *bar, guint64 capacity, GtkWidget *la
 
 	/* set up label relationship */
 	if (label != NULL) {
-		AtkObject *lobj;
-		AtkObject *robj;
-
-		lobj = gtk_widget_get_accessible (label);
-		robj = gtk_widget_get_accessible (bar->widget);
-
-		atk_object_add_relationship (lobj, ATK_RELATION_LABEL_FOR, robj);
-		atk_object_add_relationship (robj, ATK_RELATION_LABELLED_BY, lobj);
+		gtk_accessible_update_relation (GTK_ACCESSIBLE (bar->widget),
+						GTK_ACCESSIBLE_RELATION_LABELLED_BY, label, NULL,
+						-1);
 	}
 }
 
@@ -237,7 +232,7 @@ build_ui (RBSyncStateUI *ui)
 	}
 
 	container = GTK_WIDGET (gtk_builder_get_object (builder, "sync-state-ui"));
-	gtk_box_pack_start (GTK_BOX (ui), container, TRUE, TRUE, 0);
+	gtk_box_append (GTK_BOX (ui), container);
 
 	ui->priv->add_count = GTK_WIDGET (gtk_builder_get_object (builder, "added-tracks"));
 	ui->priv->remove_count = GTK_WIDGET (gtk_builder_get_object (builder, "removed-tracks"));
@@ -245,12 +240,12 @@ build_ui (RBSyncStateUI *ui)
 	widget = GTK_WIDGET (gtk_builder_get_object (builder, "sync-before-label"));
 	rb_sync_state_ui_create_bar (&ui->priv->sync_before, capacity, widget);
 	container = GTK_WIDGET (gtk_builder_get_object (builder, "sync-before-container"));
-	gtk_container_add (GTK_CONTAINER (container), ui->priv->sync_before.widget);
+	gtk_box_append (GTK_BOX (container), ui->priv->sync_before.widget);
 
 	widget = GTK_WIDGET (gtk_builder_get_object (builder, "sync-after-label"));
 	rb_sync_state_ui_create_bar (&ui->priv->sync_after, capacity, widget);
 	container = GTK_WIDGET (gtk_builder_get_object (builder, "sync-after-container"));
-	gtk_container_add (GTK_CONTAINER (container), ui->priv->sync_after.widget);
+	gtk_box_append (GTK_BOX (container), ui->priv->sync_after.widget);
 
 	g_object_unref (builder);
 }
