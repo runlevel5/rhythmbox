@@ -673,100 +673,8 @@ static char *
 create_name_from_selection_data (RBPlaylistManager *mgr,
 				 gpointer data)
 {
-	GdkAtom       type;
-	char         *name = NULL;
-	const guchar *selection_data_data;
-	GList        *list;
-
-	type = gtk_selection_data_get_data_type (data);
-	selection_data_data = gtk_selection_data_get_data (data);
-
-        if (type == gdk_atom_intern ("text/uri-list", TRUE) ||
-	    type == gdk_atom_intern ("application/x-rhythmbox-entry", TRUE)) {
-		gboolean is_id;
-		list = rb_uri_list_parse ((const char *) selection_data_data);
-		is_id = (type == gdk_atom_intern ("application/x-rhythmbox-entry", TRUE));
-
-		if (list != NULL) {
-			GList   *l;
-			char    *artist;
-			char    *album;
-			gboolean mixed_artists;
-			gboolean mixed_albums;
-
-			artist = NULL;
-			album  = NULL;
-			mixed_artists = FALSE;
-			mixed_albums  = FALSE;
-			for (l = list; l != NULL; l = g_list_next (l)) {
-				RhythmDBEntry *entry;
-				const char    *e_artist;
-				const char    *e_album;
-
-				entry = rhythmdb_entry_lookup_from_string (mgr->priv->db,
-									   (const char *)l->data,
-									   is_id);
-				if (entry == NULL) {
-					continue;
-				}
-
-				e_artist = rhythmdb_entry_get_string (entry, RHYTHMDB_PROP_ARTIST);
-				e_album = rhythmdb_entry_get_string (entry, RHYTHMDB_PROP_ALBUM);
-
-				/* get value of first non-NULL artist */
-				if (e_artist != NULL && artist == NULL) {
-					artist = g_strdup (e_artist);
-				}
-
-				/* get value of first non-NULL album */
-				if (e_album != NULL && album == NULL) {
-					album = g_strdup (e_album);
-				}
-
-				/* pretend that NULL fields always match */
-				if (artist != NULL && e_artist != NULL
-				    && strcmp (artist, e_artist) != 0) {
-					mixed_artists = TRUE;
-				}
-
-				/* pretend that NULL fields always match */
-				if (album != NULL && e_album != NULL
-				    && strcmp (album, e_album) != 0) {
-					mixed_albums = TRUE;
-				}
-
-				/* if there is a mix of both then stop */
-				if (mixed_artists && mixed_albums) {
-					break;
-				}
-			}
-
-			if (! mixed_artists && ! mixed_albums) {
-				name = g_strdup_printf ("%s - %s", artist, album);
-			} else if (! mixed_artists) {
-				name = g_strdup_printf ("%s", artist);
-			} else if (! mixed_albums) {
-				name = g_strdup_printf ("%s", album);
-			}
-
-			g_free (artist);
-			g_free (album);
-			rb_list_deep_free (list);
-		}
-
-	} else {
-		char **names;
-
-		names = g_strsplit ((char *) selection_data_data, "\r\n", 0);
-		name = g_strjoinv (", ", names);
-		g_strfreev (names);
-	}
-
-	if (name == NULL) {
-		name = g_strdup (_("Untitled Playlist"));
-	}
-
-	return name;
+	/* TODO: reimplement with GTK4 DnD */
+	return NULL;
 }
 
 /**
@@ -789,10 +697,10 @@ rb_playlist_manager_new_playlist_from_selection_data (RBPlaylistManager *mgr,
 	gboolean  automatic = TRUE;
 	char     *suggested_name;
 
-	type = gtk_selection_data_get_data_type (data);
+	type = (gpointer)0 /* GTK4: DnD stub */;
 
-	if (type == gdk_atom_intern ("text/uri-list", TRUE) ||
-	    type == gdk_atom_intern ("application/x-rhythmbox-entry", TRUE))
+	if ((type != NULL && strcmp (type, "text/uri-list") == 0) ||
+	    (type != NULL && strcmp (type, "application/x-rhythmbox-entry") == 0))
 		automatic = FALSE;
 	suggested_name = create_name_from_selection_data (mgr, data);
 
@@ -859,7 +767,7 @@ new_automatic_playlist_response_cb (GtkDialog *dialog, int response, RBPlaylistM
 		break;
 	}
 
-	gtk_widget_destroy (GTK_WIDGET (dialog));
+	gtk_window_destroy (GTK_WINDOW (dialog));
 }
 
 static void
@@ -869,7 +777,7 @@ new_auto_playlist_action_cb (GSimpleAction *action, GVariant *parameter, gpointe
 	GtkWidget *creator;
 
 	creator = rb_query_creator_new (mgr->priv->db);
-	gtk_widget_show_all (creator);
+	gtk_widget_show (creator);
 
 	g_signal_connect (creator,
 			  "response",
@@ -890,7 +798,7 @@ cleanup_edit_data (EditAutoPlaylistData *data)
 {
 	g_signal_handler_disconnect (data->playlist, data->playlist_deleted_id);
 	g_signal_handler_disconnect (data->creator, data->creator_response_id);
-	gtk_widget_destroy (GTK_WIDGET (data->creator));
+	gtk_window_destroy (GTK_WINDOW (data->creator));
 	g_free (data);
 }
 
@@ -1039,13 +947,17 @@ load_playlist_response_cb (GtkDialog *dialog,
 	GError *error = NULL;
 
 	if (response_id != GTK_RESPONSE_ACCEPT) {
-		gtk_widget_destroy (GTK_WIDGET (dialog));
+		gtk_window_destroy (GTK_WINDOW (dialog));
 		return;
 	}
 
-	escaped_file = gtk_file_chooser_get_uri (GTK_FILE_CHOOSER (dialog));
+	{
+		GFile *_f = gtk_file_chooser_get_file (GTK_FILE_CHOOSER (dialog));
+		escaped_file = _f ? g_file_get_uri (_f) : NULL;
+		g_clear_object (&_f);
+	};
 
-	gtk_widget_destroy (GTK_WIDGET (dialog));
+	gtk_window_destroy (GTK_WINDOW (dialog));
 
 	if (escaped_file == NULL)
 		return;
@@ -1107,11 +1019,15 @@ save_playlist_response_cb (GtkDialog *dialog,
 	RBPlaylistExportType export_type = RB_PLAYLIST_EXPORT_TYPE_UNKNOWN;
 
 	if (response_id != GTK_RESPONSE_OK) {
-		gtk_widget_destroy (GTK_WIDGET (dialog));
+		gtk_window_destroy (GTK_WINDOW (dialog));
 		return;
 	}
 
-	file = gtk_file_chooser_get_uri (GTK_FILE_CHOOSER (dialog));
+	{
+		GFile *_f = gtk_file_chooser_get_file (GTK_FILE_CHOOSER (dialog));
+		file = _f ? g_file_get_uri (_f) : NULL;
+		g_clear_object (&_f);
+	};
 	if (file == NULL || file[0] == '\0')
 		return;
 
@@ -1141,7 +1057,7 @@ save_playlist_response_cb (GtkDialog *dialog,
 		rb_error_dialog (NULL, _("Couldn't save playlist"), _("Unsupported file extension given."));
 	} else {
 		rb_playlist_source_save_playlist (RB_PLAYLIST_SOURCE (source), file, export_type);
-		gtk_widget_destroy (GTK_WIDGET (dialog));
+		gtk_window_destroy (GTK_WINDOW (dialog));
 	}
 
 	g_free (file);
@@ -1165,7 +1081,11 @@ export_set_extension_cb (GtkWidget* widget, GtkDialog *dialog)
 	if (extension == NULL)
 		return;
 
-	text = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+	{
+		GFile *_f = gtk_file_chooser_get_file (GTK_FILE_CHOOSER (dialog));
+		text = _f ? g_file_get_path (_f) : NULL;
+		g_clear_object (&_f);
+	};
 	if (text == NULL || text[0] == '\0') {
 		g_free (text);
 		return;

@@ -3314,7 +3314,7 @@ rb_shell_player_init (RBShellPlayer *player)
 						 GTK_BUTTONS_CLOSE,
 						 _("Failed to create the player: %s"),
 						 error->message);
-		gtk_dialog_run (GTK_DIALOG (dialog));
+		gtk_window_present (GTK_WINDOW (dialog));
 		exit (1);
 	}
 

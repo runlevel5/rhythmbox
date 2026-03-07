@@ -102,7 +102,7 @@ rb_track_transfer_queue_new (RBShell *shell)
 static void
 overwrite_response_cb (GtkDialog *dialog, int response, RBTrackTransferQueue *queue)
 {
-	gtk_widget_destroy (GTK_WIDGET (dialog));
+	gtk_window_destroy (GTK_WINDOW (dialog));
 
 	switch (response) {
 	case GTK_RESPONSE_YES:
@@ -392,7 +392,7 @@ missing_encoder_response_cb (GtkDialog *dialog, gint response, RBTrackTransferQu
 		g_assert_not_reached ();
 	}
 
-	gtk_widget_destroy (GTK_WIDGET (dialog));
+	gtk_window_destroy (GTK_WINDOW (dialog));
 }
 
 static void

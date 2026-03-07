@@ -557,7 +557,7 @@ get_focussed_widget (RBShellClipboard *clipboard)
 	GtkWidget *widget;
 
 	/* FIXME: this should be better */
-	window = gtk_widget_get_toplevel (GTK_WIDGET (clipboard->priv->source));
+	window = GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (clipboard->priv->source)));
 	widget = gtk_window_get_focus (GTK_WINDOW (window));
 
 	return widget;
