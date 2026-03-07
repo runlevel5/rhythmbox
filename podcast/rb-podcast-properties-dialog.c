@@ -292,7 +292,6 @@ rb_podcast_properties_dialog_init (RBPodcastPropertiesDialog *dialog)
 {
 	GtkWidget  *content_area;
 	GtkBuilder *builder;
-	AtkObject *lobj, *robj;
 
 	dialog->priv = rb_podcast_properties_dialog_get_instance_private (dialog);
 
@@ -303,7 +302,6 @@ rb_podcast_properties_dialog_init (RBPodcastPropertiesDialog *dialog)
 
 	content_area = gtk_dialog_get_content_area (GTK_DIALOG (dialog));
 
-	gtk_container_set_border_width (GTK_CONTAINER (dialog), 5);
 	gtk_box_set_spacing (GTK_BOX (content_area), 2);
 
 	gtk_dialog_set_default_response (GTK_DIALOG (dialog),
@@ -311,7 +309,7 @@ rb_podcast_properties_dialog_init (RBPodcastPropertiesDialog *dialog)
 
 	builder = rb_builder_load ("podcast-properties.ui", dialog);
 
-	gtk_container_add (GTK_CONTAINER (content_area),
+	gtk_box_append (GTK_BOX (content_area),
 			   GTK_WIDGET (gtk_builder_get_object (builder, "podcastproperties")));
 	dialog->priv->close_button = gtk_dialog_add_button (GTK_DIALOG (dialog),
 							    _("_Close"),
@@ -347,15 +345,14 @@ rb_podcast_properties_dialog_init (RBPodcastPropertiesDialog *dialog)
 				 "rated",
 				 G_CALLBACK (rb_podcast_properties_dialog_rated_cb),
 				 G_OBJECT (dialog), 0);
-	gtk_container_add (GTK_CONTAINER (gtk_builder_get_object (builder, "ratingVBox")),
+	gtk_box_append (GTK_BOX (gtk_builder_get_object (builder, "ratingVBox")),
 			   dialog->priv->rating);
 
 	/* add relationship between the rating label and the rating widget */
-	lobj = gtk_widget_get_accessible (GTK_WIDGET (gtk_builder_get_object (builder, "ratingDescLabel")));
-	robj = gtk_widget_get_accessible (dialog->priv->rating);
-	
-	atk_object_add_relationship (lobj, ATK_RELATION_LABEL_FOR, robj);
-	atk_object_add_relationship (robj, ATK_RELATION_LABELLED_BY, lobj);
+	gtk_accessible_update_relation (GTK_ACCESSIBLE (dialog->priv->rating),
+					GTK_ACCESSIBLE_RELATION_LABELLED_BY,
+					gtk_builder_get_object (builder, "ratingDescLabel"),
+					NULL);
 
 	g_object_unref (builder);
 }
@@ -469,7 +466,7 @@ rb_podcast_properties_dialog_response_cb (GtkDialog *gtkdialog,
 	if (response_id != GTK_RESPONSE_OK)
 		goto cleanup;
 cleanup:
-	gtk_widget_destroy (GTK_WIDGET (dialog));
+	gtk_window_destroy (GTK_WINDOW (dialog));
 }
 
 static gboolean
