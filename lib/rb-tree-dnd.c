@@ -52,7 +52,7 @@ rb_tree_drag_source_get_type (void)
 		};
 
 		our_type = g_type_register_static (G_TYPE_INTERFACE,
-						   RbTreeDragSource,
+						   "RbTreeDragSource",
 						   &our_info, 0);
 	}
 
@@ -78,7 +78,7 @@ rb_tree_drag_dest_get_type (void)
 		};
 
 		our_type = g_type_register_static (G_TYPE_INTERFACE,
-						   RbTreeDragDest,
+						   "RbTreeDragDest",
 						   &our_info, 0);
 	}
 

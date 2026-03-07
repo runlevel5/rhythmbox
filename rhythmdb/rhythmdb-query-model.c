@@ -136,11 +136,11 @@ static gboolean rhythmdb_query_model_row_draggable (RbTreeDragSource *dragsource
 static gboolean rhythmdb_query_model_drag_data_received (RbTreeDragDest *drag_dest,
 							 GtkTreePath *dest,
 							 GtkTreeViewDropPosition pos,
-							 gpointer  *selection_data);
+							 gpointer selection_data);
 static gboolean rhythmdb_query_model_row_drop_possible (RbTreeDragDest *drag_dest,
 							GtkTreePath *dest,
 							GtkTreeViewDropPosition pos,
-							gpointer  *selection_data);
+							gpointer selection_data);
 static gboolean rhythmdb_query_model_row_drop_position (RbTreeDragDest   *drag_dest,
 							GtkTreePath       *dest_path,
 							GList *targets,
