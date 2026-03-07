@@ -665,10 +665,9 @@ rhythmdb_query_model_get_property (GObject *object,
 static void
 rhythmdb_query_model_init (RhythmDBQueryModel *model)
 {
+	/* TODO: GTK4 DnD target lists removed */
 	if (!rhythmdb_query_model_drag_target_list)
-		rhythmdb_query_model_drag_target_list
-			= gtk_target_list_new (rhythmdb_query_model_drag_types,
-					       G_N_ELEMENTS (rhythmdb_query_model_drag_types));
+		rhythmdb_query_model_drag_target_list = NULL;
 
 	model->priv = RHYTHMDB_QUERY_MODEL_GET_PRIVATE (model);
 
@@ -2015,8 +2014,7 @@ rhythmdb_query_model_drag_data_get (RbTreeDragSource *dragsource,
 	rb_debug ("getting drag data");
 
 	selection_data_target = gtk_selection_data_get_target (selection_data);
-	if (!gtk_target_list_find (rhythmdb_query_model_drag_target_list,
-				   selection_data_target, &target)) {
+	if (!FALSE /* GTK4: DnD stub */) {
 		return FALSE;
 	}
 
@@ -2055,10 +2053,7 @@ rhythmdb_query_model_drag_data_get (RbTreeDragSource *dragsource,
 		need_newline = TRUE;
 	}
 
-	gtk_selection_data_set (selection_data,
-				selection_data_target,
-				8, (guchar *) data->str,
-				data->len);
+	/* TODO: GTK4 DnD data set removed */
 
 	g_string_free (data, TRUE);
 
@@ -2111,7 +2106,7 @@ rhythmdb_query_model_drag_data_received (RbTreeDragDest *drag_dest,
 		gboolean uri_list;
 		int i = 0;
 
-		uri_list = (gtk_selection_data_get_data_type (selection_data) == gdk_atom_intern ("text/uri-list", TRUE));
+		uri_list = (gtk_selection_data_get_data_type (selection_data) == (gpointer)0 /* GTK4: DnD stub */);
 
 		strv = g_strsplit ((char *) gtk_selection_data_get_data (selection_data), "\r\n", -1);
 

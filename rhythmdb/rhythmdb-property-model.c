@@ -481,26 +481,17 @@ rhythmdb_property_model_get_property (GObject *object,
 static void
 rhythmdb_property_model_init (RhythmDBPropertyModel *model)
 {
+	/* TODO: GTK4 DnD target lists removed */
 	if (!rhythmdb_property_model_artist_drag_target_list)
-		rhythmdb_property_model_artist_drag_target_list =
-			gtk_target_list_new (targets_artist,
-					     G_N_ELEMENTS (targets_artist));
+		rhythmdb_property_model_artist_drag_target_list = NULL;
 	if (!rhythmdb_property_model_album_drag_target_list)
-		rhythmdb_property_model_album_drag_target_list =
-			gtk_target_list_new (targets_album,
-					     G_N_ELEMENTS (targets_album));
+		rhythmdb_property_model_album_drag_target_list = NULL;
 	if (!rhythmdb_property_model_genre_drag_target_list)
-		rhythmdb_property_model_genre_drag_target_list =
-			gtk_target_list_new (targets_genre,
-					     G_N_ELEMENTS (targets_genre));
+		rhythmdb_property_model_genre_drag_target_list = NULL;
 	if (!rhythmdb_property_model_location_drag_target_list)
-		rhythmdb_property_model_location_drag_target_list =
-			gtk_target_list_new (targets_location,
-					     G_N_ELEMENTS (targets_location));
+		rhythmdb_property_model_location_drag_target_list = NULL;
 	if (!rhythmdb_property_model_composer_drag_target_list)
-		rhythmdb_property_model_composer_drag_target_list =
-			gtk_target_list_new (targets_composer,
-					     G_N_ELEMENTS (targets_composer));
+		rhythmdb_property_model_composer_drag_target_list = NULL;
 
 	model->priv = RHYTHMDB_PROPERTY_MODEL_GET_PRIVATE (model);
 
@@ -1241,9 +1232,7 @@ rhythmdb_property_model_drag_data_get (RbTreeDragSource *dragsource,
 	}
 
 	selection_data_target = gtk_selection_data_get_target (selection_data);
-	if (!gtk_target_list_find (drag_target_list,
-				   selection_data_target,
-				   &target)) {
+	if (!FALSE /* GTK4: DnD stub */) {
 		return FALSE;
 	}
 
@@ -1334,10 +1323,7 @@ rhythmdb_property_model_drag_data_get (RbTreeDragSource *dragsource,
 
 		g_object_unref (query_model);
 
- 		gtk_selection_data_set (selection_data,
-					selection_data_target,
- 		                        8, (guchar *)reply->str,
- 		                        reply->len);
+ 		/* TODO: GTK4 DnD data set removed */
  		g_string_free (reply, TRUE);
 
 	} else {
@@ -1362,10 +1348,7 @@ rhythmdb_property_model_drag_data_get (RbTreeDragSource *dragsource,
 			}
 			gtk_tree_path_free (path);
 		}
-		gtk_selection_data_set (selection_data,
-					selection_data_target,
-					8, (guchar *)reply->str,
-					reply->len);
+		/* TODO: GTK4 DnD data set removed */
 		g_string_free (reply, TRUE);
 	}
 
@@ -1414,10 +1397,7 @@ rhythmdb_property_model_enable_drag (RhythmDBPropertyModel *model,
 		g_assert_not_reached ();
 	}
 
-	rb_tree_dnd_add_drag_source_support (view,
-					     GDK_BUTTON1_MASK,
-					     targets, n_elements,
-					     GDK_ACTION_COPY);
+	/* TODO: set up GtkDragSource */
 }
 
 static gboolean
