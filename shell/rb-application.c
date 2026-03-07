@@ -914,8 +914,9 @@ rb_application_activate_key (RBApplication *app, guint keyval, GdkModifierType m
 		    accel->mods == event_mods) {
 			GActionGroup *group;
 
-			group = gtk_widget_get_action_group (window, accel->prefix);
-			if (group == NULL)
+			if (g_strcmp0 (accel->prefix, "win") == 0 && GTK_IS_APPLICATION_WINDOW (window))
+				group = G_ACTION_GROUP (window);
+			else
 				group = G_ACTION_GROUP (app);
 
 			g_action_group_activate_action (group,
