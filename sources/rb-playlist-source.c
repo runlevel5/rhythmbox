@@ -385,9 +385,9 @@ rb_playlist_source_constructed (GObject *object)
 
 	rb_playlist_source_setup_entry_view (source, source->priv->songs);
 
-	gtk_container_add (GTK_CONTAINER (source), GTK_WIDGET (source->priv->songs));
+	gtk_box_append (GTK_BOX (source), GTK_WIDGET (source->priv->songs));
 
-	gtk_widget_show_all (GTK_WIDGET (source));
+	gtk_widget_show (GTK_WIDGET (source));
 }
 
 static void
@@ -497,15 +497,9 @@ default_show_entry_view_popup (RBPlaylistSource *source,
 	rb_menu_update_link (source->priv->popup, "rb-playlist-menu-link", playlist_menu);
 	g_object_unref (playlist_menu);
 
-	menu = gtk_menu_new_from_model (G_MENU_MODEL (source->priv->popup));
-	gtk_menu_attach_to_widget (GTK_MENU (menu), GTK_WIDGET (source), NULL);
-	gtk_menu_popup (GTK_MENU (menu),
-			NULL,
-			NULL,
-			NULL,
-			NULL,
-			3,
-			gtk_get_current_event_time ());
+	menu = gtk_popover_menu_new_from_model (G_MENU_MODEL (source->priv->popup));
+	gtk_widget_set_parent (menu, GTK_WIDGET (source));
+	gtk_popover_popup (GTK_POPOVER (menu));
 }
 
 static void
@@ -536,7 +530,7 @@ impl_song_properties (RBSource *asource)
 
 	song_info = rb_song_info_new (asource, NULL);
 	if (song_info)
-		gtk_widget_show_all (song_info);
+		gtk_widget_show (song_info);
 	else
 		rb_debug ("failed to create dialog, or no selection!");
 }
@@ -551,20 +545,7 @@ rb_playlist_source_drop_cb (GtkWidget *widget,
 			    guint time,
 			    gpointer user_data)
 {
-	RBPlaylistSource *source = RB_PLAYLIST_SOURCE (user_data);
-	GtkTargetList *tlist;
-	GdkAtom target;
-
-	tlist = gtk_target_list_new (target_uri, G_N_ELEMENTS (target_uri));
-	target = gtk_drag_dest_find_target (widget, context, tlist);
-	gtk_target_list_unref (tlist);
-
-	if (target == GDK_NONE)
-		return;
-
-	rb_display_page_receive_drag (RB_DISPLAY_PAGE (source), data);
-
-	gtk_drag_finish (context, TRUE, FALSE, time);
+	/* TODO: reimplement for GTK4 GtkDropTarget */
 }
 
 static void
@@ -961,13 +942,7 @@ rb_playlist_source_setup_entry_view (RBPlaylistSource *source,
 
 	g_signal_connect_object (entry_view, "show_popup",
 				 G_CALLBACK (rb_playlist_source_songs_show_popup_cb), source, 0);
-	g_signal_connect_object (entry_view, "drag_data_received",
-				 G_CALLBACK (rb_playlist_source_drop_cb), source, 0);
-	gtk_drag_dest_set (GTK_WIDGET (entry_view),
-			   GTK_DEST_DEFAULT_ALL,
-			   target_uri,
-			   G_N_ELEMENTS (target_uri),
-			   GDK_ACTION_COPY);
+	/* TODO: set up GtkDropTarget for GTK4 DnD */
 }
 
 /**

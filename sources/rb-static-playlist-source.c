@@ -269,8 +269,7 @@ rb_static_playlist_source_constructed (GObject *object)
 		g_object_unref (entry_type);
 	}
 
-	gtk_paned_pack1 (GTK_PANED (paned), GTK_WIDGET (priv->browser), TRUE, FALSE);
-	gtk_widget_set_no_show_all (GTK_WIDGET (priv->browser), TRUE);
+	gtk_paned_set_start_child (GTK_PANED (paned), GTK_WIDGET (priv->browser));
 	g_signal_connect_object (priv->browser, "notify::output-model",
 				 G_CALLBACK (rb_static_playlist_source_browser_changed_cb),
 				 source, 0);
@@ -281,8 +280,8 @@ rb_static_playlist_source_constructed (GObject *object)
 	/* reparent the entry view */
 	songs = rb_source_get_entry_view (RB_SOURCE (source));
 	g_object_ref (songs);
-	gtk_container_remove (GTK_CONTAINER (source), GTK_WIDGET (songs));
-	gtk_paned_pack2 (GTK_PANED (paned), GTK_WIDGET (songs), TRUE, FALSE);
+	gtk_box_remove (GTK_BOX (source), GTK_WIDGET (songs));
+	gtk_paned_set_end_child (GTK_PANED (paned), GTK_WIDGET (songs));
 
 	/* set up search box / toolbar */
 	priv->toolbar = rb_source_toolbar_new (RB_DISPLAY_PAGE (source), accel_group);
@@ -318,7 +317,7 @@ rb_static_playlist_source_constructed (GObject *object)
 	gtk_widget_set_margin_top (GTK_WIDGET (grid), 6);
 	gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (priv->toolbar), 0, 0, 1, 1);
 	gtk_grid_attach (GTK_GRID (grid), paned, 0, 1, 1, 1);
-	gtk_container_add (GTK_CONTAINER (source), grid);
+	gtk_box_append (GTK_BOX (source), grid);
 
 	rb_source_bind_settings (RB_SOURCE (source), GTK_WIDGET (songs), paned, GTK_WIDGET (priv->browser), FALSE);
 	g_object_unref (songs);
@@ -339,7 +338,7 @@ rb_static_playlist_source_constructed (GObject *object)
 				 G_CALLBACK (rb_static_playlist_source_rows_reordered),
 				 source, 0);
 
-	gtk_widget_show_all (GTK_WIDGET (source));
+	gtk_widget_show (GTK_WIDGET (source));
 }
 
 /**
@@ -630,26 +629,8 @@ rb_static_playlist_source_browser_changed_cb (RBLibraryBrowser *browser,
 static gboolean
 impl_receive_drag (RBDisplayPage *page, gpointer data)
 {
-	GdkAtom type;
-	GList *list;
-	RBStaticPlaylistSource *source = RB_STATIC_PLAYLIST_SOURCE (page);
-
-	type = gtk_selection_data_get_data_type (data);
-
-        if (type == gdk_atom_intern ("text/uri-list", TRUE) ||
-	    type == gdk_atom_intern ("application/x-rhythmbox-entry", TRUE)) {
-		list = rb_uri_list_parse ((char *)gtk_selection_data_get_data (data));
-		if (list == NULL)
-			return FALSE;
-
-		if (type == gdk_atom_intern ("text/uri-list", TRUE))
-			rb_static_playlist_source_add_uri_list (source, list);
-		else
-			rb_static_playlist_source_add_id_list (source, list);
-		rb_list_deep_free (list);
-	}
-
-        return TRUE;
+	/* TODO: reimplement for GTK4 DnD */
+	return FALSE;
 }
 
 static void

@@ -451,15 +451,9 @@ impl_show_entry_view_popup (RBPlaylistSource *source,
 	app = RB_APPLICATION (g_application_get_default ());
 	rb_menu_update_link (popup, "rb-playlist-menu-link", rb_application_get_shared_menu (app, "playlist-page-menu"));
 
-	menu = gtk_menu_new_from_model (G_MENU_MODEL (popup));
-	gtk_menu_attach_to_widget (GTK_MENU (menu), GTK_WIDGET (source), NULL);
-	gtk_menu_popup (GTK_MENU (menu),
-			NULL,
-			NULL,
-			NULL,
-			NULL,
-			3,
-			gtk_get_current_event_time ());
+	menu = gtk_popover_menu_new_from_model (G_MENU_MODEL (popup));
+	gtk_widget_set_parent (menu, GTK_WIDGET (source));
+	gtk_popover_popup (GTK_POPOVER (menu));
 }
 
 static void
@@ -606,7 +600,7 @@ queue_properties_action_cb (GSimpleAction *action, GVariant *parameters, gpointe
 
 	song_info = rb_song_info_new (RB_SOURCE (source), priv->sidebar);
 	if (song_info)
-		gtk_widget_show_all (song_info);
+		gtk_widget_show (song_info);
 	else
 		rb_debug ("failed to create dialog, or no selection!");
 }
