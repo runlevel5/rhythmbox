@@ -45,7 +45,7 @@ enum
 	LAST_SIGNAL
 };
 
-G_DEFINE_TYPE (RBCellRendererPixbuf, rb_cell_renderer_pixbuf, GTK_TYPE_CELL_RENDERER_PIXBUF)
+G_DEFINE_TYPE (RBCellRendererPixbuf, rb_cell_renderer_pixbuf, GTK_TYPE_CELL_RENDERER)
 
 /**
  * SECTION:rbcellrendererpixbuf
