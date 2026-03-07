@@ -28,6 +28,7 @@
 
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
+#include <graphene.h>
 #include "rb-gtk4-compat.h"
 
 #include "rb-cell-renderer-rating.h"
@@ -50,12 +51,12 @@ static void rb_cell_renderer_rating_get_size  (GtkCellRenderer *cell,
 					       gint *y_offset,
 					       gint *width,
 					       gint *height);
-static void rb_cell_renderer_rating_render (GtkCellRenderer *cell,
-					    cairo_t *cr,
-					    GtkWidget *widget,
-					    const GdkRectangle *background_area,
-					    const GdkRectangle *cell_area,
-					    GtkCellRendererState flags);
+static void rb_cell_renderer_rating_snapshot (GtkCellRenderer *cell,
+					      GtkSnapshot *snapshot,
+					      GtkWidget *widget,
+					      const GdkRectangle *background_area,
+					      const GdkRectangle *cell_area,
+					      GtkCellRendererState flags);
 static gboolean rb_cell_renderer_rating_activate (GtkCellRenderer *cell,
 					          GdkEvent *event,
 					          GtkWidget *widget,
@@ -128,8 +129,7 @@ rb_cell_renderer_rating_class_init (RBCellRendererRatingClass *class)
 	object_class->get_property = rb_cell_renderer_rating_get_property;
 	object_class->set_property = rb_cell_renderer_rating_set_property;
 
-	cell_class->get_size = rb_cell_renderer_rating_get_size;
-	cell_class->render   = rb_cell_renderer_rating_render;
+	cell_class->snapshot = rb_cell_renderer_rating_snapshot;
 	cell_class->activate = rb_cell_renderer_rating_activate;
 
 	class->priv = g_new0 (RBCellRendererRatingClassPrivate, 1);
@@ -232,7 +232,7 @@ rb_cell_renderer_rating_get_size (GtkCellRenderer *cell,
 	int h;
 	RBCellRendererRating *cellrating = (RBCellRendererRating *) cell;
 
-	gtk_icon_size_lookup (GTK_ICON_SIZE_MENU, &icon_width, NULL);
+	icon_width = 16; /* was GTK_ICON_SIZE_MENU */
 	gtk_cell_renderer_get_padding (GTK_CELL_RENDERER (cellrating), &xpad, &ypad);
 
 	h = ypad * 2 + icon_width;
@@ -251,14 +251,15 @@ rb_cell_renderer_rating_get_size (GtkCellRenderer *cell,
 }
 
 static void
-rb_cell_renderer_rating_render (GtkCellRenderer  *cell,
-				cairo_t *cr,
-				GtkWidget *widget,
-				const GdkRectangle *background_area,
-				const GdkRectangle *cell_area,
-				GtkCellRendererState flags)
+rb_cell_renderer_rating_snapshot (GtkCellRenderer  *cell,
+				  GtkSnapshot *snapshot,
+				  GtkWidget *widget,
+				  const GdkRectangle *background_area,
+				  const GdkRectangle *cell_area,
+				  GtkCellRendererState flags)
 
 {
+	cairo_t *cr;
 	gint xpad, ypad;
 	gboolean selected;
 	GdkRectangle pix_rect, draw_rect;
@@ -284,11 +285,16 @@ rb_cell_renderer_rating_render (GtkCellRenderer  *cell,
 
 	selected = (flags & GTK_CELL_RENDERER_SELECTED);
 
+	cr = gtk_snapshot_append_cairo (snapshot, &GRAPHENE_RECT_INIT (
+		draw_rect.x, draw_rect.y, draw_rect.width, draw_rect.height));
+
 	rb_rating_render_stars (widget, cr, cell_class->priv->pixbufs,
 				draw_rect.x - pix_rect.x,
 				draw_rect.y - pix_rect.y,
 				draw_rect.x, draw_rect.y,
 				cellrating->priv->rating, selected);
+
+	cairo_destroy (cr);
 }
 
 static gboolean
@@ -307,11 +313,12 @@ rb_cell_renderer_rating_activate (GtkCellRenderer *cell,
 
 	g_return_val_if_fail (RB_IS_CELL_RENDERER_RATING (cellrating), FALSE);
 
-	gdk_window_get_device_position (gtk_widget_get_window (widget),
-					gdk_event_get_device (event),
-					&mouse_x,
-					&mouse_y,
-					NULL);
+	{
+		double ex, ey;
+		gdk_event_get_position (event, &ex, &ey);
+		mouse_x = (int) ex;
+		mouse_y = (int) ey;
+	}
 	gtk_tree_view_convert_widget_to_bin_window_coords (GTK_TREE_VIEW (widget),
 							   mouse_x, mouse_y,
 							   &mouse_x, &mouse_y);

@@ -124,19 +124,18 @@ rb_cell_renderer_pixbuf_activate (GtkCellRenderer *cell,
     return FALSE;
   }
   /* only handle mouse events */
-  switch (event->type) {
-    case GDK_BUTTON_PRESS:
-    case GDK_BUTTON_RELEASE:
-      break;
-    default:
+  {
+    GdkEventType etype = gdk_event_get_event_type (event);
+    if (etype != GDK_BUTTON_PRESS && etype != GDK_BUTTON_RELEASE)
       return FALSE;
   }
 
-  gdk_window_get_device_position (gtk_widget_get_window (widget),
-				  gdk_event_get_device (event),
-				  &mouse_x,
-				  &mouse_y,
-				  NULL);
+  {
+    double ex, ey;
+    gdk_event_get_position (event, &ex, &ey);
+    mouse_x = (int) ex;
+    mouse_y = (int) ey;
+  }
   gtk_tree_view_convert_widget_to_bin_window_coords (GTK_TREE_VIEW (widget),
 						     mouse_x, mouse_y,
 						     &mouse_x, &mouse_y);
