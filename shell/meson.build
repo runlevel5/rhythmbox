@@ -92,12 +92,7 @@ rhythmbox_core_deps = [
 ]
 
 if enable_python
-  rhythmbox_core_deps += [pygobject]
-  if enable_gir2
-    rhythmbox_core_deps += [girepository]
-  else
-    rhythmbox_core_deps += [gobject_introspection]
-  endif
+  rhythmbox_core_deps += [pygobject, girepository]
 endif
 
 librhythmbox_core = shared_library('rhythmbox-core',
@@ -132,7 +127,7 @@ rb_gir = gnome.generate_gir(librhythmbox_core,
   nsversion: '3.0',
   identifier_prefix: 'RB',
   symbol_prefix: 'rb_',
-  includes: ['GObject-2.0', 'Gio-2.0', 'Gtk-3.0', 'Gst-1.0',
+  includes: ['GObject-2.0', 'Gio-2.0', 'Gtk-4.0', 'Gst-1.0',
     'GstPbutils-1.0', 'libxml2-2.0', mpid_gir[0]],
   install: true,
 )
