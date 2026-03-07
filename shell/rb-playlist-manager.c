@@ -670,7 +670,7 @@ rb_playlist_manager_new_playlist (RBPlaylistManager *mgr,
 
 static char *
 create_name_from_selection_data (RBPlaylistManager *mgr,
-				 GtkSelectionData *data)
+				 gpointer data)
 {
 	GdkAtom       type;
 	char         *name = NULL;
@@ -771,7 +771,7 @@ create_name_from_selection_data (RBPlaylistManager *mgr,
 /**
  * rb_playlist_manager_new_playlist_from_selection_data:
  * @mgr: the #RBPlaylistManager
- * @data: the #GtkSelectionData from which to create a playlist
+ * @data: the #gpointer from which to create a playlist
  *
  * Creates a new playlist based on selection data from gtk.
  * Used to implement playlist creation through drag and drop
@@ -781,7 +781,7 @@ create_name_from_selection_data (RBPlaylistManager *mgr,
  **/
 RBSource *
 rb_playlist_manager_new_playlist_from_selection_data (RBPlaylistManager *mgr,
-						      GtkSelectionData *data)
+						      gpointer data)
 {
 	RBSource *playlist;
 	GdkAtom   type;

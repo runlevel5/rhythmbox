@@ -111,7 +111,7 @@ void rb_iradio_source_show_columns_changed_cb (GtkToggleButton *button,
 static void stations_view_drag_data_received_cb (GtkWidget *widget,
 						 GdkDragContext *dc,
 						 gint x, gint y,
-						 GtkSelectionData *data,
+						 gpointer data,
 						 guint info, guint time,
 						 RBIRadioSource *source);
 static void new_station_action_cb (GSimpleAction *, GVariant *, gpointer);
@@ -904,7 +904,7 @@ stations_view_drag_data_received_cb (GtkWidget *widget,
 				     GdkDragContext *dc,
 				     gint x,
 				     gint y,
-				     GtkSelectionData *selection_data,
+				     gpointer selection_data,
 				     guint info,
 				     guint time,
 				     RBIRadioSource *source)

@@ -84,7 +84,7 @@ static void rb_library_source_dispose (GObject *object);
 static void rb_library_source_finalize (GObject *object);
 
 static GtkWidget *impl_get_config_widget (RBDisplayPage *source, RBShellPreferences *prefs);
-static gboolean impl_receive_drag (RBDisplayPage *source, GtkSelectionData *data);
+static gboolean impl_receive_drag (RBDisplayPage *source, gpointer data);
 
 static gboolean impl_can_paste (RBSource *asource);
 static RBTrackTransferBatch *impl_paste (RBSource *source, GList *entries);
@@ -703,7 +703,7 @@ rb_library_source_library_location_cb (GtkEntry *entry,
 }
 
 static gboolean
-impl_receive_drag (RBDisplayPage *asource, GtkSelectionData *data)
+impl_receive_drag (RBDisplayPage *asource, gpointer data)
 {
 	RBLibrarySource *source = RB_LIBRARY_SOURCE (asource);
 	GList *list, *i;

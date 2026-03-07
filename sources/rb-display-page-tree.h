@@ -60,7 +60,7 @@ struct _RBDisplayPageTreeClass
 
 	/* signals */
 	void (*selected) (RBDisplayPageTree *tree, RBDisplayPage *page);
-	void (*drop_received) (RBDisplayPageTree *tree, RBDisplayPage *page, GtkSelectionData *data);
+	void (*drop_received) (RBDisplayPageTree *tree, RBDisplayPage *page, gpointer data);
 };
 
 GType		rb_display_page_tree_get_type		(void);

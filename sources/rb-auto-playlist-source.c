@@ -76,7 +76,7 @@ static void rb_auto_playlist_source_get_property (GObject *object,
 						  GParamSpec *pspec);
 
 /* source methods */
-static gboolean impl_receive_drag (RBDisplayPage *page, GtkSelectionData *data);
+static gboolean impl_receive_drag (RBDisplayPage *page, gpointer data);
 static void impl_search (RBSource *source, RBSourceSearch *search, const char *cur_text, const char *new_text);
 static void impl_reset_filters (RBSource *asource);
 
@@ -541,7 +541,7 @@ rb_auto_playlist_source_drag_atom_to_prop (GdkAtom smasher)
 }
 
 static gboolean
-impl_receive_drag (RBDisplayPage *page, GtkSelectionData *data)
+impl_receive_drag (RBDisplayPage *page, gpointer data)
 {
 	RBAutoPlaylistSource *source = RB_AUTO_PLAYLIST_SOURCE (page);
 

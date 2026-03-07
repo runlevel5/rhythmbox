@@ -80,7 +80,7 @@ static RBTrackTransferBatch *impl_paste (RBSource *asource, GList *entries);
 static void impl_delete_selected (RBSource *source);
 static void impl_search (RBSource *asource, RBSourceSearch *search, const char *cur_text, const char *new_text);
 static void impl_reset_filters (RBSource *asource);
-static gboolean impl_receive_drag (RBDisplayPage *page, GtkSelectionData *data);
+static gboolean impl_receive_drag (RBDisplayPage *page, gpointer data);
 static guint impl_want_uri (RBSource *source, const char *uri);
 
 static GPtrArray *construct_query_from_selection (RBStaticPlaylistSource *source);
@@ -627,7 +627,7 @@ rb_static_playlist_source_browser_changed_cb (RBLibraryBrowser *browser,
 }
 
 static gboolean
-impl_receive_drag (RBDisplayPage *page, GtkSelectionData *data)
+impl_receive_drag (RBDisplayPage *page, gpointer data)
 {
 	GdkAtom type;
 	GList *list;

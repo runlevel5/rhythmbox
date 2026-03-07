@@ -116,7 +116,7 @@ _rb_display_page_get_pending_children (RBDisplayPage *page)
  * Return value: TRUE if the page accepted the drag data
  */
 gboolean
-rb_display_page_receive_drag (RBDisplayPage *page, GtkSelectionData *data)
+rb_display_page_receive_drag (RBDisplayPage *page, gpointer data)
 {
 	RBDisplayPageClass *klass = RB_DISPLAY_PAGE_GET_CLASS (page);
 

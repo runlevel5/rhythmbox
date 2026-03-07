@@ -361,7 +361,7 @@ static void
 drop_received_cb (RBDisplayPageModel     *model,
 		  RBDisplayPage          *page,
 		  GtkTreeViewDropPosition pos,
-		  GtkSelectionData       *data,
+		  gpointer       *data,
 		  RBDisplayPageTree      *display_page_tree)
 {
 	rb_debug ("drop received");

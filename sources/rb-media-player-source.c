@@ -105,7 +105,7 @@ static void sync_action_cb (GSimpleAction *action, GVariant *parameter, gpointer
 static void properties_action_cb (GSimpleAction *action, GVariant *parameter, gpointer data);
 static gboolean sync_idle_delete_entries (RBMediaPlayerSource *source);
 
-static gboolean impl_receive_drag (RBDisplayPage *page, GtkSelectionData *data);
+static gboolean impl_receive_drag (RBDisplayPage *page, gpointer data);
 static void impl_delete_thyself (RBDisplayPage *page);
 
 static char *impl_get_delete_label (RBSource *source);
@@ -1024,7 +1024,7 @@ get_db_for_source (RBSource *source)
 }
 
 gboolean
-impl_receive_drag (RBDisplayPage *page, GtkSelectionData *data)
+impl_receive_drag (RBDisplayPage *page, gpointer data)
 {
 	GList *entries;
 	RhythmDB *db;

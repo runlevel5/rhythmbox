@@ -313,7 +313,7 @@ impl_drag_data_received (GtkWidget *widget,
 			 GdkDragContext *context,
 			 int x,
 			 int y,
-			 GtkSelectionData *selection,
+			 gpointer selection,
 			 guint info,
 			 guint time_)
 {
@@ -341,7 +341,7 @@ impl_drag_data_received (GtkWidget *widget,
 }
 
 static void
-impl_drag_data_get (GtkWidget *widget, GdkDragContext *context, GtkSelectionData *selection, guint info, guint time_)
+impl_drag_data_get (GtkWidget *widget, GdkDragContext *context, gpointer selection, guint info, guint time_)
 {
 	RBFadingImage *image = RB_FADING_IMAGE (widget);
 

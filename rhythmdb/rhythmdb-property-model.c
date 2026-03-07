@@ -145,7 +145,7 @@ static gboolean rhythmdb_property_model_iter_parent (GtkTreeModel *tree_model,
 
 static gboolean rhythmdb_property_model_drag_data_get (RbTreeDragSource *dragsource,
 						       GList *paths,
-						       GtkSelectionData *selection_data);
+						       gpointer selection_data);
 static gboolean rhythmdb_property_model_drag_data_delete (RbTreeDragSource *dragsource,
 							  GList *paths);
 static gboolean rhythmdb_property_model_row_draggable (RbTreeDragSource *dragsource,
@@ -1213,7 +1213,7 @@ query_model_cb (GtkTreeModel *query_model,
 static gboolean
 rhythmdb_property_model_drag_data_get (RbTreeDragSource *dragsource,
 				       GList *paths,
-				       GtkSelectionData *selection_data)
+				       gpointer selection_data)
 {
 	RhythmDBPropertyModel *model = RHYTHMDB_PROPERTY_MODEL (dragsource);
 	guint target;

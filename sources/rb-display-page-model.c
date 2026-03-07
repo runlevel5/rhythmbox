@@ -111,7 +111,7 @@ static gboolean
 rb_display_page_model_drag_data_received (RbTreeDragDest *drag_dest,
 					  GtkTreePath *dest,
 					  GtkTreeViewDropPosition pos,
-					  GtkSelectionData *selection_data)
+					  gpointer selection_data)
 {
 	RBDisplayPageModel *model;
 	GdkAtom type;
@@ -164,7 +164,7 @@ static gboolean
 rb_display_page_model_row_drop_possible (RbTreeDragDest *drag_dest,
 					 GtkTreePath *dest,
 					 GtkTreeViewDropPosition pos,
-					 GtkSelectionData *selection_data)
+					 gpointer selection_data)
 {
 	RBDisplayPageModel *model;
 
@@ -278,7 +278,7 @@ rb_display_page_model_row_draggable (RbTreeDragSource *drag_source, GList *path_
 static gboolean
 rb_display_page_model_drag_data_get (RbTreeDragSource *drag_source,
 				     GList *path_list,
-				     GtkSelectionData *selection_data)
+				     gpointer selection_data)
 {
 	char *path_str;
 	GtkTreePath *path;

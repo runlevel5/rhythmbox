@@ -102,7 +102,7 @@ void rb_browser_source_browser_views_activated_cb (GtkWidget *widget,
 static void songs_view_drag_data_received_cb (GtkWidget *widget,
 					      GdkDragContext *dc,
 					      gint x, gint y,
-					      GtkSelectionData *data,
+					      gpointer data,
 					      guint info, guint time,
 					      RBBrowserSource *source);
 static void rb_browser_source_do_query (RBBrowserSource *source,
@@ -695,7 +695,7 @@ static void
 songs_view_drag_data_received_cb (GtkWidget *widget,
 				  GdkDragContext *dc,
 				  gint x, gint y,
-				  GtkSelectionData *selection_data,
+				  gpointer selection_data,
 				  guint info, guint time,
 				  RBBrowserSource *source)
 {

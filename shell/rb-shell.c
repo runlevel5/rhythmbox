@@ -170,7 +170,7 @@ static void rb_shell_set_visibility (RBShell *shell,
 				     gboolean visible);
 static void display_page_tree_drag_received_cb (RBDisplayPageTree *display_page_tree,
 						RBDisplayPage *page,
-						GtkSelectionData *data,
+						gpointer data,
 						RBShell *shell);
 
 static void paned_size_allocate_cb (GtkWidget *widget,
@@ -2533,7 +2533,7 @@ paned_size_allocate_cb (GtkWidget *widget,
 static void
 display_page_tree_drag_received_cb (RBDisplayPageTree *display_page_tree,
 				    RBDisplayPage *page,
-				    GtkSelectionData *data,
+				    gpointer data,
 				    RBShell *shell)
 {
         if (page == NULL) {

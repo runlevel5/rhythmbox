@@ -331,7 +331,7 @@ posts_view_drag_data_received_cb (GtkWidget *widget,
 				  GdkDragContext *dc,
 				  gint x,
 				  gint y,
-				  GtkSelectionData *selection_data,
+				  gpointer selection_data,
 				  guint info,
 				  guint time,
 				  RBPodcastSource *source)
@@ -1160,7 +1160,7 @@ impl_handle_eos (RBSource *asource)
 
 
 static gboolean
-impl_receive_drag (RBDisplayPage *page, GtkSelectionData *selection_data)
+impl_receive_drag (RBDisplayPage *page, gpointer selection_data)
 {
 	GList *list, *i;
 	RBPodcastSource *source = RB_PODCAST_SOURCE (page);

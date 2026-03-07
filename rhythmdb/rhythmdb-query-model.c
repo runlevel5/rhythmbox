@@ -128,7 +128,7 @@ static gboolean rhythmdb_query_model_do_reorder (RhythmDBQueryModel *model, Rhyt
 static gboolean rhythmdb_query_model_emit_reorder (RhythmDBQueryModel *model, gint old_pos, gint new_pos);
 static gboolean rhythmdb_query_model_drag_data_get (RbTreeDragSource *dragsource,
 							  GList *paths,
-							  GtkSelectionData *selection_data);
+							  gpointer selection_data);
 static gboolean rhythmdb_query_model_drag_data_delete (RbTreeDragSource *dragsource,
 							     GList *paths);
 static gboolean rhythmdb_query_model_row_draggable (RbTreeDragSource *dragsource,
@@ -136,11 +136,11 @@ static gboolean rhythmdb_query_model_row_draggable (RbTreeDragSource *dragsource
 static gboolean rhythmdb_query_model_drag_data_received (RbTreeDragDest *drag_dest,
 							 GtkTreePath *dest,
 							 GtkTreeViewDropPosition pos,
-							 GtkSelectionData  *selection_data);
+							 gpointer  *selection_data);
 static gboolean rhythmdb_query_model_row_drop_possible (RbTreeDragDest *drag_dest,
 							GtkTreePath *dest,
 							GtkTreeViewDropPosition pos,
-							GtkSelectionData  *selection_data);
+							gpointer  *selection_data);
 static gboolean rhythmdb_query_model_row_drop_position (RbTreeDragDest   *drag_dest,
 							GtkTreePath       *dest_path,
 							GList *targets,
@@ -2002,7 +2002,7 @@ rhythmdb_query_model_drag_data_delete (RbTreeDragSource *dragsource,
 static gboolean
 rhythmdb_query_model_drag_data_get (RbTreeDragSource *dragsource,
 				    GList *paths,
-				    GtkSelectionData *selection_data)
+				    gpointer selection_data)
 {
 	RhythmDBQueryModel *model = RHYTHMDB_QUERY_MODEL (dragsource);
 	RhythmDBEntry *entry;
@@ -2069,7 +2069,7 @@ static gboolean
 rhythmdb_query_model_drag_data_received (RbTreeDragDest *drag_dest,
 					 GtkTreePath *dest,
 					 GtkTreeViewDropPosition pos,
-					 GtkSelectionData *selection_data)
+					 gpointer selection_data)
 {
 	RhythmDBQueryModel *model = RHYTHMDB_QUERY_MODEL (drag_dest);
 
@@ -2234,7 +2234,7 @@ static gboolean
 rhythmdb_query_model_row_drop_possible (RbTreeDragDest *drag_dest,
 					GtkTreePath *dest,
 					GtkTreeViewDropPosition pos,
-					GtkSelectionData *selection_data)
+					gpointer selection_data)
 {
 	RhythmDBQueryModel *model = RHYTHMDB_QUERY_MODEL (drag_dest);
 	return query_model_chain_can_reorder (model);
