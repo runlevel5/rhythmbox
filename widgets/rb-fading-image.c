@@ -30,6 +30,7 @@
 
 #include <glib/gi18n.h>
 
+#include <graphene.h>
 #include <widgets/rb-fading-image.h>
 #include <lib/rb-debug.h>
 #include <lib/rb-util.h>
@@ -41,6 +42,7 @@
 
 static void rb_fading_image_class_init (RBFadingImageClass *klass);
 static void rb_fading_image_init (RBFadingImage *image);
+static void impl_snapshot (GtkWidget *widget, GtkSnapshot *snapshot);
 
 struct _RBFadingImagePrivate
 {
@@ -111,35 +113,6 @@ prepare_image (cairo_t *cr, cairo_pattern_t **save, GdkPixbuf *pixbuf)
 	}
 }
 
-static void
-impl_realize (GtkWidget *widget)
-{
-	GtkAllocation allocation;
-	GdkWindowAttr attributes;
-	GdkWindow *window;
-	int attributes_mask;
-
-	gtk_widget_set_realized (widget, TRUE);
-
-	gtk_widget_get_allocation (widget, &allocation);
-
-	attributes.x = allocation.x;
-	attributes.y = allocation.y;
-	attributes.width = allocation.width;
-	attributes.height = allocation.height;
-	attributes.wclass = GDK_INPUT_OUTPUT;
-	attributes.window_type = GDK_WINDOW_CHILD;
-	attributes.event_mask = gtk_widget_get_events (widget) | GDK_EXPOSURE_MASK | GDK_BUTTON_PRESS_MASK | GDK_KEY_RELEASE_MASK | GDK_FOCUS_CHANGE_MASK;
-	attributes.visual = gtk_widget_get_visual (widget);
-
-	attributes_mask = GDK_WA_X | GDK_WA_Y | GDK_WA_VISUAL;
-
-	window = gdk_window_new (gtk_widget_get_parent_window (widget), &attributes, attributes_mask);
-	gtk_widget_set_window (widget, window);
-	gdk_window_set_user_data (window, widget);
-
-	gtk_widget_set_can_focus (widget, TRUE);
-}
 
 static void
 draw_image (cairo_t *cr, int image_width, int image_height, int width, int height, cairo_extend_t extend, double alpha, gboolean border)
@@ -232,17 +205,19 @@ render_next (RBFadingImage *image, cairo_t *cr, int width, int height, gboolean 
 	}
 }
 
-static gboolean
-impl_draw (GtkWidget *widget, cairo_t *cr)
+static void
+impl_snapshot (GtkWidget *widget, GtkSnapshot *snapshot)
 {
 	RBFadingImage *image;
 	int border_width;
 	int border_height;
 	int width;
 	int height;
+	cairo_t *cr;
+	graphene_rect_t bounds;
 
-	width = gtk_widget_get_allocated_width (widget);
-	height = gtk_widget_get_allocated_height (widget);
+	width = gtk_widget_get_width (widget);
+	height = gtk_widget_get_height (widget);
 	border_width = width;
 	border_height = height;
 
@@ -256,6 +231,9 @@ impl_draw (GtkWidget *widget, cairo_t *cr)
 		border_width = gdk_pixbuf_get_width (image->priv->current) + 2 * BORDER_WIDTH;
 		border_height = gdk_pixbuf_get_height (image->priv->current) + 2 * BORDER_WIDTH;
 	}
+
+	graphene_rect_init (&bounds, 0, 0, width, height);
+	cr = gtk_snapshot_append_cairo (snapshot, &bounds);
 
 	cairo_save (cr);
 	cairo_set_line_width (cr, BORDER_WIDTH);
@@ -275,7 +253,7 @@ impl_draw (GtkWidget *widget, cairo_t *cr)
 	render_current (image, cr, width, height, TRUE);
 	render_next (image, cr, width, height, TRUE);
 
-	return TRUE;
+	cairo_destroy (cr);
 }
 
 static gboolean
@@ -303,54 +281,18 @@ impl_query_tooltip (GtkWidget *widget, int x, int y, gboolean keyboard_mode, Gtk
 	} else if (full == scaled) {
 		return FALSE;
 	} else {
-		gtk_tooltip_set_icon (tooltip, full);
+		{
+			GdkTexture *texture = gdk_texture_new_for_pixbuf (full);
+			gtk_tooltip_set_icon (tooltip, GDK_PAINTABLE (texture));
+			g_object_unref (texture);
+		}
 		return TRUE;
 	}
 }
 
-static void
-impl_drag_data_received (GtkWidget *widget,
-			 GdkDragContext *context,
-			 int x,
-			 int y,
-			 gpointer selection,
-			 guint info,
-			 guint time_)
-{
-	GdkPixbuf *pixbuf;
-	char **uris;
+/* TODO: implement GtkDropTarget for drag-and-drop in GTK4 */
 
-	pixbuf = gtk_selection_data_get_pixbuf (selection);
-	if (pixbuf != NULL) {
-		g_signal_emit (widget, signals[PIXBUF_DROPPED], 0, pixbuf);
-		g_object_unref (pixbuf);
-		return;
-	}
-
-	uris = gtk_selection_data_get_uris (selection);
-	if (uris != NULL) {
-		if (uris[0] != NULL) {
-			g_signal_emit (widget, signals[URI_DROPPED], 0, uris[0]);
-		}
-
-		g_strfreev (uris);
-		return;
-	}
-
-	rb_debug ("weird drag data received");
-}
-
-static void
-impl_drag_data_get (GtkWidget *widget, GdkDragContext *context, gpointer selection, guint info, guint time_)
-{
-	RBFadingImage *image = RB_FADING_IMAGE (widget);
-
-	if (image->priv->current_full) {
-		gtk_selection_data_set_pixbuf (selection, image->priv->current_full);
-	}
-
-	/* might be nice if we could provide a uri here? */
-}
+/* TODO: implement GtkDragSource for drag-and-drop in GTK4 */
 
 
 static void
@@ -408,29 +350,28 @@ impl_constructed (GObject *object)
 	image = RB_FADING_IMAGE (object);
 
 	if (image->priv->fallback_icon != NULL) {
-		GError *error = NULL;
-		image->priv->fallback =
-			gtk_icon_theme_load_icon (gtk_icon_theme_get_default (),
-						  image->priv->fallback_icon,
-						  48,
-						  GTK_ICON_LOOKUP_FORCE_SIZE,
-						  &error);
-		if (error != NULL) {
-			g_warning ("couldn't load fallback icon %s: %s", image->priv->fallback_icon, error->message);
-			g_clear_error (&error);
+		GtkIconTheme *theme = gtk_icon_theme_get_for_display (gdk_display_get_default ());
+		GtkIconPaintable *icon_paintable = gtk_icon_theme_lookup_icon (theme,
+									      image->priv->fallback_icon,
+									      NULL, 48, 1,
+									      GTK_TEXT_DIR_NONE, 0);
+		if (icon_paintable != NULL) {
+			GFile *file = gtk_icon_paintable_get_file (icon_paintable);
+			if (file != NULL) {
+				GInputStream *stream = G_INPUT_STREAM (g_file_read (file, NULL, NULL));
+				if (stream != NULL) {
+					image->priv->fallback = gdk_pixbuf_new_from_stream (stream, NULL, NULL);
+					g_object_unref (stream);
+				}
+				g_object_unref (file);
+			}
+			g_object_unref (icon_paintable);
 		}
 	}
 
 	gtk_widget_set_has_tooltip (GTK_WIDGET (image), TRUE);
 
-	/* drag and drop target */
-	gtk_drag_dest_set (GTK_WIDGET (image), GTK_DEST_DEFAULT_ALL, NULL, 0, GDK_ACTION_COPY);
-	gtk_drag_dest_add_image_targets (GTK_WIDGET (image));
-	gtk_drag_dest_add_uri_targets (GTK_WIDGET (image));
-
-	/* drag and drop source */
-	gtk_drag_source_set (GTK_WIDGET (image), GDK_BUTTON1_MASK, NULL, 0, GDK_ACTION_COPY);
-	gtk_drag_source_add_image_targets (GTK_WIDGET (image));
+	/* TODO: set up GtkDropTarget and GtkDragSource for GTK4 */
 }
 
 
@@ -488,11 +429,8 @@ rb_fading_image_class_init (RBFadingImageClass *klass)
 	object_class->set_property = impl_set_property;
 	object_class->get_property = impl_get_property;
 
-	widget_class->realize = impl_realize;
-	widget_class->draw = impl_draw;
+	widget_class->snapshot = impl_snapshot;
 	widget_class->query_tooltip = impl_query_tooltip;
-	widget_class->drag_data_get = impl_drag_data_get;
-	widget_class->drag_data_received = impl_drag_data_received;
 
 	/**
 	 * RBFadingImage:fallback:
@@ -564,8 +502,8 @@ scale_thumbnail_if_necessary (RBFadingImage *image, GdkPixbuf *pixbuf)
 	int sw, sh;
 	double factor;
 
-	w = gtk_widget_get_allocated_width (GTK_WIDGET (image)) - 2 * BORDER_WIDTH;
-	h = gtk_widget_get_allocated_height (GTK_WIDGET (image)) - 2 * BORDER_WIDTH;
+	w = gtk_widget_get_width (GTK_WIDGET (image)) - 2 * BORDER_WIDTH;
+	h = gtk_widget_get_height (GTK_WIDGET (image)) - 2 * BORDER_WIDTH;
 	if (w < 1 || h < 1) {
 		return NULL;
 	}
@@ -668,8 +606,8 @@ composite_into_current (RBFadingImage *image)
 	int width;
 	int height;
 
-	width = gtk_widget_get_allocated_width (GTK_WIDGET (image)) - 2 * BORDER_WIDTH;
-	height = gtk_widget_get_allocated_height (GTK_WIDGET (image)) - 2 * BORDER_WIDTH;
+	width = gtk_widget_get_width (GTK_WIDGET (image)) - 2 * BORDER_WIDTH;
+	height = gtk_widget_get_height (GTK_WIDGET (image)) - 2 * BORDER_WIDTH;
 	if (width < 1 || height < 1) {
 		if (image->priv->current_pat != NULL) {
 			cairo_pattern_destroy (image->priv->current_pat);
