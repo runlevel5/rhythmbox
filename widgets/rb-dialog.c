@@ -90,7 +90,7 @@ rb_error_dialog (GtkWindow *parent,
 
 	gtk_window_set_title (GTK_WINDOW (dialog), "");
 
-	g_signal_connect (dialog, "response", G_CALLBACK (gtk_widget_destroy), NULL);
+	g_signal_connect (dialog, "response", G_CALLBACK (gtk_window_destroy), NULL);
 
 	gtk_widget_show (dialog);
 
@@ -124,8 +124,7 @@ rb_file_chooser_new (const char *title,
 	GtkWidget *dialog;
 
 	if (action == GTK_FILE_CHOOSER_ACTION_OPEN	    ||
-	    action == GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER ||
-	    action == GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER) {
+	    action == GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER) {
 		dialog = gtk_file_chooser_dialog_new (title, parent,
 						      action,
 						      _("_Cancel"), GTK_RESPONSE_CANCEL,
@@ -141,23 +140,24 @@ rb_file_chooser_new (const char *title,
 						      NULL);
 		gtk_dialog_set_default_response (GTK_DIALOG (dialog),
 						 GTK_RESPONSE_ACCEPT);
-		gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
 	} else {
 		g_assert_not_reached ();
 		return NULL;
 	}
 
-	gtk_file_chooser_set_local_only (GTK_FILE_CHOOSER (dialog), local_only);
-	gtk_file_chooser_add_shortcut_folder (GTK_FILE_CHOOSER (dialog),
-					      rb_music_dir (),
-					      NULL);
+	{
+		GFile *music_dir = g_file_new_for_path (rb_music_dir ());
+		gtk_file_chooser_add_shortcut_folder (GTK_FILE_CHOOSER (dialog),
+						      music_dir, NULL);
+		g_object_unref (music_dir);
+	}
 
 	if (parent != NULL) {
 		gtk_window_set_transient_for (GTK_WINDOW (dialog), GTK_WINDOW (parent));
 		gtk_window_set_destroy_with_parent (GTK_WINDOW (dialog), TRUE);
 	}
 
-	gtk_widget_show_all (dialog);
+	gtk_widget_show (dialog);
 
 	return dialog;
 }
