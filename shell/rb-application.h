@@ -25,7 +25,7 @@
  *
  */
 
-#include <gtk/gtk.h>
+#include <adwaita.h>
 
 #ifndef RB_APPLICATION_H
 #define RB_APPLICATION_H
@@ -43,14 +43,14 @@ typedef struct _RBApplicationPrivate RBApplicationPrivate;
 
 struct _RBApplication
 {
-	GtkApplication parent;
+	AdwApplication parent;
 
 	RBApplicationPrivate *priv;
 };
 
 struct _RBApplicationClass
 {
-	GtkApplicationClass parent_class;
+	AdwApplicationClass parent_class;
 };
 
 GType		rb_application_get_type (void);
@@ -70,7 +70,7 @@ void		rb_application_add_plugin_menu_item (RBApplication *app, const char *menu,
 void		rb_application_remove_plugin_menu_item (RBApplication *app, const char *menu, const char *id);
 
 void		rb_application_add_accelerator (RBApplication *app, const char *accel, const char *action, GVariant *parameter);
-gboolean	rb_application_activate_key (RBApplication *app, GdkEventKey *event);
+gboolean	rb_application_activate_key (RBApplication *app, guint keyval, GdkModifierType mods);
 
 G_END_DECLS
 

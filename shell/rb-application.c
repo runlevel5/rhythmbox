@@ -40,7 +40,7 @@
 
 /**
  * SECTION:rbapplication
- * @short_description: the rhythmbox subclass of GtkApplication
+ * @short_description: the rhythmbox subclass of AdwApplication
  *
  * RBApplication contains some interactions with the desktop
  * environment, such as the app menu and processing of files specified
@@ -78,7 +78,7 @@ struct _RBApplicationPrivate
 	GList *accelerators;
 };
 
-G_DEFINE_TYPE_WITH_PRIVATE (RBApplication, rb_application, GTK_TYPE_APPLICATION);
+G_DEFINE_TYPE_WITH_PRIVATE (RBApplication, rb_application, ADW_TYPE_APPLICATION);
 
 enum {
 	PROP_0,
@@ -180,6 +180,9 @@ about_action_cb (GSimpleAction *action, GVariant *parameters, gpointer user_data
 	};
 
 	char *license_trans;
+	AdwDialog *dialog;
+	const char *developers[256];
+	int n = 0;
 
 	authors[0] = _("Maintainers:");
 	for (tem = authors; *tem != NULL; tem++)
@@ -189,24 +192,38 @@ about_action_cb (GSimpleAction *action, GVariant *parameters, gpointer user_data
 		;
 	*tem = _("Contributors:");
 
+	/* build a flat developers list from authors */
+	for (tem = authors; *tem != NULL && n < 255; tem++) {
+		developers[n++] = *tem;
+	}
+	developers[n] = NULL;
+
 	comment = g_string_new (_("Music management and playback software for GNOME."));
 
 	license_trans = g_strconcat (_(license[0]), "\n", _(license[1]), "\n",
 				     _(license[2]), "\n", NULL);
 
 	g_object_get (app->priv->shell, "window", &window, NULL);
-	gtk_show_about_dialog (GTK_WINDOW (window),
-			       "version", VERSION,
-			       "copyright", "Copyright \xc2\xa9 2005 - 2019 The Rhythmbox authors\nCopyright \xc2\xa9 2003 - 2005 Colin Walters\nCopyright \xc2\xa9 2002, 2003 Jorn Baayen",
-			       "license", license_trans,
-			       "website-label", _("Rhythmbox Website"),
-			       "website", "https://gnome.pages.gitlab.gnome.org/rhythmbox/",
-			       "comments", comment->str,
-			       "authors", (const char **) authors,
-			       "documenters", (const char **) documenters,
-			       "translator-credits", strcmp (translator_credits, "translator-credits") != 0 ? translator_credits : NULL,
-			       "logo-icon-name", RB_APP_ICON,
-			       NULL);
+
+	dialog = adw_about_dialog_new ();
+	adw_about_dialog_set_application_name (ADW_ABOUT_DIALOG (dialog), "Rhythmbox");
+	adw_about_dialog_set_version (ADW_ABOUT_DIALOG (dialog), VERSION);
+	adw_about_dialog_set_copyright (ADW_ABOUT_DIALOG (dialog),
+		"Copyright \xc2\xa9 2005 - 2019 The Rhythmbox authors\n"
+		"Copyright \xc2\xa9 2003 - 2005 Colin Walters\n"
+		"Copyright \xc2\xa9 2002, 2003 Jorn Baayen");
+	adw_about_dialog_set_license (ADW_ABOUT_DIALOG (dialog), license_trans);
+	adw_about_dialog_set_website (ADW_ABOUT_DIALOG (dialog),
+		"https://gnome.pages.gitlab.gnome.org/rhythmbox/");
+	adw_about_dialog_set_comments (ADW_ABOUT_DIALOG (dialog), comment->str);
+	adw_about_dialog_set_developers (ADW_ABOUT_DIALOG (dialog), developers);
+	adw_about_dialog_set_documenters (ADW_ABOUT_DIALOG (dialog), documenters);
+	adw_about_dialog_set_translator_credits (ADW_ABOUT_DIALOG (dialog),
+		strcmp (translator_credits, "translator-credits") != 0 ? translator_credits : NULL);
+	adw_about_dialog_set_application_icon (ADW_ABOUT_DIALOG (dialog), RB_APP_ICON);
+
+	adw_dialog_present (dialog, GTK_WIDGET (window));
+
 	g_string_free (comment, TRUE);
 	g_free (license_trans);
 	g_object_unref (window);
@@ -216,21 +233,11 @@ static void
 help_action_cb (GSimpleAction *action, GVariant *parameters, gpointer user_data)
 {
 	RBApplication *app = RB_APPLICATION (user_data);
-	GError *error = NULL;
 	GtkWindow *window;
 
 	g_object_get (app->priv->shell, "window", &window, NULL);
 
-	gtk_show_uri (gtk_widget_get_screen (GTK_WIDGET (window)),
-		      "help:rhythmbox",
-		      gtk_get_current_event_time (),
-		      &error);
-
-	if (error != NULL) {
-		rb_error_dialog (NULL, _("Couldn't display help"),
-				 "%s", error->message);
-		g_error_free (error);
-	}
+	gtk_show_uri (window, "help:rhythmbox", GDK_CURRENT_TIME);
 
 	g_object_unref (window);
 }
@@ -239,7 +246,7 @@ static void
 impl_activate (GApplication *app)
 {
 	RBApplication *rb = RB_APPLICATION (app);
-	rb_shell_present (rb->priv->shell, gtk_get_current_event_time (), NULL);
+	rb_shell_present (rb->priv->shell, GDK_CURRENT_TIME, NULL);
 }
 
 static void
@@ -325,9 +332,9 @@ impl_startup (GApplication *app)
 	/* Use our own css provider */
 	provider = gtk_css_provider_new ();
 	gtk_css_provider_load_from_resource (provider, "/org/gnome/Rhythmbox/ui/style.css");
-	gtk_style_context_add_provider_for_screen (gdk_screen_get_default(),
-						  GTK_STYLE_PROVIDER (provider),
-						  600);
+	gtk_style_context_add_provider_for_display (gdk_display_get_default (),
+						    GTK_STYLE_PROVIDER (provider),
+						    GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
 	rb->priv->shell = RB_SHELL (g_object_new (RB_TYPE_SHELL,
 				    "application", rb,
@@ -559,7 +566,6 @@ rb_application_run (RBApplication *app, int argc, char **argv)
 	context = g_option_context_new (NULL);
 	g_option_context_add_main_entries (context, options, GETTEXT_PACKAGE);
 	g_option_context_add_group (context, gst_init_get_option_group ());
-	g_option_context_add_group (context, gtk_get_option_group (TRUE));
 
 	nargc = argc;
 	nargv = argv;
@@ -881,14 +887,15 @@ rb_application_add_accelerator (RBApplication *app, const char *accel, const cha
 /**
  * rb_application_activate_key:
  * @app: the #RBApplication
- * @event: a #GdkEventKey
+ * @keyval: the key value
+ * @mods: the modifier state
  *
  * Attempts to activate an accelerator registered using #rb_application_add_accelerator.
  *
  * Return value: %TRUE if an accelerator was activated
  */
 gboolean
-rb_application_activate_key (RBApplication *app, GdkEventKey *event)
+rb_application_activate_key (RBApplication *app, guint keyval, GdkModifierType mods)
 {
 	GList *l;
 	GtkWidget *window;
@@ -898,8 +905,8 @@ rb_application_activate_key (RBApplication *app, GdkEventKey *event)
 
 	g_object_get (app->priv->shell, "window", &window, NULL);
 
-	event_keyval = gdk_keyval_to_lower (event->keyval);
-	event_mods = (gtk_accelerator_get_default_mod_mask () & event->state);
+	event_keyval = gdk_keyval_to_lower (keyval);
+	event_mods = (gtk_accelerator_get_default_mod_mask () & mods);
 
 	for (l = app->priv->accelerators; l != NULL; l = l->next) {
 		RBApplicationAccel *accel = l->data;
