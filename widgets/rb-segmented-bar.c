@@ -32,6 +32,7 @@
 #include <math.h>
 #include <locale.h>
 #include <cairo/cairo.h>
+#include <graphene.h>
 #include <gtk/gtk.h>
 #include "rb-segmented-bar.h"
 
@@ -39,8 +40,9 @@
 
 static void rb_segmented_bar_finalize (GObject *object);
 static void rb_segmented_bar_size_allocate(GtkWidget *widget,
-					   GtkAllocation *allocation);
-static gboolean rb_segmented_bar_draw (GtkWidget *widget, cairo_t *context);
+					   int width, int height,
+					   int baseline);
+static void rb_segmented_bar_snapshot (GtkWidget *widget, GtkSnapshot *snapshot);
 static void rb_segmented_bar_get_property (GObject *object, guint param_id,
 					   GValue *value, GParamSpec *pspec);
 static void rb_segmented_bar_set_property (GObject *object, guint param_id,
@@ -48,16 +50,16 @@ static void rb_segmented_bar_set_property (GObject *object, guint param_id,
 
 static gchar *rb_segmented_bar_default_value_formatter (gdouble percent,
 						       	gpointer data);
-static void rb_segmented_bar_get_preferred_height (GtkWidget *widget,
-						   int *minimum_height,
-						   int *natural_height);
-static void rb_segmented_bar_get_preferred_width (GtkWidget *widget,
-						  int *minimum_width,
-						  int *natural_width);
+static void rb_segmented_bar_measure (GtkWidget *widget,
+				      GtkOrientation orientation,
+				      int for_size,
+				      int *minimum,
+				      int *natural,
+				      int *minimum_baseline,
+				      int *natural_baseline);
 
 static void compute_layout_size (RBSegmentedBar *bar);
 
-static AtkObject * rb_segmented_bar_get_accessible (GtkWidget *widget);
 enum
 {
 	PROP_0,
@@ -142,7 +144,6 @@ rb_segmented_bar_init (RBSegmentedBar *bar)
 	priv->segment_box_size = 12;
 	priv->segment_box_spacing = 6;
 	priv->value_formatter = rb_segmented_bar_default_value_formatter;
-	gtk_widget_set_has_window (GTK_WIDGET (bar), FALSE);
 }
 
 static void
@@ -155,11 +156,10 @@ rb_segmented_bar_class_init (RBSegmentedBarClass *klass)
 	object_class->get_property = rb_segmented_bar_get_property;
 	object_class->set_property = rb_segmented_bar_set_property;
 
-	widget_class->draw = rb_segmented_bar_draw;
-	widget_class->get_preferred_height = rb_segmented_bar_get_preferred_height;
-	widget_class->get_preferred_width = rb_segmented_bar_get_preferred_width;
+	widget_class->snapshot = rb_segmented_bar_snapshot;
+	widget_class->measure = rb_segmented_bar_measure;
 	widget_class->size_allocate = rb_segmented_bar_size_allocate;
-	widget_class->get_accessible = rb_segmented_bar_get_accessible;
+	gtk_widget_class_set_accessible_role (widget_class, GTK_ACCESSIBLE_ROLE_IMG);
 
         /**
          * RBSegmentedBar:show-reflection:
@@ -273,45 +273,47 @@ rb_segmented_bar_default_value_formatter (gdouble percent,
 }
 
 static void
-rb_segmented_bar_get_preferred_height (GtkWidget *widget, int *minimum_height, int *natural_height)
+rb_segmented_bar_measure (GtkWidget *widget,
+			  GtkOrientation orientation,
+			  int for_size,
+			  int *minimum,
+			  int *natural,
+			  int *minimum_baseline,
+			  int *natural_baseline)
 {
 	RBSegmentedBarPrivate *priv;
-	int height;
-
 
 	priv = RB_SEGMENTED_BAR_GET_PRIVATE (RB_SEGMENTED_BAR (widget));
-	if (priv->reflect) {
-		height = MINIMUM_HEIGHT * 1.75;
+
+	if (orientation == GTK_ORIENTATION_VERTICAL) {
+		int height;
+
+		if (priv->reflect) {
+			height = MINIMUM_HEIGHT * 1.75;
+		} else {
+			height = MINIMUM_HEIGHT;
+		}
+
+		if (priv->show_labels) {
+			compute_layout_size (RB_SEGMENTED_BAR (widget));
+			height = MAX (MINIMUM_HEIGHT + priv->bar_label_spacing + priv->layout_height, height);
+		}
+
+		if (minimum)
+			*minimum = height;
+		if (natural)
+			*natural = height;
 	} else {
-		height = MINIMUM_HEIGHT;
-	}
+		int width;
 
-	if (priv->show_labels) {
 		compute_layout_size (RB_SEGMENTED_BAR (widget));
-		height = MAX (MINIMUM_HEIGHT + priv->bar_label_spacing + priv->layout_height, height);
+		width = MAX (priv->layout_width, 200);
+
+		if (minimum)
+			*minimum = width;
+		if (natural)
+			*natural = width;
 	}
-
-	if (minimum_height)
-		*minimum_height = height;
-	if (natural_height)
-		*natural_height = height;
-}
-
-static void
-rb_segmented_bar_get_preferred_width (GtkWidget *widget, int *minimum_width, int *natural_width)
-{
-	RBSegmentedBarPrivate *priv;
-	int width;
-
-	priv = RB_SEGMENTED_BAR_GET_PRIVATE (RB_SEGMENTED_BAR (widget));
-
-	compute_layout_size (RB_SEGMENTED_BAR (widget));
-	width = MAX (priv->layout_width, 200);
-
-	if (minimum_width)
-		*minimum_width = width;
-	if (natural_width)
-		*natural_width = width;
 }
 
 static PangoLayout *create_adapt_layout (GtkWidget *widget, PangoLayout *layout,
@@ -411,31 +413,15 @@ compute_layout_size (RBSegmentedBar *bar)
 }
 
 static void 
-rb_segmented_bar_size_allocate(GtkWidget *widget, GtkAllocation *allocation) 
+rb_segmented_bar_size_allocate(GtkWidget *widget, int width, int height, int baseline) 
 { 
-	gint real_height;
 	RBSegmentedBarPrivate *priv = RB_SEGMENTED_BAR_GET_PRIVATE (widget);
-	GtkAllocation new_allocation;
 
 	g_return_if_fail(RB_IS_SEGMENTED_BAR(widget)); 
-	g_return_if_fail(allocation != NULL); 
 
-	if (priv->reflect) {
-		real_height = priv->bar_height*1.75;
-	} else {
-		real_height = priv->bar_height;
-	}
-	gtk_widget_set_allocation (widget, allocation);
 	if (priv->show_labels) {
 		compute_layout_size (RB_SEGMENTED_BAR (widget));
-		new_allocation.height = MAX (priv->bar_height + priv->bar_label_spacing + priv->layout_height,
-		                         real_height);
-	} else {
-		new_allocation.height = real_height;
 	}
-	new_allocation.width = priv->layout_width + 2*(priv->h_padding);
-	gtk_widget_set_allocation (widget, &new_allocation);
-	GTK_WIDGET_CLASS(rb_segmented_bar_parent_class)->size_allocate(widget, allocation); 
 }
 
 
@@ -546,17 +532,25 @@ static void rb_segmented_bar_render_segments (RBSegmentedBar *bar,
 static void hsb_from_color (Color *color, gdouble *hue,
 			    gdouble *saturation, gdouble *brightness)
 {
-	gtk_rgb_to_hsv (color->red, color->green, color->blue,
-			hue, saturation, brightness);
+	float h, s, v;
+	gtk_rgb_to_hsv ((float)color->red, (float)color->green, (float)color->blue,
+			&h, &s, &v);
+	*hue = h;
+	*saturation = s;
+	*brightness = v;
 }
 
 static Color *color_from_hsb (gdouble hue, gdouble saturation, gdouble brightness)
 {
 	Color *color;
+	float r, g, b;
 
 	color = g_new0 (Color, 1);
-	gtk_hsv_to_rgb (hue, saturation, brightness,
-			&color->red, &color->green, &color->blue);
+	gtk_hsv_to_rgb ((float)hue, (float)saturation, (float)brightness,
+			&r, &g, &b);
+	color->red = r;
+	color->green = g;
+	color->blue = b;
 
 	return color;
 }
@@ -691,7 +685,6 @@ static void rb_segmented_bar_render_labels (RBSegmentedBar *bar,
 		return;
 	}
 	gtk_style_context_get_color (gtk_widget_get_style_context (GTK_WIDGET (bar)),
-				     gtk_widget_get_state_flags (GTK_WIDGET (bar)),
 				     &gdk_color);
 
 	if (gtk_widget_get_direction (GTK_WIDGET (bar)) == GTK_TEXT_DIR_RTL) {
@@ -775,40 +768,47 @@ static void rb_segmented_bar_render_labels (RBSegmentedBar *bar,
 	g_object_unref (G_OBJECT (layout));
 }
 
-static gboolean
-rb_segmented_bar_draw (GtkWidget *widget, cairo_t *context)
+static void
+rb_segmented_bar_snapshot (GtkWidget *widget, GtkSnapshot *snapshot)
 {
 	RBSegmentedBar *bar;
 	RBSegmentedBarPrivate *priv;
-	GtkAllocation allocation;
+	int alloc_width, alloc_height;
 	cairo_pattern_t *bar_pattern;
+	graphene_rect_t bounds;
+	cairo_t *context;
 
-	g_return_val_if_fail (RB_IS_SEGMENTED_BAR (widget), FALSE);
+	g_return_if_fail (RB_IS_SEGMENTED_BAR (widget));
 
 	bar = RB_SEGMENTED_BAR (widget);
 	priv = RB_SEGMENTED_BAR_GET_PRIVATE (bar);
+
+	alloc_width = gtk_widget_get_width (widget);
+	alloc_height = gtk_widget_get_height (widget);
+
+	graphene_rect_init (&bounds, 0, 0, alloc_width, alloc_height);
+	context = gtk_snapshot_append_cairo (snapshot, &bounds);
 
 	if (priv->reflect) {
 		cairo_push_group (context);
 	}
 
 	cairo_set_operator (context, CAIRO_OPERATOR_OVER);
-	gtk_widget_get_allocation (widget, &allocation);
 
 	if (gtk_widget_get_direction (GTK_WIDGET (widget)) == GTK_TEXT_DIR_LTR) {
 		cairo_translate (context, priv->h_padding, 0);
 	} else {
-		cairo_translate (context, allocation.width - priv->h_padding, 0);
+		cairo_translate (context, alloc_width - priv->h_padding, 0);
 		cairo_scale (context, -1.0, 1.0);
 	}
 
 	cairo_rectangle (context, 0, 0,
-			 allocation.width - priv->h_padding,
+			 alloc_width - priv->h_padding,
 			 MAX (2*priv->bar_height, priv->bar_height + priv->bar_label_spacing + priv->layout_height));
 	cairo_clip (context);
 
 	bar_pattern = rb_segmented_bar_render (bar, 
-					       allocation.width - 2*priv->h_padding,
+					       alloc_width - 2*priv->h_padding,
 					       priv->bar_height);
 
 	cairo_save (context);
@@ -823,7 +823,7 @@ rb_segmented_bar_draw (GtkWidget *widget, cairo_t *context)
 		cairo_save (context);
 
 		cairo_rectangle (context, 0, priv->bar_height,
-				 allocation.width - priv->h_padding,
+				 alloc_width - priv->h_padding,
 				 priv->bar_height);
 		cairo_clip (context);
 		cairo_matrix_init_scale (&matrix, 1, -1);
@@ -850,18 +850,18 @@ rb_segmented_bar_draw (GtkWidget *widget, cairo_t *context)
 	if (priv->show_labels) {
 		if (priv->reflect) {
 			cairo_translate (context,
-					 (allocation.width - priv->layout_width)/2,
+					 (alloc_width - priv->layout_width)/2,
 					 priv->bar_height + priv->bar_label_spacing);
 		} else {
 			cairo_translate (context,
-					 -priv->h_padding + (allocation.width - priv->layout_width)/2,
+					 -priv->h_padding + (alloc_width - priv->layout_width)/2,
 					 priv->bar_height + priv->bar_label_spacing);
 		}
 		rb_segmented_bar_render_labels (bar, context);
 	}
 	cairo_pattern_destroy (bar_pattern);
 
-	return TRUE;
+	cairo_destroy (context);
 }
 
 GtkWidget *rb_segmented_bar_new (void)
@@ -887,192 +887,4 @@ void rb_segmented_bar_set_value_formatter (RBSegmentedBar *bar,
 
 	priv->value_formatter = formatter;
 	priv->value_formatter_data = data;
-}
-
-static const char *
-get_a11y_description (RBSegmentedBar *bar)
-{
-	RBSegmentedBarPrivate *priv;
-
-	priv = RB_SEGMENTED_BAR_GET_PRIVATE (bar);
-	if (priv->a11y_description == NULL) {
-		GList *i;
-		GString *desc = g_string_new ("");
-
-		for (i = priv->segments; i != NULL; i = i->next) {
-			Segment *segment;
-			char *value_str;
-
-			segment = (Segment *)i->data;
-
-			g_assert (priv->value_formatter != NULL);
-			value_str = priv->value_formatter (segment->percent,
-							   priv->value_formatter_data);
-
-			g_string_append_printf (desc, "%s: %s\n", segment->label, value_str);
-			g_free (value_str);
-		}
-
-		priv->a11y_description = g_string_free (desc, FALSE);
-	}
-	return priv->a11y_description;
-}
-
-static const char *
-get_a11y_locale (RBSegmentedBar *bar)
-{
-	RBSegmentedBarPrivate *priv;
-
-	priv = RB_SEGMENTED_BAR_GET_PRIVATE (bar);
-	if (priv->a11y_locale == NULL) {
-		priv->a11y_locale = setlocale (LC_MESSAGES, "");
-	}
-	return priv->a11y_locale;
-}
-
-/* A11y type hack copied from nautilus/eel/eel-accessibility.c */
-
-static GType
-create_a11y_derived_type (const char *type_name, GType existing_type, GClassInitFunc class_init)
-{
-	GType type;
-	GType parent_atk_type;
-	GTypeQuery query;
-	AtkObjectFactory *factory;
-	GTypeInfo typeinfo = {0,};
-
-	type = g_type_from_name (type_name);
-	if (type != G_TYPE_INVALID) {
-		return type;
-	}
-
-	factory = atk_registry_get_factory (atk_get_default_registry (), existing_type);
-	parent_atk_type = atk_object_factory_get_accessible_type (factory);
-	if (parent_atk_type == G_TYPE_INVALID) {
-		return G_TYPE_INVALID;
-	}
-
-	g_type_query (parent_atk_type, &query);
-	if (class_init) {
-		typeinfo.class_init = class_init;
-	}
-	typeinfo.class_size = query.class_size;
-	typeinfo.instance_size = query.instance_size;
-
-	type = g_type_register_static (parent_atk_type, type_name, &typeinfo, 0);
-	return type;
-}
-
-/* AtkObject implementation */
-
-static gint
-a11y_impl_get_n_children (AtkObject *obj)
-{
-	return 0;
-}
-
-static AtkObject *
-a11y_impl_ref_child (AtkObject *obj, gint i)
-{
-	return NULL;
-}
-
-/* AtkImage */
-
-static void
-a11y_impl_get_image_position (AtkImage *image, gint *x, gint *y, AtkCoordType coord_type)
-{
-	atk_component_get_extents (ATK_COMPONENT (image), x, y, NULL, NULL, coord_type);
-}
-
-static const char *
-a11y_impl_get_image_description (AtkImage *image)
-{
-	RBSegmentedBar *bar;
-	bar = RB_SEGMENTED_BAR (g_object_get_data (G_OBJECT (image), "rb-atk-widget"));
-	return get_a11y_description (bar);
-}
-
-static void
-a11y_impl_get_image_size (AtkImage *image, gint *width, gint *height)
-{
-	GtkAllocation alloc;
-	GtkWidget *widget;
-
-	widget = GTK_WIDGET (g_object_get_data (G_OBJECT (image), "rb-atk-widget"));
-
-	gtk_widget_get_allocation (widget, &alloc);
-	*width = alloc.width;
-	*height = alloc.height;
-}
-
-static const char *
-a11y_impl_get_image_locale (AtkImage *image)
-{
-	RBSegmentedBar *bar;
-	bar = RB_SEGMENTED_BAR (g_object_get_data (G_OBJECT (image), "rb-atk-widget"));
-	return get_a11y_locale (bar);
-}
-
-static void
-rb_segmented_bar_a11y_class_init (AtkObjectClass *klass)
-{
-	AtkObjectClass *atkobject_class = ATK_OBJECT_CLASS (klass);
-
-	atkobject_class->get_n_children = a11y_impl_get_n_children;
-	atkobject_class->ref_child = a11y_impl_ref_child;
-}
-
-static void
-rb_segmented_bar_a11y_image_init (AtkImageIface *iface)
-{
-	iface->get_image_position = a11y_impl_get_image_position;
-	iface->get_image_description = a11y_impl_get_image_description;
-	iface->get_image_size = a11y_impl_get_image_size;
-	iface->get_image_locale = a11y_impl_get_image_locale;
-	/* don't need set_image_description, do we? */
-}
-
-static void
-destroy_accessible (gpointer data, GObject *obj)
-{
-	atk_object_notify_state_change (ATK_OBJECT (data), ATK_STATE_DEFUNCT, TRUE);
-}
-
-static AtkObject *
-rb_segmented_bar_get_accessible (GtkWidget *widget)
-{
-	static GType a11ytype = G_TYPE_INVALID;
-	AtkObject *accessible;
-	accessible = g_object_get_data (G_OBJECT (widget), "rb-atk-object");
-	if (accessible != NULL) {
-		return accessible;
-	}
-
-	if (a11ytype == G_TYPE_INVALID) {
-		const GInterfaceInfo atk_image_info = {
-			(GInterfaceInitFunc) rb_segmented_bar_a11y_image_init,
-			(GInterfaceFinalizeFunc) NULL,
-			NULL
-		};
-
-		a11ytype = create_a11y_derived_type ("RBSegmentedBarA11y",
-						     GTK_TYPE_WIDGET,
-						     (GClassInitFunc) rb_segmented_bar_a11y_class_init);
-		if (a11ytype == G_TYPE_INVALID) {
-			g_warning ("unable to create a11y type for segmented bar");
-			return NULL;
-		}
-
-		g_type_add_interface_static (a11ytype, ATK_TYPE_IMAGE, &atk_image_info);
-	}
-
-	accessible = g_object_new (a11ytype, NULL);
-	atk_object_set_role (accessible, ATK_ROLE_IMAGE);
-	atk_object_initialize (accessible, widget);
-
-	g_object_set_data_full (G_OBJECT (widget), "rb-atk-object", accessible, (GDestroyNotify) destroy_accessible);
-	g_object_set_data (G_OBJECT (accessible), "rb-atk-widget", widget);
-
-	return accessible;
 }
