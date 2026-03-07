@@ -63,8 +63,8 @@ static void rb_uri_dialog_get_property (GObject *object,
 					guint prop_id,
 					GValue *value,
 					GParamSpec *pspec);
-static void rb_uri_dialog_clipboard_yank_url (GtkClipboard *clipboard,
-					      const char *text,
+static void rb_uri_dialog_clipboard_yank_url (GObject *source_object,
+					      GAsyncResult *result,
 					      gpointer data);
 
 struct RBURIDialogPrivate
@@ -150,7 +150,6 @@ rb_uri_dialog_init (RBURIDialog *dialog)
 
 	content_area = gtk_dialog_get_content_area (GTK_DIALOG (dialog));
 
-	gtk_container_set_border_width (GTK_CONTAINER (dialog), 5);
 	gtk_box_set_spacing (GTK_BOX (content_area), 2);
 
 	dialog->priv->cancelbutton = gtk_dialog_add_button (GTK_DIALOG (dialog),
@@ -163,8 +162,8 @@ rb_uri_dialog_init (RBURIDialog *dialog)
 
 	builder = rb_builder_load ("uri-new.ui", dialog);
 
-	gtk_container_add (GTK_CONTAINER (content_area),
-			   GTK_WIDGET (gtk_builder_get_object (builder, "newuri")));
+	gtk_box_append (GTK_BOX (content_area),
+			GTK_WIDGET (gtk_builder_get_object (builder, "newuri")));
 
 	/* get the widgets from the GtkBuilder */
 	dialog->priv->label = GTK_WIDGET (gtk_builder_get_object (builder, "label"));
@@ -179,12 +178,10 @@ rb_uri_dialog_init (RBURIDialog *dialog)
 	/* if we can get a url from the clipboard, populate the entry with that,
 	 * since there's a good chance that's what the user wants to do anyway.
 	 */
-	gtk_clipboard_request_text (gtk_clipboard_get(GDK_SELECTION_CLIPBOARD),
-				    rb_uri_dialog_clipboard_yank_url,
-				    dialog);
-	gtk_clipboard_request_text (gtk_clipboard_get(GDK_SELECTION_PRIMARY),
-				    rb_uri_dialog_clipboard_yank_url,
-				    dialog);
+	gdk_clipboard_read_text_async (gdk_display_get_clipboard (gdk_display_get_default ()),
+				       NULL,
+				       rb_uri_dialog_clipboard_yank_url,
+				       dialog);
 
 	/* default focus */
 	gtk_widget_grab_focus (dialog->priv->url);
@@ -286,12 +283,15 @@ rb_uri_dialog_text_changed (GtkEditable *buffer,
 }
 
 static void
-rb_uri_dialog_clipboard_yank_url (GtkClipboard *clipboard, const char *text, gpointer data)
+rb_uri_dialog_clipboard_yank_url (GObject *source_object, GAsyncResult *result, gpointer data)
 {
 	RBURIDialog *dialog = RB_URI_DIALOG (data);
+	GdkClipboard *clipboard = GDK_CLIPBOARD (source_object);
+	char *text;
 	GUri *uri;
 	const char *scheme;
 
+	text = gdk_clipboard_read_text_finish (clipboard, result, NULL);
 	if (text == NULL) {
 		return;
 	}
@@ -299,14 +299,16 @@ rb_uri_dialog_clipboard_yank_url (GtkClipboard *clipboard, const char *text, gpo
 	uri = g_uri_parse (text, SOUP_HTTP_URI_FLAGS, NULL);
 	if (uri == NULL) {
 		rb_debug ("did not autofill from clipboard: not a valid URL");
+		g_free (text);
 		return;
 	}
 
 	scheme = g_uri_get_scheme (uri);
 	if ((g_strcmp0 (scheme, "http") == 0) || (g_strcmp0 (scheme, "https") == 0)) {
-		gtk_entry_set_text (GTK_ENTRY (dialog->priv->url), text);
+		gtk_editable_set_text (GTK_EDITABLE (dialog->priv->url), text);
 		gtk_editable_select_region (GTK_EDITABLE (dialog->priv->url), 0, -1);
 	}
 
 	g_uri_unref (uri);
+	g_free (text);
 }
