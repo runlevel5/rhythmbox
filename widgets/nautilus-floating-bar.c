@@ -26,7 +26,6 @@
 #include "nautilus-floating-bar.h"
 #include "rb-text-helpers.h"
 
-#define HOVER_HIDE_TIMEOUT_INTERVAL 100
 
 struct _NautilusFloatingBar
 {
@@ -188,200 +187,14 @@ nautilus_floating_bar_remove_hover_timeout (NautilusFloatingBar *self)
     }
 }
 
-typedef struct
-{
-    GtkWidget *overlay;
-    GtkWidget *floating_bar;
-    GdkDevice *device;
-    gint y_down_limit;
-    gint y_upper_limit;
-} CheckPointerData;
 
-static void
-check_pointer_data_free (gpointer data)
-{
-    g_slice_free (CheckPointerData, data);
-}
 
-static gboolean
-check_pointer_timeout (gpointer user_data)
-{
-    CheckPointerData *data = user_data;
-    gint pointer_y = -1;
 
-    gdk_window_get_device_position (gtk_widget_get_window (data->overlay), data->device,
-                                    NULL, &pointer_y, NULL);
 
-    if (pointer_y == -1 || pointer_y < data->y_down_limit || pointer_y > data->y_upper_limit)
-    {
-        gtk_widget_show (data->floating_bar);
-        NAUTILUS_FLOATING_BAR (data->floating_bar)->hover_timeout_id = 0;
 
-        return G_SOURCE_REMOVE;
-    }
-    else
-    {
-        gtk_widget_hide (data->floating_bar);
-    }
 
-    return G_SOURCE_CONTINUE;
-}
 
-static gboolean
-overlay_enter_notify_cb (GtkWidget        *parent,
-                         GdkEventCrossing *event,
-                         gpointer          user_data)
-{
-    GtkWidget *widget = user_data;
-    CheckPointerData *data;
-    gint y_pos;
 
-    NautilusFloatingBar *self = NAUTILUS_FLOATING_BAR (widget);
-
-    if (self->hover_timeout_id != 0)
-    {
-        g_source_remove (self->hover_timeout_id);
-    }
-
-    if (event->window != gtk_widget_get_window (widget))
-    {
-        return GDK_EVENT_PROPAGATE;
-    }
-
-    if (NAUTILUS_FLOATING_BAR (widget)->is_interactive)
-    {
-        return GDK_EVENT_PROPAGATE;
-    }
-
-    gdk_window_get_position (gtk_widget_get_window (widget), NULL, &y_pos);
-
-    data = g_slice_new (CheckPointerData);
-    data->overlay = parent;
-    data->floating_bar = widget;
-    data->device = gdk_event_get_device ((GdkEvent *) event);
-    data->y_down_limit = y_pos;
-    data->y_upper_limit = y_pos + gtk_widget_get_allocated_height (widget);
-
-    self->hover_timeout_id = g_timeout_add_full (G_PRIORITY_DEFAULT, HOVER_HIDE_TIMEOUT_INTERVAL,
-                                                 check_pointer_timeout, data,
-                                                 check_pointer_data_free);
-
-    g_source_set_name_by_id (self->hover_timeout_id, "[nautilus-floating-bar] overlay_enter_notify_cb");
-
-    return GDK_EVENT_STOP;
-}
-
-static void
-nautilus_floating_bar_parent_set (GtkWidget *widget,
-                                  GtkWidget *old_parent)
-{
-    GtkWidget *parent;
-
-    parent = gtk_widget_get_parent (widget);
-
-    if (old_parent != NULL)
-    {
-        g_signal_handlers_disconnect_by_func (old_parent,
-                                              overlay_enter_notify_cb, widget);
-    }
-
-    if (parent != NULL)
-    {
-        g_signal_connect (parent, "enter-notify-event",
-                          G_CALLBACK (overlay_enter_notify_cb), widget);
-    }
-}
-
-static void
-get_padding_and_border (GtkWidget *widget,
-                        GtkBorder *border)
-{
-    GtkStyleContext *context;
-    GtkStateFlags state;
-    GtkBorder tmp;
-
-    context = gtk_widget_get_style_context (widget);
-    state = gtk_widget_get_state_flags (widget);
-
-    gtk_style_context_get_padding (context, state, border);
-    gtk_style_context_get_border (context, state, &tmp);
-    border->top += tmp.top;
-    border->right += tmp.right;
-    border->bottom += tmp.bottom;
-    border->left += tmp.left;
-}
-
-static void
-nautilus_floating_bar_get_preferred_width (GtkWidget *widget,
-                                           gint      *minimum_size,
-                                           gint      *natural_size)
-{
-    GtkBorder border;
-
-    get_padding_and_border (widget, &border);
-
-    GTK_WIDGET_CLASS (nautilus_floating_bar_parent_class)->get_preferred_width (widget,
-                                                                                minimum_size,
-                                                                                natural_size);
-
-    *minimum_size += border.left + border.right;
-    *natural_size += border.left + border.right;
-}
-
-static void
-nautilus_floating_bar_get_preferred_width_for_height (GtkWidget *widget,
-                                                      gint       height,
-                                                      gint      *minimum_size,
-                                                      gint      *natural_size)
-{
-    GtkBorder border;
-
-    get_padding_and_border (widget, &border);
-
-    GTK_WIDGET_CLASS (nautilus_floating_bar_parent_class)->get_preferred_width_for_height (widget,
-                                                                                           height,
-                                                                                           minimum_size,
-                                                                                           natural_size);
-
-    *minimum_size += border.left + border.right;
-    *natural_size += border.left + border.right;
-}
-
-static void
-nautilus_floating_bar_get_preferred_height (GtkWidget *widget,
-                                            gint      *minimum_size,
-                                            gint      *natural_size)
-{
-    GtkBorder border;
-
-    get_padding_and_border (widget, &border);
-
-    GTK_WIDGET_CLASS (nautilus_floating_bar_parent_class)->get_preferred_height (widget,
-                                                                                 minimum_size,
-                                                                                 natural_size);
-
-    *minimum_size += border.top + border.bottom;
-    *natural_size += border.top + border.bottom;
-}
-
-static void
-nautilus_floating_bar_get_preferred_height_for_width (GtkWidget *widget,
-                                                      gint       width,
-                                                      gint      *minimum_size,
-                                                      gint      *natural_size)
-{
-    GtkBorder border;
-
-    get_padding_and_border (widget, &border);
-
-    GTK_WIDGET_CLASS (nautilus_floating_bar_parent_class)->get_preferred_height_for_width (widget,
-                                                                                           width,
-                                                                                           minimum_size,
-                                                                                           natural_size);
-
-    *minimum_size += border.top + border.bottom;
-    *natural_size += border.top + border.bottom;
-}
 
 static void
 nautilus_floating_bar_constructed (GObject *obj)
@@ -394,7 +207,7 @@ nautilus_floating_bar_constructed (GObject *obj)
     box = GTK_WIDGET (obj);
 
     w = gtk_spinner_new ();
-    gtk_box_pack_start (GTK_BOX (box), w, FALSE, FALSE, 0);
+    gtk_box_append (GTK_BOX (box), w);
     gtk_widget_set_visible (w, self->show_spinner);
     gtk_spinner_start (GTK_SPINNER (w));
     self->spinner = w;
@@ -403,7 +216,7 @@ nautilus_floating_bar_constructed (GObject *obj)
     gtk_widget_set_margin_start (w, 8);
 
     labels_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
-    gtk_box_pack_start (GTK_BOX (box), labels_box, TRUE, TRUE, 0);
+    gtk_box_append (GTK_BOX (box), labels_box);
     g_object_set (labels_box,
                   "margin-top", 2,
                   "margin-bottom", 2,
@@ -415,7 +228,7 @@ nautilus_floating_bar_constructed (GObject *obj)
     w = gtk_label_new (NULL);
     gtk_label_set_ellipsize (GTK_LABEL (w), PANGO_ELLIPSIZE_MIDDLE);
     gtk_label_set_single_line_mode (GTK_LABEL (w), TRUE);
-    gtk_container_add (GTK_CONTAINER (labels_box), w);
+    gtk_box_append (GTK_BOX (labels_box), w);
     self->primary_label_widget = w;
     gtk_widget_show (w);
 
@@ -423,7 +236,7 @@ nautilus_floating_bar_constructed (GObject *obj)
 
     w = gtk_label_new (NULL);
     gtk_label_set_single_line_mode (GTK_LABEL (w), TRUE);
-    gtk_container_add (GTK_CONTAINER (labels_box), w);
+    gtk_box_append (GTK_BOX (labels_box), w);
     self->details_label_widget = w;
     gtk_widget_show (w);
 }
@@ -431,28 +244,20 @@ nautilus_floating_bar_constructed (GObject *obj)
 static void
 nautilus_floating_bar_init (NautilusFloatingBar *self)
 {
-    GtkStyleContext *context;
-
-    context = gtk_widget_get_style_context (GTK_WIDGET (self));
-    gtk_style_context_add_class (context, "floating-bar");
+    gtk_widget_add_css_class (GTK_WIDGET (self), "floating-bar");
 }
 
 static void
 nautilus_floating_bar_class_init (NautilusFloatingBarClass *klass)
 {
     GObjectClass *oclass = G_OBJECT_CLASS (klass);
-    GtkWidgetClass *wclass = GTK_WIDGET_CLASS (klass);
 
     oclass->constructed = nautilus_floating_bar_constructed;
     oclass->set_property = nautilus_floating_bar_set_property;
     oclass->get_property = nautilus_floating_bar_get_property;
     oclass->finalize = nautilus_floating_bar_finalize;
 
-    wclass->get_preferred_width = nautilus_floating_bar_get_preferred_width;
-    wclass->get_preferred_width_for_height = nautilus_floating_bar_get_preferred_width_for_height;
-    wclass->get_preferred_height = nautilus_floating_bar_get_preferred_height;
-    wclass->get_preferred_height_for_width = nautilus_floating_bar_get_preferred_height_for_width;
-    wclass->parent_set = nautilus_floating_bar_parent_set;
+
 
     properties[PROP_PRIMARY_LABEL] =
         g_param_spec_string ("primary-label",
@@ -558,14 +363,12 @@ nautilus_floating_bar_add_action (NautilusFloatingBar *self,
                                   gint                 action_id)
 {
     GtkWidget *button;
-    GtkStyleContext *context;
 
-    button = gtk_button_new_from_icon_name (icon_name, GTK_ICON_SIZE_MENU);
-    context = gtk_widget_get_style_context (button);
-    gtk_style_context_add_class (context, "circular");
-    gtk_style_context_add_class (context, "flat");
+    button = gtk_button_new_from_icon_name (icon_name);
+    gtk_widget_add_css_class (button, "circular");
+    gtk_widget_add_css_class (button, "flat");
     gtk_widget_set_valign (button, GTK_ALIGN_CENTER);
-    gtk_box_pack_end (GTK_BOX (self), button, FALSE, FALSE, 0);
+    gtk_box_append (GTK_BOX (self), button);
     gtk_widget_show (button);
 
     g_object_set_data (G_OBJECT (button), "action-id",
@@ -580,27 +383,20 @@ nautilus_floating_bar_add_action (NautilusFloatingBar *self,
 void
 nautilus_floating_bar_cleanup_actions (NautilusFloatingBar *self)
 {
-    GtkWidget *widget;
-    GList *children, *l;
-    gpointer data;
+    GtkWidget *child;
 
-    children = gtk_container_get_children (GTK_CONTAINER (self));
-    l = children;
-
-    while (l != NULL)
+    child = gtk_widget_get_first_child (GTK_WIDGET (self));
+    while (child != NULL)
     {
-        widget = l->data;
-        data = g_object_get_data (G_OBJECT (widget), "action-id");
-        l = l->next;
+        GtkWidget *next = gtk_widget_get_next_sibling (child);
+        gpointer data = g_object_get_data (G_OBJECT (child), "action-id");
 
         if (data != NULL)
         {
-            /* destroy this */
-            gtk_widget_destroy (widget);
+            gtk_box_remove (GTK_BOX (self), child);
         }
+        child = next;
     }
-
-    g_list_free (children);
 
     self->is_interactive = FALSE;
 }
