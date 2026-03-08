@@ -720,6 +720,7 @@ construct_load_ui (RBShell *shell)
 
 	/* add header as an expanding child of the toolbar box */
 	gtk_widget_set_hexpand (GTK_WIDGET (shell->priv->header), TRUE);
+	gtk_widget_set_margin_start (GTK_WIDGET (shell->priv->header), 6);
 	gtk_box_append (GTK_BOX (toolbar), GTK_WIDGET (shell->priv->header));
 
 	/* menu tool button */

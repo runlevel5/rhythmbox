@@ -421,7 +421,6 @@ rb_header_constructed (GObject *object)
 	/* volume button */
 	header->priv->volume_button = gtk_volume_button_new ();
 	gtk_widget_set_valign (header->priv->volume_button, GTK_ALIGN_CENTER);
-	gtk_widget_set_size_request (header->priv->volume_button, 36, -1);
 	g_signal_connect (header->priv->volume_button, "value-changed",
 			  G_CALLBACK (volume_widget_changed_cb),
 			  header);
@@ -620,7 +619,7 @@ rb_header_size_allocate (GtkWidget *widget, int width, int height, int baseline)
 	}
 
 	/* allocate space for the volume button at the end */
-	gtk_widget_measure (RB_HEADER (widget)->priv->volume_button, GTK_ORIENTATION_HORIZONTAL, -1, &volume_width, NULL, NULL, NULL);
+	volume_width = 36;
 	if (rtl) {
 		child_alloc.x = alloc_x;
 		alloc_x += volume_width + spacing;
@@ -683,9 +682,16 @@ rb_header_size_allocate (GtkWidget *widget, int width, int height, int baseline)
 	}
 
 	if (info_width > 0) {
-		child_alloc.y = 0;
+		int songbox_nat_height;
+		gtk_widget_measure (RB_HEADER (widget)->priv->songbox, GTK_ORIENTATION_VERTICAL, info_width, NULL, &songbox_nat_height, NULL, NULL);
+		if (songbox_nat_height < height) {
+			child_alloc.y = (height - songbox_nat_height) / 2;
+			child_alloc.height = songbox_nat_height;
+		} else {
+			child_alloc.y = 0;
+			child_alloc.height = height;
+		}
 		child_alloc.width = info_width;
-		child_alloc.height = height;
 		gtk_widget_set_visible (RB_HEADER (widget)->priv->songbox, TRUE);
 		gtk_widget_size_allocate (RB_HEADER (widget)->priv->songbox, &child_alloc, baseline);
 	} else {
