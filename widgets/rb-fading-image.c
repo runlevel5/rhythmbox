@@ -209,8 +209,6 @@ static void
 impl_snapshot (GtkWidget *widget, GtkSnapshot *snapshot)
 {
 	RBFadingImage *image;
-	int border_width;
-	int border_height;
 	int width;
 	int height;
 	cairo_t *cr;
@@ -218,19 +216,8 @@ impl_snapshot (GtkWidget *widget, GtkSnapshot *snapshot)
 
 	width = gtk_widget_get_width (widget);
 	height = gtk_widget_get_height (widget);
-	border_width = width;
-	border_height = height;
 
 	image = RB_FADING_IMAGE (widget);
-	if (image->priv->alpha > 0.01) {
-		if (image->priv->next) {
-			border_width = gdk_pixbuf_get_width (image->priv->next) + 2 * BORDER_WIDTH;
-			border_height = gdk_pixbuf_get_height (image->priv->next) + 2 * BORDER_WIDTH;
-		}
-	} else if (image->priv->current) {
-		border_width = gdk_pixbuf_get_width (image->priv->current) + 2 * BORDER_WIDTH;
-		border_height = gdk_pixbuf_get_height (image->priv->current) + 2 * BORDER_WIDTH;
-	}
 
 	graphene_rect_init (&bounds, 0, 0, width, height);
 	cr = gtk_snapshot_append_cairo (snapshot, &bounds);
@@ -239,11 +226,7 @@ impl_snapshot (GtkWidget *widget, GtkSnapshot *snapshot)
 	cairo_set_line_width (cr, BORDER_WIDTH);
 	cairo_set_source_rgba (cr, 0.0, 0.0, 0.0, 1.0);
 	cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
-	cairo_rectangle (cr,
-			 (width - border_width) / 2,
-			 (height - border_height) / 2,
-			 border_width,
-			 border_height);
+	cairo_rectangle (cr, 0, 0, width, height);
 	cairo_stroke (cr);
 	cairo_restore (cr);
 

@@ -421,6 +421,7 @@ rb_header_constructed (GObject *object)
 	/* volume button */
 	header->priv->volume_button = gtk_volume_button_new ();
 	gtk_widget_set_valign (header->priv->volume_button, GTK_ALIGN_CENTER);
+	gtk_widget_set_hexpand (header->priv->volume_button, FALSE);
 	g_signal_connect (header->priv->volume_button, "value-changed",
 			  G_CALLBACK (volume_widget_changed_cb),
 			  header);
