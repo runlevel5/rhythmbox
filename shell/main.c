@@ -34,10 +34,6 @@
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
 
-#ifdef GDK_WINDOWING_X11
-/* X11 headers */
-#include <X11/Xlib.h>
-#endif
 
 #include "rb-shell.h"
 #include "rb-util.h"
@@ -51,12 +47,6 @@ main (int argc, char **argv)
 	GApplication *app;
 	int rc;
 
-#ifdef GDK_WINDOWING_X11
-	if (XInitThreads () == 0) {
-		g_critical ("Initialising threading support failed.");
-		return 1;
-	}
-#endif
 
 	g_random_set_seed (time (0));
 
