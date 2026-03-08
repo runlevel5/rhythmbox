@@ -69,12 +69,12 @@ static guint impl_want_uri (RBSource *source, const char *uri);
 static gboolean impl_uri_is_source (RBSource *source, const char *uri);
 static RBEntryView *impl_get_entry_view (RBSource *source);
 
-static gboolean update_artist_cb (GtkWidget *widget, GdkEventFocus *event, RBAudioCdSource *source);
-static gboolean update_artist_sort_cb (GtkWidget *widget, GdkEventFocus *event, RBAudioCdSource *source);
-static gboolean update_album_cb (GtkWidget *widget, GdkEventFocus *event, RBAudioCdSource *source);
-static gboolean update_genre_cb (GtkWidget *widget, GdkEventFocus *event, RBAudioCdSource *source);
-static gboolean update_year_cb (GtkWidget *widget, GdkEventFocus *event, RBAudioCdSource *source);
-static gboolean update_disc_number_cb (GtkWidget *widget, GdkEventFocus *event, RBAudioCdSource *source);
+static void update_artist_cb (GtkEventControllerFocus *controller, RBAudioCdSource *source);
+static void update_artist_sort_cb (GtkEventControllerFocus *controller, RBAudioCdSource *source);
+static void update_album_cb (GtkEventControllerFocus *controller, RBAudioCdSource *source);
+static void update_genre_cb (GtkEventControllerFocus *controller, RBAudioCdSource *source);
+static void update_year_cb (GtkEventControllerFocus *controller, RBAudioCdSource *source);
+static void update_disc_number_cb (GtkEventControllerFocus *controller, RBAudioCdSource *source);
 
 static void rb_audiocd_source_load_disc_info (RBAudioCdSource *source);
 static gboolean rb_audiocd_source_load_metadata (RBAudioCdSource *source);
@@ -255,12 +255,12 @@ force_no_spacing (GtkWidget *widget)
 
 	if (provider == NULL) {
 		const char *style =
-			"GtkCheckButton {\n"
+			"checkbutton { padding: 0; }";
 			"	-GtkCheckButton-indicator-spacing: 0\n"
 			"}\n";
 
 		provider = gtk_css_provider_new ();
-		gtk_css_provider_load_from_data (provider, style, -1, NULL);
+		gtk_css_provider_load_from_data (provider, style, -1);
 	}
 
 	gtk_style_context_add_provider (gtk_widget_get_style_context (widget),
@@ -367,7 +367,7 @@ rb_audiocd_source_constructed (GObject *object)
 	widget = gtk_check_button_new ();
 	g_object_set (widget, "active", TRUE, NULL);
 	force_no_spacing (widget);
-	gtk_widget_show_all (widget);
+	gtk_widget_show (widget);
 	g_signal_connect_object (extract, "clicked", G_CALLBACK (extract_column_clicked_cb), source, 0);
 	gtk_tree_view_column_set_widget (extract, widget);
 
@@ -397,12 +397,33 @@ rb_audiocd_source_constructed (GObject *object)
 	source->priv->genre_entry = GTK_WIDGET (gtk_builder_get_object (builder, "genre_entry"));
 	source->priv->disc_number_entry = GTK_WIDGET (gtk_builder_get_object (builder, "disc_number_entry"));
 
-	g_signal_connect_object (source->priv->artist_entry, "focus-out-event", G_CALLBACK (update_artist_cb), source, 0);
-	g_signal_connect_object (source->priv->artist_sort_entry, "focus-out-event", G_CALLBACK (update_artist_sort_cb), source, 0);
-	g_signal_connect_object (source->priv->album_entry, "focus-out-event", G_CALLBACK (update_album_cb), source, 0);
-	g_signal_connect_object (source->priv->genre_entry, "focus-out-event", G_CALLBACK (update_genre_cb), source, 0);
-	g_signal_connect_object (source->priv->year_entry, "focus-out-event", G_CALLBACK (update_year_cb), source, 0);
-	g_signal_connect_object (source->priv->disc_number_entry, "focus-out-event", G_CALLBACK (update_disc_number_cb), source, 0);
+	{
+		GtkEventController *controller;
+
+		controller = gtk_event_controller_focus_new ();
+		g_signal_connect_object (controller, "leave", G_CALLBACK (update_artist_cb), source, 0);
+		gtk_widget_add_controller (source->priv->artist_entry, controller);
+
+		controller = gtk_event_controller_focus_new ();
+		g_signal_connect_object (controller, "leave", G_CALLBACK (update_artist_sort_cb), source, 0);
+		gtk_widget_add_controller (source->priv->artist_sort_entry, controller);
+
+		controller = gtk_event_controller_focus_new ();
+		g_signal_connect_object (controller, "leave", G_CALLBACK (update_album_cb), source, 0);
+		gtk_widget_add_controller (source->priv->album_entry, controller);
+
+		controller = gtk_event_controller_focus_new ();
+		g_signal_connect_object (controller, "leave", G_CALLBACK (update_genre_cb), source, 0);
+		gtk_widget_add_controller (source->priv->genre_entry, controller);
+
+		controller = gtk_event_controller_focus_new ();
+		g_signal_connect_object (controller, "leave", G_CALLBACK (update_year_cb), source, 0);
+		gtk_widget_add_controller (source->priv->year_entry, controller);
+
+		controller = gtk_event_controller_focus_new ();
+		g_signal_connect_object (controller, "leave", G_CALLBACK (update_disc_number_cb), source, 0);
+		gtk_widget_add_controller (source->priv->disc_number_entry, controller);
+	}
 
 	grid = gtk_grid_new ();
 	gtk_grid_set_row_spacing (GTK_GRID (grid), 6);
@@ -414,8 +435,8 @@ rb_audiocd_source_constructed (GObject *object)
 
 	rb_source_bind_settings (RB_SOURCE (source), GTK_WIDGET (source->priv->entry_view), NULL, NULL, FALSE);
 
-	gtk_widget_show_all (grid);
-	gtk_container_add (GTK_CONTAINER (source), grid);
+	gtk_widget_show (grid);
+	gtk_box_append (GTK_BOX (source), grid);
 
 	source->priv->cancel_disc_info = g_cancellable_new ();
 	rb_audiocd_source_load_disc_info (source);
@@ -540,7 +561,7 @@ clear_info_bar (RBAudioCdSource *source)
 {
 	if (source->priv->info_bar != NULL) {
 		gtk_widget_hide (source->priv->info_bar);
-		gtk_container_remove (GTK_CONTAINER (source->priv->infogrid), source->priv->info_bar);
+		gtk_grid_remove (GTK_GRID (source->priv->infogrid), source->priv->info_bar);
 		source->priv->info_bar = NULL;
 	}
 }
@@ -550,7 +571,7 @@ show_info_bar (RBAudioCdSource *source, GtkWidget *info_bar)
 {
 	clear_info_bar (source);
 
-	gtk_widget_show_all (info_bar);
+	gtk_widget_show (info_bar);
 	gtk_grid_attach (GTK_GRID (source->priv->infogrid), info_bar, 0, 0, 2, 1);
 	source->priv->info_bar = info_bar;
 }
@@ -559,8 +580,6 @@ show_info_bar (RBAudioCdSource *source, GtkWidget *info_bar)
 static void
 submit_info_bar_response_cb (GtkInfoBar *info_bar, gint response_id, RBAudioCdSource *source)
 {
-	GError *error = NULL;
-
 	if (response_id == GTK_RESPONSE_OK) {
 		char *submit_url;
 
@@ -568,10 +587,7 @@ submit_info_bar_response_cb (GtkInfoBar *info_bar, gint response_id, RBAudioCdSo
 			source->priv->disc_info->musicbrainz_disc_id,
 			source->priv->disc_info->musicbrainz_full_disc_id);
 
-		if (!gtk_show_uri (NULL, submit_url, GDK_CURRENT_TIME, &error)) {
-			rb_debug ("Could not launch submit URL %s: %s", submit_url, error->message);
-			g_error_free (error);
-		}
+		gtk_show_uri (NULL, submit_url, GDK_CURRENT_TIME);
 		g_free (submit_url);
 	}
 
@@ -584,7 +600,6 @@ show_submit_info_bar (RBAudioCdSource *source)
 {
 	GtkWidget *info_bar;
 	GtkWidget *label;
-	GtkWidget *box;
 	char *message;
 
 	rb_debug ("showing musicbrainz submit info bar");
@@ -600,8 +615,7 @@ show_submit_info_bar (RBAudioCdSource *source)
 	gtk_label_set_justify (GTK_LABEL (label), GTK_JUSTIFY_LEFT);
 	g_free (message);
 
-	box = gtk_info_bar_get_content_area (GTK_INFO_BAR (info_bar));
-	gtk_container_add (GTK_CONTAINER (box), label);
+	gtk_info_bar_add_child (GTK_INFO_BAR (info_bar), label);
 
 	g_signal_connect (G_OBJECT (info_bar), "response",
 			  G_CALLBACK (submit_info_bar_response_cb), source);
@@ -622,7 +636,6 @@ show_lookup_error_info_bar (RBAudioCdSource *source, GError *error)
 {
 	GtkWidget *info_bar;
 	GtkWidget *label;
-	GtkWidget *box;
 	char *message;
 
 	rb_debug ("showing musicbrainz error info bar");
@@ -638,8 +651,7 @@ show_lookup_error_info_bar (RBAudioCdSource *source, GError *error)
 	gtk_label_set_justify (GTK_LABEL (label), GTK_JUSTIFY_LEFT);
 	g_free (message);
 
-	box = gtk_info_bar_get_content_area (GTK_INFO_BAR (info_bar));
-	gtk_container_add (GTK_CONTAINER (box), label);
+	gtk_info_bar_add_child (GTK_INFO_BAR (info_bar), label);
 
 	g_signal_connect (G_OBJECT (info_bar), "response",
 			  G_CALLBACK (mb_error_info_bar_response_cb), source);
@@ -660,7 +672,6 @@ show_cd_error_info_bar (RBAudioCdSource *source, GError *error)
 {
 	GtkWidget *info_bar;
 	GtkWidget *label;
-	GtkWidget *box;
 	char *message;
 
 	rb_debug ("showing cd read error info bar");
@@ -676,8 +687,7 @@ show_cd_error_info_bar (RBAudioCdSource *source, GError *error)
 	gtk_label_set_justify (GTK_LABEL (label), GTK_JUSTIFY_LEFT);
 	g_free (message);
 
-	box = gtk_info_bar_get_content_area (GTK_INFO_BAR (info_bar));
-	gtk_container_add (GTK_CONTAINER (box), label);
+	gtk_info_bar_add_child (GTK_INFO_BAR (info_bar), label);
 
 	g_signal_connect (G_OBJECT (info_bar), "response",
 			  G_CALLBACK (cd_error_info_bar_response_cb), source);
@@ -709,20 +719,20 @@ apply_musicbrainz_release (RBAudioCdSource *source, RBMusicBrainzData *release)
 	album = rb_musicbrainz_data_get_attr_value (release, RB_MUSICBRAINZ_ATTR_ALBUM);
 	if (album != NULL) {
 		rb_debug ("album title: %s", album);
-		gtk_entry_set_text (GTK_ENTRY (source->priv->album_entry), album);
+		gtk_editable_set_text (GTK_EDITABLE (source->priv->album_entry), album);
 		g_object_set (source, "name", album, NULL);
 	}
 
 	album_artist = rb_musicbrainz_data_get_attr_value (release, RB_MUSICBRAINZ_ATTR_ALBUM_ARTIST);
 	if (album_artist != NULL) {
 		rb_debug ("album artist: %s", album_artist);
-		gtk_entry_set_text (GTK_ENTRY (source->priv->artist_entry), album_artist);
+		gtk_editable_set_text (GTK_EDITABLE (source->priv->artist_entry), album_artist);
 	}
 
 	album_artist_sortname = rb_musicbrainz_data_get_attr_value (release, RB_MUSICBRAINZ_ATTR_ALBUM_ARTIST_SORTNAME);
 	if (album_artist_sortname != NULL) {
 		rb_debug ("album artist sortname: %s", album_artist_sortname);
-		gtk_entry_set_text (GTK_ENTRY (source->priv->artist_sort_entry), album_artist_sortname);
+		gtk_editable_set_text (GTK_EDITABLE (source->priv->artist_sort_entry), album_artist_sortname);
 	}
 
 	value = rb_musicbrainz_data_get_attr_value (release, RB_MUSICBRAINZ_ATTR_DATE);
@@ -736,7 +746,7 @@ apply_musicbrainz_release (RBAudioCdSource *source, RBMusicBrainzData *release)
 			char *year_text;
 
 			year_text = g_strdup_printf ("%d", year);
-			gtk_entry_set_text (GTK_ENTRY (source->priv->year_entry), year_text);
+			gtk_editable_set_text (GTK_EDITABLE (source->priv->year_entry), year_text);
 			g_free (year_text);
 
 			g_date_set_dmy (&date,
@@ -752,7 +762,7 @@ apply_musicbrainz_release (RBAudioCdSource *source, RBMusicBrainzData *release)
 	value = rb_musicbrainz_data_get_attr_value (medium, RB_MUSICBRAINZ_ATTR_DISC_NUMBER);
 	if (value != NULL) {
 		disc_num = strtol (value, NULL, 10);	/* 0 is ok if this fails */
-		gtk_entry_set_text (GTK_ENTRY (source->priv->disc_number_entry), value);
+		gtk_editable_set_text (GTK_EDITABLE (source->priv->disc_number_entry), value);
 		rb_debug ("disc number %d", disc_num);
 	}
 
@@ -865,7 +875,6 @@ show_multiple_release_info_bar (RBAudioCdSource *source)
 {
 	GtkWidget *info_bar;
 	GtkWidget *label;
-	GtkWidget *box;
 	GtkWidget *combo;
 	GList *l;
 
@@ -875,8 +884,7 @@ show_multiple_release_info_bar (RBAudioCdSource *source)
 
 	label = gtk_label_new (_("This disc matches multiple albums. Select the correct album."));
 	gtk_label_set_justify (GTK_LABEL (label), GTK_JUSTIFY_LEFT);
-	box = gtk_info_bar_get_content_area (GTK_INFO_BAR (info_bar));
-	gtk_container_add (GTK_CONTAINER (box), label);
+	gtk_info_bar_add_child (GTK_INFO_BAR (info_bar), label);
 
 	combo = gtk_combo_box_text_new ();
 	for (l = source->priv->releases; l != NULL; l = l->next) {
@@ -896,8 +904,7 @@ show_multiple_release_info_bar (RBAudioCdSource *source)
 	g_signal_connect (combo, "changed", G_CALLBACK (album_combo_changed_cb), source);
 	gtk_combo_box_set_active (GTK_COMBO_BOX (combo), 0);
 
-	box = gtk_info_bar_get_action_area (GTK_INFO_BAR (info_bar));
-	gtk_container_add (GTK_CONTAINER (box), combo);
+	gtk_info_bar_add_child (GTK_INFO_BAR (info_bar), combo);
 
 	show_info_bar (source, info_bar);
 }
@@ -1035,14 +1042,14 @@ disc_info_cb (GObject *obj, GAsyncResult *result, RBAudioCdSource **source_ptr)
 	}
 
 	if (source->priv->disc_info->album_artist != NULL) {
-		gtk_entry_set_text (GTK_ENTRY (source->priv->artist_entry), source->priv->disc_info->album_artist);
+		gtk_editable_set_text (GTK_EDITABLE (source->priv->artist_entry), source->priv->disc_info->album_artist);
 	}
 	if (source->priv->disc_info->album != NULL) {
-		gtk_entry_set_text (GTK_ENTRY (source->priv->album_entry), source->priv->disc_info->album);
+		gtk_editable_set_text (GTK_EDITABLE (source->priv->album_entry), source->priv->disc_info->album);
 		g_object_set (source, "name", source->priv->disc_info->album, NULL);
 	}
 	if (source->priv->disc_info->genre != NULL) {
-		gtk_entry_set_text (GTK_ENTRY (source->priv->genre_entry), source->priv->disc_info->genre);
+		gtk_editable_set_text (GTK_EDITABLE (source->priv->genre_entry), source->priv->disc_info->genre);
 	}
 
 	db = get_db_for_source (source);
@@ -1256,45 +1263,46 @@ update_tracks_string (RBAudioCdSource *source, RhythmDBPropType property, const 
 	g_value_unset (&v);
 }
 
-static gboolean
-update_artist_cb (GtkWidget *widget, GdkEventFocus *event, RBAudioCdSource *source)
+static void
+update_artist_cb (GtkEventControllerFocus *controller, RBAudioCdSource *source)
 {
-	update_tracks_string (source, RHYTHMDB_PROP_ALBUM_ARTIST, gtk_entry_get_text (GTK_ENTRY (widget)));
-	return FALSE;
+	GtkWidget *widget = gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (controller));
+	update_tracks_string (source, RHYTHMDB_PROP_ALBUM_ARTIST, gtk_editable_get_text (GTK_EDITABLE (widget)));
 }
 
-static gboolean
-update_artist_sort_cb (GtkWidget *widget, GdkEventFocus *event, RBAudioCdSource *source)
+static void
+update_artist_sort_cb (GtkEventControllerFocus *controller, RBAudioCdSource *source)
 {
-	update_tracks_string (source, RHYTHMDB_PROP_ALBUM_ARTIST_SORTNAME, gtk_entry_get_text (GTK_ENTRY (widget)));
-	return FALSE;
+	GtkWidget *widget = gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (controller));
+	update_tracks_string (source, RHYTHMDB_PROP_ALBUM_ARTIST_SORTNAME, gtk_editable_get_text (GTK_EDITABLE (widget)));
 }
 
-static gboolean
-update_album_cb (GtkWidget *widget, GdkEventFocus *event, RBAudioCdSource *source)
+static void
+update_album_cb (GtkEventControllerFocus *controller, RBAudioCdSource *source)
 {
-	update_tracks_string (source, RHYTHMDB_PROP_ALBUM, gtk_entry_get_text (GTK_ENTRY (widget)));
-	return FALSE;
+	GtkWidget *widget = gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (controller));
+	update_tracks_string (source, RHYTHMDB_PROP_ALBUM, gtk_editable_get_text (GTK_EDITABLE (widget)));
 }
 
-static gboolean
-update_genre_cb (GtkWidget *widget, GdkEventFocus *event, RBAudioCdSource *source)
+static void
+update_genre_cb (GtkEventControllerFocus *controller, RBAudioCdSource *source)
 {
-	update_tracks_string (source, RHYTHMDB_PROP_GENRE, gtk_entry_get_text (GTK_ENTRY (widget)));
-	return FALSE;
+	GtkWidget *widget = gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (controller));
+	update_tracks_string (source, RHYTHMDB_PROP_GENRE, gtk_editable_get_text (GTK_EDITABLE (widget)));
 }
 
-static gboolean
-update_year_cb (GtkWidget *widget, GdkEventFocus *event, RBAudioCdSource *source)
+static void
+update_year_cb (GtkEventControllerFocus *controller, RBAudioCdSource *source)
 {
+	GtkWidget *widget = gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (controller));
 	const char *text;
 	int year;
 	GDate date;
 	GValue v = {0, };
 
-	text = gtk_entry_get_text (GTK_ENTRY (widget));
+	text = gtk_editable_get_text (GTK_EDITABLE (widget));
 	if (text[0] == '\0') {
-		return FALSE;
+		return;
 	}
 
 	year = strtol (text, NULL, 10);
@@ -1305,21 +1313,18 @@ update_year_cb (GtkWidget *widget, GdkEventFocus *event, RBAudioCdSource *source
 	g_value_set_ulong (&v, g_date_get_julian (&date));
 	update_tracks (source, RHYTHMDB_PROP_DATE, &v);
 	g_value_unset (&v);
-
-	return FALSE;
 }
 
-static gboolean
-update_disc_number_cb (GtkWidget *widget, GdkEventFocus *event, RBAudioCdSource *source)
+static void
+update_disc_number_cb (GtkEventControllerFocus *controller, RBAudioCdSource *source)
 {
+	GtkWidget *widget = gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (controller));
 	GValue v = {0, };
 
 	g_value_init (&v, G_TYPE_ULONG);
-	g_value_set_ulong (&v, strtoul (gtk_entry_get_text (GTK_ENTRY (widget)), NULL, 10));
+	g_value_set_ulong (&v, strtoul (gtk_editable_get_text (GTK_EDITABLE (widget)), NULL, 10));
 	update_tracks (source, RHYTHMDB_PROP_DISC_NUMBER, &v);
 	g_value_unset (&v);
-
-	return FALSE;
 }
 
 static void
