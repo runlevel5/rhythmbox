@@ -1883,8 +1883,7 @@ rb_entry_view_constructed (GObject *object)
 
 		/* Playing icon column */
 		column = GTK_TREE_VIEW_COLUMN (gtk_tree_view_column_new ());
-		renderer = rb_cell_renderer_pixbuf_new ();
-		g_object_set (renderer, "stock-size", GTK_ICON_SIZE_MENU, NULL);
+		renderer = gtk_cell_renderer_pixbuf_new ();
 
 		gtk_tree_view_column_pack_start (column, renderer, TRUE);
 		gtk_tree_view_column_set_cell_data_func (column, renderer,
@@ -1899,10 +1898,6 @@ rb_entry_view_constructed (GObject *object)
 
 		gtk_tree_view_column_set_sizing (column, GTK_TREE_VIEW_COLUMN_FIXED);
 		gtk_tree_view_append_column (GTK_TREE_VIEW (view->priv->treeview), column);
-		g_signal_connect_swapped (renderer,
-					  "pixbuf-clicked",
-					  G_CALLBACK (rb_entry_view_pixbuf_clicked_cb),
-					  view);
 
 		gtk_widget_set_tooltip_text (gtk_tree_view_column_get_widget (column),
 					     _("Now Playing"));
