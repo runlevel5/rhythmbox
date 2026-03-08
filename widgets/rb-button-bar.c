@@ -149,6 +149,7 @@ append_menu (RBButtonBar *bar, GMenuModel *menu, gboolean need_separator)
 
 		if (submenu != NULL) {
 			button = gtk_menu_button_new ();
+			gtk_menu_button_set_always_show_arrow (GTK_MENU_BUTTON (button), FALSE);
 			gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (button), submenu);
 
 			g_object_set_data_full (G_OBJECT (button), "rb-menu-model", g_object_ref (submenu), (GDestroyNotify)g_object_unref);
