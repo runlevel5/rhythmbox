@@ -78,8 +78,7 @@ struct _RBAudioscrobblerPluginClass
 
 G_MODULE_EXPORT void peas_register_types (PeasObjectModule *module);
 
-static GtkWidget *impl_create_configure_widget (PeasGtkConfigurable *bplugin);
-static void peas_gtk_configurable_iface_init (PeasGtkConfigurableInterface *iface);
+
 
 static void lastfm_settings_changed_cb (GSettings *settings,
 					const char *key,
@@ -91,8 +90,7 @@ static void librefm_settings_changed_cb (GSettings *settings,
 RB_DEFINE_PLUGIN(RB_TYPE_AUDIOSCROBBLER_PLUGIN,
 		 RBAudioscrobblerPlugin,
 		 rb_audioscrobbler_plugin,
-		 (G_IMPLEMENT_INTERFACE_DYNAMIC (PEAS_GTK_TYPE_CONFIGURABLE,
-						peas_gtk_configurable_iface_init)))
+		 )
 
 static void
 rb_audioscrobbler_plugin_init (RBAudioscrobblerPlugin *plugin)
@@ -116,11 +114,11 @@ impl_activate (PeasActivatable *bplugin)
 	plugin = RB_AUDIOSCROBBLER_PLUGIN (bplugin);
 
 	g_object_get (plugin, "plugin-info", &plugin_info, NULL);
-	theme = gtk_icon_theme_get_default ();
+	theme = gtk_icon_theme_get_for_display (gdk_display_get_default ());
 
 	/* installed icon dir */
 	icondir = g_build_filename (peas_plugin_info_get_data_dir (plugin_info), "icons", NULL);
-	gtk_icon_theme_append_search_path (theme, icondir);
+	gtk_icon_theme_add_search_path (theme, icondir);
 	g_free (icondir);
 
 	g_signal_connect_object (plugin->lastfm_settings,
@@ -142,7 +140,7 @@ impl_deactivate	(PeasActivatable *bplugin)
 	RBAudioscrobblerPlugin *plugin = RB_AUDIOSCROBBLER_PLUGIN (bplugin);
 
 	if (plugin->config_dialog != NULL) {
-		gtk_widget_destroy (plugin->config_dialog);
+		gtk_window_destroy (GTK_WINDOW (plugin->config_dialog));
 		plugin->config_dialog = NULL;
 	}
 
@@ -169,42 +167,7 @@ impl_deactivate	(PeasActivatable *bplugin)
 	}
 }
 
-static GtkWidget *
-impl_create_configure_widget (PeasGtkConfigurable *bplugin)
-{
-	RBAudioscrobblerPlugin *plugin;
-	char *builderfile;
-	GtkBuilder *builder;
-	GtkWidget *widget;
-
-	plugin = RB_AUDIOSCROBBLER_PLUGIN (bplugin);
-
-	builderfile = rb_find_plugin_data_file (G_OBJECT (plugin), "audioscrobbler-preferences.ui");
-	if (builderfile == NULL) {
-		g_warning ("can't find audioscrobbler-preferences.ui");
-		return NULL;
-	}
-
-	builder = rb_builder_load (builderfile, plugin);
-	g_free (builderfile);
-
-	widget = GTK_WIDGET (gtk_builder_get_object (builder, "config"));
-	g_object_ref_sink (widget);
-
-	plugin->lastfm_enabled_check = GTK_WIDGET (gtk_builder_get_object (builder, "lastfm_enabled_check"));
-	g_settings_bind (plugin->lastfm_settings, AUDIOSCROBBLER_SERVICE_ENABLED_KEY, plugin->lastfm_enabled_check, "active", G_SETTINGS_BIND_DEFAULT);
-	plugin->librefm_enabled_check = GTK_WIDGET (gtk_builder_get_object (builder, "librefm_enabled_check"));
-	g_settings_bind (plugin->librefm_settings, AUDIOSCROBBLER_SERVICE_ENABLED_KEY, plugin->librefm_enabled_check, "active", G_SETTINGS_BIND_DEFAULT);
-
-	g_object_unref (builder);
-	return widget;
-}
-
-static void
-peas_gtk_configurable_iface_init (PeasGtkConfigurableInterface *iface)
-{
-	iface->create_configure_widget = impl_create_configure_widget;
-}
+/* PeasGtkConfigurable removed in libpeas-2 */
 
 static void
 lastfm_settings_changed_cb (GSettings *settings,
@@ -282,7 +245,5 @@ peas_register_types (PeasObjectModule *module)
 	peas_object_module_register_extension_type (module,
 						    PEAS_TYPE_ACTIVATABLE,
 						    RB_TYPE_AUDIOSCROBBLER_PLUGIN);
-	peas_object_module_register_extension_type (module,
-						    PEAS_GTK_TYPE_CONFIGURABLE,
-						    RB_TYPE_AUDIOSCROBBLER_PLUGIN);
+	/* PeasGtkConfigurable removed in libpeas-2 */
 }

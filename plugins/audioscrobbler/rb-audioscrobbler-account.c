@@ -594,7 +594,7 @@ parse_token (RBAudioscrobblerAccount *account, const char *body, gsize body_size
 				               rb_audioscrobbler_service_get_api_key (account->priv->service),
 				               account->priv->auth_token);
 			rb_debug ("sending user to %s", url);
-			gtk_show_uri (NULL, url, GDK_CURRENT_TIME, NULL);
+			gtk_show_uri (NULL, url, GDK_CURRENT_TIME);
 
 			/* add timeout which will ask for session key */
 			account->priv->session_key_timeout_id =

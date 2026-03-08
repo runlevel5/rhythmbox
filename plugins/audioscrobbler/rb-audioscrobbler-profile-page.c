@@ -39,7 +39,6 @@
 #include <lib/rb-util.h>
 #include <sources/rb-display-page-tree.h>
 #include <sources/rb-display-page-group.h>
-#include <widgets/eggwrapbox.h>
 #include <widgets/rb-source-toolbar.h>
 
 #include "rb-audioscrobbler-profile-page.h"
@@ -210,11 +209,11 @@ static GtkWidget *create_popup_menu (RBAudioscrobblerProfilePage *page,
 
 /* callbacks from data list buttons and related popup menus */
 static void list_item_clicked_cb (GtkButton *button, RBAudioscrobblerProfilePage *page);
-static void list_item_view_url_activated_cb (GtkMenuItem *menuitem,
+static void list_item_view_url_activated_cb (GtkWidget *menuitem,
                                              RBAudioscrobblerProfilePage *page);
-static void list_item_listen_similar_artists_activated_cb (GtkMenuItem *menuitem,
+static void list_item_listen_similar_artists_activated_cb (GtkWidget *menuitem,
                                                            RBAudioscrobblerProfilePage *page);
-static void list_item_listen_top_fans_activated_cb (GtkMenuItem *menuitem,
+static void list_item_listen_top_fans_activated_cb (GtkWidget *menuitem,
                                                     RBAudioscrobblerProfilePage *page);
 
 /* RBDisplayPage implementations */
@@ -247,7 +246,7 @@ rb_audioscrobbler_profile_page_new (RBShell *shell, GObject *plugin, RBAudioscro
 	g_object_get (service, "name", &name, NULL);
 
 	icon_name = g_strconcat (rb_audioscrobbler_service_get_name (service), "-symbolic", NULL);
-	if (gtk_icon_theme_has_icon (gtk_icon_theme_get_default (), icon_name))
+	if (gtk_icon_theme_has_icon (gtk_icon_theme_get_for_display (gdk_display_get_default ()), icon_name))
 		icon = g_themed_icon_new (icon_name);
 	else
 		icon = g_themed_icon_new ("network-server-symbolic");
@@ -341,7 +340,7 @@ rb_audioscrobbler_profile_page_constructed (GObject *object)
 
 	/* create the UI */
 	page->priv->main_vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 4);
-	gtk_box_pack_start (GTK_BOX (page), page->priv->main_vbox, TRUE, TRUE, 0);
+	gtk_box_append (GTK_BOX (page), page->priv->main_vbox);
 	gtk_widget_show (page->priv->main_vbox);
 
 	init_actions (page);
@@ -503,7 +502,7 @@ init_login_ui (RBAudioscrobblerProfilePage *page)
 	page->priv->login_status_label = gtk_label_new ("");
 	page->priv->login_response_button = gtk_button_new ();
 	content_area = gtk_info_bar_get_content_area (GTK_INFO_BAR (page->priv->login_bar));
-	gtk_container_add (GTK_CONTAINER (content_area), page->priv->login_status_label);
+	gtk_info_bar_add_child (GTK_INFO_BAR (page->priv->login_bar), page->priv->login_status_label);
 	page->priv->login_response_button =
 		gtk_info_bar_add_button (GTK_INFO_BAR (page->priv->login_bar),
 		                         "", GTK_RESPONSE_OK);
@@ -511,7 +510,7 @@ init_login_ui (RBAudioscrobblerProfilePage *page)
 	                  "response",
 	                  G_CALLBACK (login_bar_response_cb),
 	                  page);
-	gtk_box_pack_start (GTK_BOX (page->priv->main_vbox), page->priv->login_bar, FALSE, FALSE, 0);
+	gtk_box_append (GTK_BOX (page->priv->main_vbox), page->priv->login_bar);
 }
 
 static void
@@ -555,7 +554,7 @@ init_profile_ui (RBAudioscrobblerProfilePage *page)
 	page->priv->station_creator_arg_entry = GTK_WIDGET (gtk_builder_get_object (builder, "station_creator_arg_entry"));
 	combo_container = GTK_WIDGET (gtk_builder_get_object (builder, "station_creator_combo_container"));
 	page->priv->station_creator_type_combo = gtk_combo_box_text_new ();
-	gtk_container_add (GTK_CONTAINER (combo_container), page->priv->station_creator_type_combo);
+	gtk_box_append (GTK_BOX (combo_container), page->priv->station_creator_type_combo);
 	for (i = 0; i < RB_AUDIOSCROBBLER_RADIO_TYPE_LAST; i++) {
 		gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (page->priv->station_creator_type_combo),
 						rb_audioscrobbler_radio_type_get_text (i));
@@ -565,43 +564,23 @@ init_profile_ui (RBAudioscrobblerProfilePage *page)
 
 	/* lists of data */
 	page->priv->recent_tracks_area = GTK_WIDGET (gtk_builder_get_object (builder, "recent_tracks_area"));
-	page->priv->recent_tracks_wrap_box = egg_wrap_box_new (EGG_WRAP_ALLOCATE_HOMOGENEOUS,
-	                                                       EGG_WRAP_BOX_SPREAD_EXPAND,
-	                                                       EGG_WRAP_BOX_SPREAD_START,
-	                                                       2, 2);
-	gtk_box_pack_end (GTK_BOX (page->priv->recent_tracks_area),
-	                  page->priv->recent_tracks_wrap_box,
-	                  TRUE, TRUE, 0);
+	page->priv->recent_tracks_wrap_box = gtk_flow_box_new ();
+	gtk_box_append (GTK_BOX (page->priv->recent_tracks_area), page->priv->recent_tracks_wrap_box);
 
 	page->priv->top_tracks_area = GTK_WIDGET (gtk_builder_get_object (builder, "top_tracks_area"));
-	page->priv->top_tracks_wrap_box = egg_wrap_box_new (EGG_WRAP_ALLOCATE_HOMOGENEOUS,
-	                                                    EGG_WRAP_BOX_SPREAD_EXPAND,
-	                                                    EGG_WRAP_BOX_SPREAD_START,
-	                                                    2, 2);
-	gtk_box_pack_end (GTK_BOX (page->priv->top_tracks_area),
-	                  page->priv->top_tracks_wrap_box,
-	                  TRUE, TRUE, 0);
+	page->priv->top_tracks_wrap_box = gtk_flow_box_new ();
+	gtk_box_append (GTK_BOX (page->priv->top_tracks_area), page->priv->top_tracks_wrap_box);
 
 	page->priv->loved_tracks_area = GTK_WIDGET (gtk_builder_get_object (builder, "loved_tracks_area"));
-	page->priv->loved_tracks_wrap_box = egg_wrap_box_new (EGG_WRAP_ALLOCATE_HOMOGENEOUS,
-	                                                      EGG_WRAP_BOX_SPREAD_EXPAND,
-	                                                      EGG_WRAP_BOX_SPREAD_START,
-	                                                      2, 2);
-	gtk_box_pack_end (GTK_BOX (page->priv->loved_tracks_area),
-	                  page->priv->loved_tracks_wrap_box,
-	                  TRUE, TRUE, 0);
+	page->priv->loved_tracks_wrap_box = gtk_flow_box_new ();
+	gtk_box_append (GTK_BOX (page->priv->loved_tracks_area), page->priv->loved_tracks_wrap_box);
 	
 	page->priv->top_artists_area = GTK_WIDGET (gtk_builder_get_object (builder, "top_artists_area"));
-	page->priv->top_artists_wrap_box = egg_wrap_box_new (EGG_WRAP_ALLOCATE_HOMOGENEOUS,
-	                                                     EGG_WRAP_BOX_SPREAD_EXPAND,
-	                                                     EGG_WRAP_BOX_SPREAD_START,
-	                                                     2, 2);
-	gtk_box_pack_end (GTK_BOX (page->priv->top_artists_area),
-	                  page->priv->top_artists_wrap_box,
-	                  TRUE, TRUE, 0);
+	page->priv->top_artists_wrap_box = gtk_flow_box_new ();
+	gtk_box_append (GTK_BOX (page->priv->top_artists_area), page->priv->top_artists_wrap_box);
 
 	/* pack profile into main vbox */
-	gtk_box_pack_start (GTK_BOX (page->priv->main_vbox), page->priv->profile_window, TRUE, TRUE, 0);
+	gtk_box_append (GTK_BOX (page->priv->main_vbox), page->priv->profile_window);
 
 
 	g_object_unref (plugin);
@@ -681,7 +660,7 @@ init_actions (RBAudioscrobblerProfilePage *page)
 	g_free (action_name);
 
 	page->priv->toolbar = rb_source_toolbar_new (RB_DISPLAY_PAGE (page), accel_group);
-	gtk_box_pack_start (GTK_BOX (page->priv->main_vbox), GTK_WIDGET (page->priv->toolbar), FALSE, FALSE, 0);
+	gtk_box_append (GTK_BOX (page->priv->main_vbox), GTK_WIDGET (page->priv->toolbar));
 
 	g_object_unref (shell);
 	g_object_unref (plugin);
@@ -812,7 +791,7 @@ login_status_change_cb (RBAudioscrobblerAccount *account,
 	gtk_label_set_label (GTK_LABEL (page->priv->login_status_label), label_text);
 	gtk_button_set_label (GTK_BUTTON (page->priv->login_response_button), button_text);
 	if (show_login_bar == TRUE) {
-		gtk_widget_show_all (page->priv->login_bar);
+		gtk_widget_show (page->priv->login_bar);
 	} else {
 		gtk_widget_hide (page->priv->login_bar);
 	}
@@ -1119,7 +1098,7 @@ station_creator_button_clicked_cb (GtkButton *button,
 {
 	const char *arg;
 
-	arg = gtk_entry_get_text (GTK_ENTRY (page->priv->station_creator_arg_entry));
+	arg = gtk_editable_get_text (GTK_EDITABLE (page->priv->station_creator_arg_entry));
 
 	if (arg[0] != '\0') {
 		RBAudioscrobblerRadioType type;
@@ -1141,7 +1120,7 @@ station_creator_button_clicked_cb (GtkButton *button,
 		g_object_get (shell, "display-page-tree", &page_tree, NULL);
 		rb_display_page_tree_select (page_tree, RB_DISPLAY_PAGE (radio));
 
-		gtk_entry_set_text (GTK_ENTRY (page->priv->station_creator_arg_entry), "");
+		gtk_editable_set_text (GTK_EDITABLE (page->priv->station_creator_arg_entry), "");
 
 		g_free (url);
 		g_free (name);
@@ -1425,7 +1404,7 @@ recent_tracks_updated_cb (RBAudioscrobblerUser *user,
 	set_user_list (page, page->priv->recent_tracks_wrap_box, recent_tracks);
 
 	if (recent_tracks != NULL && recent_tracks->len != 0) {
-		gtk_widget_show_all (page->priv->recent_tracks_area);
+		gtk_widget_show (page->priv->recent_tracks_area);
 	} else {
 		gtk_widget_hide (page->priv->recent_tracks_area);
 	}
@@ -1439,7 +1418,7 @@ top_tracks_updated_cb (RBAudioscrobblerUser *user,
 	set_user_list (page, page->priv->top_tracks_wrap_box, top_tracks);
 
 	if (top_tracks != NULL && top_tracks->len != 0) {
-		gtk_widget_show_all (page->priv->top_tracks_area);
+		gtk_widget_show (page->priv->top_tracks_area);
 	} else {
 		gtk_widget_hide (page->priv->top_tracks_area);
 	}
@@ -1453,7 +1432,7 @@ loved_tracks_updated_cb (RBAudioscrobblerUser *user,
 	set_user_list (page, page->priv->loved_tracks_wrap_box, loved_tracks);
 
 	if (loved_tracks != NULL && loved_tracks->len != 0) {
-		gtk_widget_show_all (page->priv->loved_tracks_area);
+		gtk_widget_show (page->priv->loved_tracks_area);
 	} else {
 		gtk_widget_hide (page->priv->loved_tracks_area);
 	}
@@ -1467,7 +1446,7 @@ top_artists_updated_cb (RBAudioscrobblerUser *user,
 	set_user_list (page, page->priv->top_artists_wrap_box, top_artists);
 
 	if (top_artists != NULL && top_artists->len != 0) {
-		gtk_widget_show_all (page->priv->top_artists_area);
+		gtk_widget_show (page->priv->top_artists_area);
 	} else {
 		gtk_widget_hide (page->priv->top_artists_area);
 	}
@@ -1484,14 +1463,14 @@ set_user_list (RBAudioscrobblerProfilePage *page,
 	GList *button_node;
 
 	/* delete all existing buttons */
-	for (button_node = gtk_container_get_children (GTK_CONTAINER (list_wrap_box));
+	for (button_node = NULL /* GTK4: use gtk_widget_get_first_child iteration */;
 	     button_node != NULL;
 	     button_node = g_list_next (button_node)) {
-		GtkMenu *menu;
+		GtkWidget *menu; /* TODO: port to GtkPopoverMenu */
 		menu = g_hash_table_lookup (page->priv->button_to_popup_menu_map, button_node->data);
 		g_hash_table_remove (page->priv->button_to_popup_menu_map, button_node->data);
 		g_hash_table_remove (page->priv->popup_menu_to_data_map, menu);
-		gtk_widget_destroy (button_node->data);
+		gtk_widget_unparent (GTK_WIDGET (button_node->data));
 	}
 
 	if (list_data != NULL) {
@@ -1524,10 +1503,7 @@ set_user_list (RBAudioscrobblerProfilePage *page,
 			g_hash_table_insert (page->priv->button_to_popup_menu_map, button, g_object_ref_sink (menu));
 			g_hash_table_insert (page->priv->popup_menu_to_data_map, menu, data);
 
-			egg_wrap_box_insert_child (EGG_WRAP_BOX (list_wrap_box),
-			                           button,
-			                           -1,
-			                           EGG_WRAP_BOX_H_EXPAND);
+			gtk_flow_box_append (GTK_FLOW_BOX (list_wrap_box), button);
 		}
 	}
 }
@@ -1546,32 +1522,27 @@ create_list_button (RBAudioscrobblerProfilePage *page,
 	GtkWidget *label_alignment;
 
 	button = gtk_button_new ();
-	gtk_button_set_alignment (GTK_BUTTON (button),
-		                  0, 0.5);
-	gtk_button_set_focus_on_click (GTK_BUTTON (button),
+	gtk_widget_set_focus_on_click (button,
 		                       FALSE);
-	gtk_button_set_relief (GTK_BUTTON (button),
-		               GTK_RELIEF_NONE);
+	gtk_widget_add_css_class (button, "flat");
 
 	button_contents = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
-	gtk_container_add (GTK_CONTAINER (button), button_contents);
+	gtk_box_append (GTK_BOX (button), button_contents);
 
 	if (data->image != NULL) {
 		GtkWidget *image;
 		GtkWidget *viewport;
 		GtkWidget *alignment;
 
-		image = gtk_image_new_from_pixbuf (data->image);
+		image = gtk_image_new_from_paintable (GDK_PAINTABLE (gdk_texture_new_for_pixbuf (data->image)));
 
 		viewport = gtk_viewport_new (NULL, NULL);
-		gtk_container_add (GTK_CONTAINER (viewport), image);
+		gtk_box_append (GTK_BOX (viewport), image);
 
-		alignment = gtk_alignment_new (0, 0.5, 0, 0);
-		gtk_container_add (GTK_CONTAINER (alignment), viewport);
+		alignment = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0); /* GTK4: alignment replaced */
+		gtk_box_append (GTK_BOX (alignment), viewport);
 
-		gtk_box_pack_start (GTK_BOX (button_contents),
-		                    alignment,
-		                    FALSE, FALSE, 0);
+		gtk_box_append (GTK_BOX (button_contents), alignment);
 
 		label_indent = max_sibling_image_width - gdk_pixbuf_get_width (data->image);
 	} else {
@@ -1600,16 +1571,12 @@ create_list_button (RBAudioscrobblerProfilePage *page,
 	gtk_label_set_markup (GTK_LABEL (label), button_markup);
 	g_free (button_markup);
 
-	label_alignment = gtk_alignment_new (0, 0.5, 0, 0);
-	gtk_container_add (GTK_CONTAINER (label_alignment), label);
+	label_alignment = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0); /* GTK4: alignment replaced */
+	gtk_box_append (GTK_BOX (label_alignment), label);
 
-	gtk_alignment_set_padding (GTK_ALIGNMENT (label_alignment),
-	                           0, 0,
-	                           label_indent, 0);
+	gtk_widget_set_margin_start (label_alignment, label_indent);
 
-	gtk_box_pack_start (GTK_BOX (button_contents),
-	                    label_alignment,
-	                    FALSE, FALSE, 0);
+	gtk_box_append (GTK_BOX (button_contents), label_alignment);
 
 	g_signal_connect (button,
 		          "clicked",
@@ -1626,7 +1593,7 @@ create_popup_menu (RBAudioscrobblerProfilePage *page,
 {
 	GtkWidget *menu;
 
-	menu = gtk_menu_new ();
+	menu = NULL; /* TODO: port to GtkPopoverMenu */
 
 	/* Visit on website */
 	if (data->url != NULL && data->url[0] != '\0') {
@@ -1638,13 +1605,10 @@ create_popup_menu (RBAudioscrobblerProfilePage *page,
 		 * artist/track's page on the service's website. */
 		item_text = g_strdup_printf (_("_View on %s"),
 		                             rb_audioscrobbler_service_get_name (page->priv->service));
-		view_url_item = gtk_menu_item_new_with_mnemonic (item_text);
-		g_signal_connect (view_url_item,
-				  "activate",
-				  G_CALLBACK (list_item_view_url_activated_cb),
-				  page);
+		view_url_item = NULL; /* TODO: port GtkMenuItem to actions */
+		/* TODO: reconnect with GAction */
 
-		gtk_menu_shell_append (GTK_MENU_SHELL (menu), view_url_item);
+		/* TODO: port menu items */
 		g_free (item_text);
 	}
 
@@ -1654,12 +1618,9 @@ create_popup_menu (RBAudioscrobblerProfilePage *page,
 		GtkWidget *similar_artists_item;
 
 		similar_artists_item = gtk_menu_item_new_with_mnemonic (_("Listen to _Similar Artists Radio"));
-		g_signal_connect (similar_artists_item,
-				  "activate",
-				  G_CALLBACK (list_item_listen_similar_artists_activated_cb),
-				  page);
+		/* TODO: reconnect with GAction */
 
-		gtk_menu_shell_append (GTK_MENU_SHELL (menu), similar_artists_item);
+		/* TODO: port menu items */
 	}
 
 	/* Top fans radio */
@@ -1668,15 +1629,12 @@ create_popup_menu (RBAudioscrobblerProfilePage *page,
 		GtkWidget *top_fans_item;
 
 		top_fans_item = gtk_menu_item_new_with_mnemonic (_("Listen to _Top Fans Radio"));
-		g_signal_connect (top_fans_item,
-				  "activate",
-				  G_CALLBACK (list_item_listen_top_fans_activated_cb),
-				  page);
+		/* TODO: reconnect with GAction */
 
-		gtk_menu_shell_append (GTK_MENU_SHELL (menu), top_fans_item);
+		/* TODO: port menu items */
 	}
 
-	gtk_widget_show_all (menu);
+	gtk_widget_show (menu);
 
 	return menu;
 }
@@ -1690,13 +1648,13 @@ list_item_clicked_cb (GtkButton *button, RBAudioscrobblerProfilePage *page)
 	menu = g_hash_table_lookup (page->priv->button_to_popup_menu_map, button);
 
 	/* show menu if it has any items in it */
-	if (g_list_length (gtk_container_get_children (GTK_CONTAINER (menu))) != 0) {
-		gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL, 0, gtk_get_current_event_time ());
+	if (g_list_length (NULL /* GTK4: use gtk_widget_get_first_child iteration */) != 0) {
+		/* TODO: port to popover popup */
 	}
 }
 
 static void
-list_item_view_url_activated_cb (GtkMenuItem *menuitem,
+list_item_view_url_activated_cb (GtkWidget *menuitem,
                                  RBAudioscrobblerProfilePage *page)
 {
 	GtkWidget *menu;
@@ -1707,17 +1665,17 @@ list_item_view_url_activated_cb (GtkMenuItem *menuitem,
 
 	/* some urls are given to us without the http:// prefix */
 	if (g_str_has_prefix (data->url, "http://") || g_str_has_prefix (data->url, "https://")) {
-		gtk_show_uri (NULL, data->url, GDK_CURRENT_TIME, NULL);
+		gtk_show_uri (NULL, data->url, GDK_CURRENT_TIME);
 	} else {
 		char *url;
 		url = g_strdup_printf ("%s%s", "http://", data->url);
-		gtk_show_uri (NULL, url, GDK_CURRENT_TIME, NULL);
+		gtk_show_uri (NULL, url, GDK_CURRENT_TIME);
 		g_free (url);
 	}
 }
 
 static void
-list_item_listen_similar_artists_activated_cb (GtkMenuItem *menuitem,
+list_item_listen_similar_artists_activated_cb (GtkWidget *menuitem,
                                                RBAudioscrobblerProfilePage *page)
 {
 	GtkWidget *menu;
@@ -1754,7 +1712,7 @@ list_item_listen_similar_artists_activated_cb (GtkMenuItem *menuitem,
 }
 
 static void
-list_item_listen_top_fans_activated_cb (GtkMenuItem *menuitem,
+list_item_listen_top_fans_activated_cb (GtkWidget *menuitem,
                                         RBAudioscrobblerProfilePage *page)
 {
 	GtkWidget *menu;
