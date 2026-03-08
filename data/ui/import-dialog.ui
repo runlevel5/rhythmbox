@@ -1,103 +1,97 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Generated with glade 3.18.3 -->
 <interface>
-  <requires lib="gtk+" version="3.6"/>
-  <object class="GtkGrid" id="import-dialog">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="margin_top">6</property>
-    <property name="row_spacing">6</property>
+  <requires lib="gtk" version="4.0"/>
+  <object class="GtkGrid" id="import-dialog">    <property name="margin-top">6</property>
+    <property name="row-spacing">6</property>
     <child>
-      <object class="GtkGrid" id="file-button-container">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="halign">center</property>
-        <property name="column_spacing">6</property>
+      <object class="GtkGrid" id="file-button-container">        <property name="halign">center</property>
+        <property name="column-spacing">6</property>
         <child>
-          <object class="GtkLabel" id="instructions">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Select a location containing music to add to your library:</property>
+          <object class="GtkLabel" id="instructions">            <property name="label" translatable="yes">Select a location containing music to add to your library:</property>
           </object>
-          <packing>
-            <property name="left_attach">0</property>
-            <property name="top_attach">0</property>
-          </packing>
+          <layout>
+
+            <property name="column">0</property>
+
+            <property name="row">0</property>
+
+          </layout>
         </child>
         <child>
           <object class="GtkFileChooserButton" id="file-chooser-button">
-            <property name="width_request">300</property>
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="action">select-folder</property>
-            <property name="local_only">False</property>
+            <property name="width-request">300</property>            <property name="action">select-folder</property>
+            <property name="local-only">False</property>
           </object>
-          <packing>
-            <property name="left_attach">1</property>
-            <property name="top_attach">0</property>
-          </packing>
+          <layout>
+
+            <property name="column">1</property>
+
+            <property name="row">0</property>
+
+          </layout>
         </child>
       </object>
-      <packing>
-        <property name="left_attach">0</property>
-        <property name="top_attach">0</property>
-      </packing>
+      <layout>
+
+        <property name="column">0</property>
+
+        <property name="row">0</property>
+
+      </layout>
     </child>
     <child>
-      <object class="GtkGrid" id="import-button-container">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="halign">center</property>
-        <property name="column_spacing">6</property>
+      <object class="GtkGrid" id="import-button-container">        <property name="halign">center</property>
+        <property name="column-spacing">6</property>
         <child>
           <object class="GtkButton" id="import-button">
-            <property name="label" translatable="yes">Import</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
+            <property name="label" translatable="yes">Import</property>            <property name="receives-default">True</property>
           </object>
-          <packing>
-            <property name="left_attach">1</property>
-            <property name="top_attach">0</property>
-          </packing>
+          <layout>
+
+            <property name="column">1</property>
+
+            <property name="row">0</property>
+
+          </layout>
         </child>
         <child>
           <object class="GtkButton" id="close-button">
-            <property name="label" translatable="yes">Close</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
+            <property name="label" translatable="yes">Close</property>            <property name="receives-default">True</property>
           </object>
-          <packing>
-            <property name="left_attach">2</property>
-            <property name="top_attach">0</property>
-          </packing>
+          <layout>
+
+            <property name="column">2</property>
+
+            <property name="row">0</property>
+
+          </layout>
         </child>
         <child>
           <object class="GtkCheckButton" id="copy-check">
-            <property name="label" translatable="yes">Copy files that are outside the music library</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">False</property>
+            <property name="label" translatable="yes">Copy files that are outside the music library</property>            <property name="receives-default">False</property>
             <property name="xalign">0</property>
-            <property name="draw_indicator">True</property>
+            <property name="draw-indicator">True</property>
           </object>
-          <packing>
-            <property name="left_attach">0</property>
-            <property name="top_attach">0</property>
-          </packing>
+          <layout>
+
+            <property name="column">0</property>
+
+            <property name="row">0</property>
+
+          </layout>
         </child>
       </object>
-      <packing>
-        <property name="left_attach">0</property>
-        <property name="top_attach">1</property>
-      </packing>
+      <layout>
+
+        <property name="column">0</property>
+
+        <property name="row">1</property>
+
+      </layout>
     </child>
     <child>
-      <object class="GtkGrid" id="info-bar-container">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <child>
+      <object class="GtkGrid" id="info-bar-container">        <child>
           <placeholder/>
         </child>
         <child>
@@ -125,16 +119,16 @@
           <placeholder/>
         </child>
       </object>
-      <packing>
-        <property name="left_attach">0</property>
-        <property name="top_attach">2</property>
-      </packing>
+      <layout>
+
+        <property name="column">0</property>
+
+        <property name="row">2</property>
+
+      </layout>
     </child>
     <child>
-      <object class="GtkGrid" id="entry-view-container">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="hexpand">True</property>
+      <object class="GtkGrid" id="entry-view-container">        <property name="hexpand">True</property>
         <property name="vexpand">True</property>
         <child>
           <placeholder/>
@@ -164,10 +158,13 @@
           <placeholder/>
         </child>
       </object>
-      <packing>
-        <property name="left_attach">0</property>
-        <property name="top_attach">3</property>
-      </packing>
+      <layout>
+
+        <property name="column">0</property>
+
+        <property name="row">3</property>
+
+      </layout>
     </child>
   </object>
 </interface>
