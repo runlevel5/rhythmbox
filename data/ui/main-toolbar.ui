@@ -39,6 +39,7 @@
     <child>
       <object class="GtkBox" id="playorder">
         <property name="margin-start">6</property>
+        <property name="margin-end">6</property>
         <property name="margin-top">12</property>
         <property name="margin-bottom">12</property>
         <child>
