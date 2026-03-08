@@ -766,7 +766,7 @@ confirm_bad_mime_type_response_cb (GtkDialog *dialog, int response, RBPodcastUpd
 		update->state = RB_PODCAST_UPDATE_PROCESS_CANCELLED;
 	}
 
-	gtk_widget_destroy (GTK_WIDGET (dialog));
+	gtk_window_destroy (GTK_WINDOW (dialog));
 	process_feed_update (update);
 }
 
@@ -942,7 +942,7 @@ process_feed_update (RBPodcastUpdate *update)
 							 "It may be the wrong URL, or the feed may be broken. "
 							 "Would you like Rhythmbox to attempt to use it anyway?"),
 							 update->channel->url);
-			gtk_widget_show_all (dialog);
+			gtk_widget_show (dialog);
 			g_signal_connect (dialog, "response", G_CALLBACK (confirm_bad_mime_type_response_cb), update);
 			step = WAITING;
 			break;

@@ -117,12 +117,12 @@ rb_feed_podcast_properties_dialog_init (RBFeedPodcastPropertiesDialog *dialog)
 	gtk_window_set_default_size (GTK_WINDOW (dialog), 600, 400);
 	content_area = gtk_dialog_get_content_area (GTK_DIALOG (dialog));
 
-	gtk_container_set_border_width (GTK_CONTAINER (dialog), 5);
+	/* removed: border_width */ (void)(GTK_WINDOW (dialog), 5);
 	gtk_box_set_spacing (GTK_BOX (content_area), 2);
 
 	builder = rb_builder_load ("podcast-feed-properties.ui", dialog);
 
-	gtk_container_add (GTK_CONTAINER (content_area),
+	gtk_box_append (GTK_BOX (content_area),
 			   GTK_WIDGET (gtk_builder_get_object (builder, "podcastproperties")));
 
 	dialog->priv->close_button = gtk_dialog_add_button (GTK_DIALOG (dialog),
@@ -186,7 +186,7 @@ rb_feed_podcast_properties_dialog_response_cb (GtkDialog *gtkdialog,
 					       int response_id,
 					       RBFeedPodcastPropertiesDialog *dialog)
 {
-	gtk_widget_destroy (GTK_WIDGET (dialog));
+	gtk_window_destroy (GTK_WINDOW (dialog));
 }
 
 static void
