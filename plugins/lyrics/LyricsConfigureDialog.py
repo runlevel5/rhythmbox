@@ -68,9 +68,8 @@ class LyricsConfigureDialog (GObject.Object):
 			checkbutton.set_active(s['id'] in engines)
 			checkbutton.connect("toggled", self.set_sites)
 			self.site_checks[site_id] = checkbutton
-			site_box.pack_start(checkbutton, True, True, 0)
+			site_box.append(checkbutton)
 
-		site_box.show_all()
 
 		return self.config
 
@@ -91,22 +90,20 @@ class LyricsConfigureDialog (GObject.Object):
 	def choose_callback(self, widget):
 		def response_handler(widget, response):
 			if response == Gtk.ResponseType.OK:
-				path = self.chooser.get_filename()
-				self.chooser.destroy()
+				path = self.chooser.get_file().get_path()
+				self.chooser.close()
 				self.path_display.set_text(path)
 				self.settings['folder'] = path
 			else:
-				self.chooser.destroy()
+				self.chooser.close()
 
-		buttons = (Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE,
-				Gtk.STOCK_OK, Gtk.ResponseType.OK)
 		self.chooser = Gtk.FileChooserDialog(title=_("Choose lyrics folder..."),
-					parent=None,
-					action=Gtk.FileChooserAction.SELECT_FOLDER,
-					buttons=buttons)
+					action=Gtk.FileChooserAction.SELECT_FOLDER)
+		self.chooser.add_button(_("_Cancel"), Gtk.ResponseType.CANCEL)
+		self.chooser.add_button(_("_OK"), Gtk.ResponseType.OK)
 		self.chooser.connect("response", response_handler)
 		self.chooser.set_modal(True)
-		self.chooser.set_transient_for(self.config.get_toplevel())
+		self.chooser.set_transient_for(self.config.get_root())
 		self.chooser.present()
 
 	def get_prefs (self):

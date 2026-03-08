@@ -54,12 +54,11 @@ def create_lyrics_view():
 
 	tview.set_size_request (0, 0)
 	sw = Gtk.ScrolledWindow()
-	sw.add(tview)
+	sw.set_child(tview)
 	sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-	sw.set_shadow_type(Gtk.ShadowType.IN)
 
-	vbox = Gtk.VBox(spacing=12)
-	vbox.pack_start(sw, True, True, 0)
+	vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+	vbox.append(sw)
 	
 	return (vbox, tview.get_buffer(), tview)
 
@@ -292,23 +291,20 @@ class LyricPane(object):
 		self.edit.connect('toggled', edit_callback)
 		self.discard = Gtk.Button(label=_("_Search again"), use_underline=True)
 		self.discard.connect('clicked', discard_callback)
-		self.clear = Gtk.Button.new_from_stock(Gtk.STOCK_CLEAR)
+		self.clear = Gtk.Button(label=_("Clear"))
 		self.clear.connect('clicked', clear_callback)
-		self.hbox = Gtk.ButtonBox(orientation=Gtk.Orientation.HORIZONTAL)
+		self.hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 		self.hbox.set_spacing (6)
-		self.hbox.set_layout(Gtk.ButtonBoxStyle.END)
-		self.hbox.add(self.edit)
-		self.hbox.add(self.clear)
-		self.hbox.add(self.discard)
-		self.hbox.set_child_secondary (self.clear, True)
+		self.hbox.append(self.edit)
+		self.hbox.append(self.clear)
+		self.hbox.append(self.discard)
 
 		(self.view, self.buffer, self.tview) = create_lyrics_view()
 
-		self.view.pack_start(self.hbox, False, False, 0)
+		self.view.append(self.hbox)
 		self.view.set_spacing(6)
 		self.view.props.margin = 6
 	
-		self.view.show_all()
 		self.page_num = song_info.append_page(_("Lyrics"), self.view)
 		self.have_lyrics = 0
 		self.visible = 0
@@ -359,24 +355,21 @@ class LyricWindow (Gtk.Window):
 	def __init__(self, shell):
 		Gtk.Window.__init__(self)
 		self.shell = shell
-		self.set_border_width(12)
 
-		close = Gtk.Button.new_from_stock(Gtk.STOCK_CLOSE)
+		close = Gtk.Button(label=_("Close"))
 		close.connect('clicked', lambda w: self.destroy())
 	
 		(lyrics_view, buffer, tview) = create_lyrics_view()
 		self.buffer = buffer
-		bbox = Gtk.HButtonBox()
-		bbox.set_layout(Gtk.ButtonBoxStyle.END)
-		bbox.pack_start(close, True, True, 0)
-		lyrics_view.pack_start(bbox, False, False, 0)
+		bbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+		bbox.append(close)
+		lyrics_view.append(bbox)
 
 		sp = shell.props.shell_player
 		self.ppc_id = sp.connect('playing-song-property-changed', self.playing_property_changed)
 	
-		self.add(lyrics_view)
+		self.set_child(lyrics_view)
 		self.set_default_size(400, 300)
-		self.show_all()
 
 	def destroy(self):
 		sp = self.shell.props.shell_player

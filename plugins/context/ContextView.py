@@ -183,7 +183,7 @@ class ContextView (GObject.GObject):
         # open HTTP URIs externally.  this isn't a web browser.
         if request.get_uri().startswith('http'):
             print("opening uri %s" % request.get_uri())
-            Gtk.show_uri(self.shell.props.window.get_screen(), request.get_uri(), Gdk.CURRENT_TIME)
+            Gtk.show_uri(self.shell.props.window, request.get_uri(), Gdk.CURRENT_TIME)
 
             return 1        # WEBKIT_NAVIGATION_RESPONSE_IGNORE
         else:
@@ -205,29 +205,26 @@ class ContextView (GObject.GObject):
         print("web view font settings: %s, %d" % (style.font_desc.get_family(), font_size))
 
     def init_gui(self):
-        self.vbox = Gtk.VBox()
+        self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         #---- set up webkit pane -----#
         self.webview = WebKit.WebView()
         self.webview.connect("navigation-requested", self.navigation_request_cb)
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        scroll.set_shadow_type(Gtk.ShadowType.NONE)
-        scroll.add (self.webview)
+        scroll.set_child(self.webview)
 
         # set up webkit settings to match gtk font settings
         self.websettings = WebKit.WebSettings()
         self.webview.set_settings(self.websettings)
         self.apply_font_settings()
-        self.webview.connect("style-set", self.style_set_cb)
 
         #---- pack everything into side pane ----#
-        self.buttons = Gtk.HBox(spacing=3)
+        self.buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=3)
         self.buttons.set_margin_start(6)
         self.buttons.set_margin_end(6)
-        self.vbox.pack_start (self.buttons, False, True, 6)
-        self.vbox.pack_start (scroll, True, True, 0)
+        self.vbox.append(self.buttons)
+        self.vbox.append(scroll)
 
-        self.vbox.show_all()
         self.vbox.set_size_request(200, -1)
         self.shell.add_widget (self.vbox, RB.ShellUILocation.RIGHT_SIDEBAR, True, True)

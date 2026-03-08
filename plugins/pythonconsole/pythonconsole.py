@@ -133,12 +133,11 @@ class PythonConsolePlugin(GObject.Object, RB.PeasActivatable):
 
 			self.window = Gtk.Window()
 			self.window.set_title('Rhythmbox Python Console')
-			self.window.add(console)
+			self.window.set_child(console)
 			self.window.connect('destroy', self.destroy_console)
-			self.window.show_all()
+			self.window.present()
 		else:
-			self.window.show_all()
-		self.window.grab_focus()
+			self.window.present()
 
 	def attach_winpdb(self, action, parameter, shell):
 		if have_rpdb2 is False:
@@ -148,20 +147,28 @@ class PythonConsolePlugin(GObject.Object, RB.PeasActivatable):
 
 		pwd_path = os.path.join(RB.user_data_dir(), "rpdb2_password")
 		msg = _("After you press OK, Rhythmbox will wait until you connect to it with winpdb or rpdb2. If you have not set a debugger password in the file %s, it will use the default password ('rhythmbox').") % pwd_path
-		dialog = Gtk.MessageDialog(None, 0, Gtk.MessageType.INFO, Gtk.ButtonsType.OK_CANCEL, msg)
-		if dialog.run() == Gtk.ResponseType.OK:
-			password = "rhythmbox"
-			if os.path.exists(pwd_path):
-				pwd_file = open(pwd_path)
-				password = pwd_file.read().rstrip()
-				pwd_file.close()
+		def winpdb_response_cb(dialog, response):
+			if response == Gtk.ResponseType.OK:
+				password = "rhythmbox"
+				if os.path.exists(pwd_path):
+					pwd_file = open(pwd_path)
+					password = pwd_file.read().rstrip()
+					pwd_file.close()
 
-			def start_debugger(password):
-				rpdb2.start_embedded_debugger(password)
-				return False
+				def start_debugger(password):
+					rpdb2.start_embedded_debugger(password)
+					return False
 
-			GLib.idle_add(start_debugger, password)
-		dialog.destroy()
+				GLib.idle_add(start_debugger, password)
+			dialog.close()
+
+		dialog = Gtk.MessageDialog(
+			transient_for=None,
+			message_type=Gtk.MessageType.INFO,
+			buttons=Gtk.ButtonsType.OK_CANCEL,
+			text=msg)
+		dialog.connect("response", winpdb_response_cb)
+		dialog.present()
 		return False
 	
 	def enable_debugpy(self, action, parameter, shell):
@@ -187,13 +194,17 @@ class PythonConsolePlugin(GObject.Object, RB.PeasActivatable):
 		self.message_dialog(msg, Gtk.MessageType.ERROR)
 
 	def message_dialog(self, msg, msgtype=Gtk.MessageType.INFO):
-		dialog = Gtk.MessageDialog(None, 0, msgtype, Gtk.ButtonsType.OK, msg)
+		dialog = Gtk.MessageDialog(
+			transient_for=None,
+			message_type=msgtype,
+			buttons=Gtk.ButtonsType.OK,
+			text=msg)
 		dialog.connect("response", self.message_dialog_response)
-		dialog.show()
+		dialog.present()
 
 
 	def message_dialog_response(self, dialog, rsp):
-		dialog.destroy()
+		dialog.close()
 
 	def destroy_console(self, *args):
 		self.window.destroy()
@@ -211,13 +222,13 @@ class PythonConsole(Gtk.ScrolledWindow):
 		Gtk.ScrolledWindow.__init__(self)
 
 		self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC);
-		self.set_shadow_type(Gtk.ShadowType.NONE)
 		self.view = Gtk.TextView()
-		self.view.modify_font(Pango.font_description_from_string('Monospace'))
+		css_provider = Gtk.CssProvider()
+		css_provider.load_from_data(b'textview { font-family: Monospace; }')
+		self.view.get_style_context().add_provider(css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 		self.view.set_editable(True)
 		self.view.set_wrap_mode(Gtk.WrapMode.CHAR)
-		self.add(self.view)
-		self.view.show()
+		self.set_child(self.view)
 
 		buffer = self.view.get_buffer()
 		self.normal = buffer.create_tag("normal")
@@ -249,19 +260,21 @@ class PythonConsole(Gtk.ScrolledWindow):
 		self.stderr = gtkoutfile(self, sys.stderr.fileno(), self.error)
 
 		# Signals
-		self.view.connect("key-press-event", self.__key_press_event_cb)
+		self.key_controller = Gtk.EventControllerKey()
+		self.key_controller.connect("key-pressed", self.__key_press_event_cb)
+		self.view.add_controller(self.key_controller)
 		buffer.connect("mark-set", self.__mark_set_cb)
 
 
-	def __key_press_event_cb(self, view, event):
-		if event.keyval == Gdk.KEY_D and \
-		   event.state == Gdk.ModifierType.CONTROL_MASK:
+	def __key_press_event_cb(self, controller, keyval, keycode, state):
+		if keyval == Gdk.KEY_D and \
+		   state == Gdk.ModifierType.CONTROL_MASK:
 			self.destroy()
 		
-		elif event.keyval == Gdk.KEY_Return and \
-		     event.state == Gdk.ModifierType.CONTROL_MASK:
+		elif keyval == Gdk.KEY_Return and \
+		     state == Gdk.ModifierType.CONTROL_MASK:
 			# Get the command
-			buffer = view.get_buffer()
+			buffer = self.view.get_buffer()
 			inp_mark = buffer.get_mark("input")
 			inp = self.get_iter_at_mark(inp_mark)
 			cur = self.get_end_iter()
@@ -285,9 +298,9 @@ class PythonConsole(Gtk.ScrolledWindow):
 			GLib.idle_add(self.scroll_to_end)
 			return True
 		
-		elif event.keyval == Gdk.KEY_Return:
+		elif keyval == Gdk.KEY_Return:
 			# Get the marks
-			buffer = view.get_buffer()
+			buffer = self.view.get_buffer()
 			lin_mark = buffer.get_mark("input-line")
 			inp_mark = buffer.get_mark("input")
 
@@ -329,36 +342,34 @@ class PythonConsole(Gtk.ScrolledWindow):
 			GLib.idle_add(self.scroll_to_end)
 			return True
 
-		elif event.keyval == Gdk.KEY_KP_Down or \
-		     event.keyval == Gdk.KEY_Down:
+		elif keyval == Gdk.KEY_KP_Down or \
+		     keyval == Gdk.KEY_Down:
 			# Next entry from history
-			view.emit_stop_by_name("key_press_event")
 			self.history_down()
 			GLib.idle_add(self.scroll_to_end)
 			return True
 
-		elif event.keyval == Gdk.KEY_KP_Up or \
-		     event.keyval == Gdk.KEY_Up:
+		elif keyval == Gdk.KEY_KP_Up or \
+		     keyval == Gdk.KEY_Up:
 			# Previous entry from history
-			view.emit_stop_by_name("key_press_event")
 			self.history_up()
 			GLib.idle_add(self.scroll_to_end)
 			return True
 
-		elif event.keyval == Gdk.KEY_KP_Left or \
-		     event.keyval == Gdk.KEY_Left or \
-		     event.keyval == Gdk.KEY_BackSpace:
-			buffer = view.get_buffer()
+		elif keyval == Gdk.KEY_KP_Left or \
+		     keyval == Gdk.KEY_Left or \
+		     keyval == Gdk.KEY_BackSpace:
+			buffer = self.view.get_buffer()
 			inp = self.get_iter_at_mark(buffer.get_mark("input"))
 			cur = self.get_iter_at_mark(buffer.get_insert())
 			return inp.compare(cur) == 0
 
-		elif event.keyval == Gdk.KEY_Home:
+		elif keyval == Gdk.KEY_Home:
 			# Go to the begin of the command instead of the begin of
 			# the line
-			buffer = view.get_buffer()
+			buffer = self.view.get_buffer()
 			inp = self.get_iter_at_mark(buffer.get_mark("input"))
-			if event.state == Gdk.ModifierType.SHIFT_MASK:
+			if state == Gdk.ModifierType.SHIFT_MASK:
 				buffer.move_mark_by_name("insert", inp)
 			else:
 				buffer.place_cursor(inp)
@@ -418,7 +429,6 @@ class PythonConsole(Gtk.ScrolledWindow):
 			offset = iter.get_offset()
 			buffer.insert(iter, text)
 
-			start_iter = Gtk.TextIter()
 			start_iter = buffer.get_iter_at_offset(offset)
 			buffer.apply_tag(tag, start_iter, self.get_end_iter())
 		GLib.idle_add(self.scroll_to_end)

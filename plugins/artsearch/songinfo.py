@@ -44,22 +44,21 @@ class AlbumArtPage(object):
 		self.image.props.vexpand = True
 		grid.attach(self.image, 0, 0, 1, 1)
 
-		buttons = Gtk.ButtonBox(orientation=Gtk.Orientation.HORIZONTAL)
+		buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 		buttons.set_spacing(6)
-		buttons.set_layout(Gtk.ButtonBoxStyle.CENTER)
 		grid.attach(buttons, 0, 1, 1, 1)
 
 		clear = Gtk.Button(label=_("Clear"), use_underline=True)
 		clear.connect('clicked', self.clear_button_cb)
-		buttons.add(clear)
+		buttons.append(clear)
 
 		fetch = Gtk.Button(label=_("_Fetch"), use_underline=True)
 		fetch.connect('clicked', self.fetch_button_cb)
-		buttons.add(fetch)
+		buttons.append(fetch)
 
 		browse_file = Gtk.Button(label=_("_Browse"), use_underline=True)
 		browse_file.connect('clicked', self.browse_button_cb)
-		buttons.add(browse_file)
+		buttons.append(browse_file)
 
 		self.page_num = song_info.append_page(_("Album Art"), grid)
 
@@ -126,14 +125,14 @@ class AlbumArtPage(object):
 	def browse_file_response_cb(self, dialog, response):
 		if response == Gtk.ResponseType.OK:
 			key = self.storage_key(self.entry)
-			self.art_store.store_uri(key, RB.ExtDBSourceType.USER_EXPLICIT, dialog.get_uri())
+			self.art_store.store_uri(key, RB.ExtDBSourceType.USER_EXPLICIT, dialog.get_file().get_uri())
 
-		dialog.destroy()
+		dialog.close()
 
 	def browse_button_cb(self, button):
-		d = Gtk.FileChooserDialog(_("Select new artwork"), self.shell.props.window, Gtk.FileChooserAction.OPEN)
+		d = Gtk.FileChooserDialog(title=_("Select new artwork"), transient_for=self.shell.props.window, action=Gtk.FileChooserAction.OPEN)
 		d.add_button(_("_Cancel"), Gtk.ResponseType.CANCEL)
 		d.add_button(_("_Select"), Gtk.ResponseType.OK)
 		d.set_default_response(Gtk.ResponseType.OK)
 		d.connect("response", self.browse_file_response_cb)
-		d.show_all()
+		d.present()
