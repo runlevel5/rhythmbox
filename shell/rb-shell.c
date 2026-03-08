@@ -238,6 +238,7 @@ struct _RBShellPrivate
 	gpointer accel_group;
 
 	GtkWidget *main_vbox;
+	GtkWidget *toolbar_view;
 	GtkWidget *paned;
 	GtkWidget *right_paned;
 	RBDisplayPageTree *display_page_tree;
@@ -506,7 +507,7 @@ construct_widgets (RBShell *shell)
 	rb_profile_start ("constructing widgets");
 
 	/* initialize UI */
-	win = GTK_WINDOW (gtk_application_window_new (GTK_APPLICATION (shell->priv->application)));
+	win = GTK_WINDOW (adw_application_window_new (GTK_APPLICATION (shell->priv->application)));
 	gtk_window_set_title (win, _("Rhythmbox"));
 
 	shell->priv->window = GTK_WIDGET (win);
@@ -650,7 +651,12 @@ construct_widgets (RBShell *shell)
 	gtk_box_append (GTK_BOX (shell->priv->main_vbox), shell->priv->paned);
 	gtk_widget_show (shell->priv->main_vbox);
 
-	gtk_window_set_child (GTK_WINDOW (win), shell->priv->main_vbox);
+	{
+		GtkWidget *toolbar_view = adw_toolbar_view_new ();
+		adw_toolbar_view_set_content (ADW_TOOLBAR_VIEW (toolbar_view), shell->priv->main_vbox);
+		shell->priv->toolbar_view = toolbar_view;
+		adw_application_window_set_content (ADW_APPLICATION_WINDOW (win), toolbar_view);
+	}
 
 	rb_profile_end ("constructing widgets");
 }
@@ -693,7 +699,11 @@ static void
 construct_load_ui (RBShell *shell)
 {
 	GApplication *app = g_application_get_default ();
+	GtkWidget *headerbar;
 	GtkWidget *toolbar;
+	GtkWidget *playback_box;
+	GtkWidget *playorder_box;
+	GtkWidget *volume_button;
 	GtkBuilder *builder;
 	GtkWidget *menu_button;
 	GMenuModel *model;
@@ -705,6 +715,8 @@ construct_load_ui (RBShell *shell)
 	toolbar = GTK_WIDGET (gtk_builder_get_object (builder, "main-toolbar"));
 
 	shell->priv->play_button = GTK_WIDGET (gtk_builder_get_object (builder, "play-button"));
+	playback_box = GTK_WIDGET (gtk_builder_get_object (builder, "playback"));
+	playorder_box = GTK_WIDGET (gtk_builder_get_object (builder, "playorder"));
 
 	/* this seems a bit unnecessary */
 	gtk_actionable_set_action_target_value (GTK_ACTIONABLE (gtk_builder_get_object (builder, "shuffle-button")),
@@ -712,29 +724,71 @@ construct_load_ui (RBShell *shell)
 	gtk_actionable_set_action_target_value (GTK_ACTIONABLE (gtk_builder_get_object (builder, "repeat-button")),
 						g_variant_new_boolean (TRUE));
 
-	gtk_box_append (GTK_BOX (shell->priv->main_vbox), toolbar);
-	gtk_box_reorder_child_after (GTK_BOX (shell->priv->main_vbox), toolbar,
-				     gtk_widget_get_first_child (shell->priv->main_vbox));
+	/* reparent playback and playorder boxes out of the builder toolbar */
+	g_object_ref (playback_box);
+	gtk_box_remove (GTK_BOX (toolbar), playback_box);
+	g_object_ref (playorder_box);
+	gtk_box_remove (GTK_BOX (toolbar), playorder_box);
 
 	g_object_unref (builder);
 
-	/* add header as an expanding child of the toolbar box */
-	gtk_widget_set_hexpand (GTK_WIDGET (shell->priv->header), TRUE);
-	gtk_widget_set_margin_start (GTK_WIDGET (shell->priv->header), 6);
-	gtk_box_append (GTK_BOX (toolbar), GTK_WIDGET (shell->priv->header));
+	/* build the header bar */
+	headerbar = adw_header_bar_new ();
+	adw_header_bar_set_show_title (ADW_HEADER_BAR (headerbar), FALSE);
 
-	/* menu tool button */
+	/* pack playback and playorder buttons on the start side */
+	adw_header_bar_pack_start (ADW_HEADER_BAR (headerbar), playback_box);
+	g_object_unref (playback_box);
+	adw_header_bar_pack_start (ADW_HEADER_BAR (headerbar), playorder_box);
+
+	/* separator between controls and album art (matches original GTK3 look) */
+	{
+		GtkWidget *sep = gtk_separator_new (GTK_ORIENTATION_VERTICAL);
+		adw_header_bar_pack_start (ADW_HEADER_BAR (headerbar), sep);
+	}
+
+	/* album art */
+	{
+		GtkWidget *image = rb_header_get_image (shell->priv->header);
+		gtk_widget_set_margin_start (image, 6);
+		adw_header_bar_pack_start (ADW_HEADER_BAR (headerbar), image);
+	}
+	g_object_unref (playorder_box);
+
+	/* set RBHeader as the title widget */
+	adw_header_bar_pack_start (ADW_HEADER_BAR (headerbar), GTK_WIDGET (shell->priv->header));
+
+	/* menu button (pack_end adds right-to-left, so menu goes first = rightmost) */
 	menu_button = gtk_menu_button_new ();
+	gtk_widget_set_valign (menu_button, GTK_ALIGN_CENTER);
 	model = rb_application_get_shared_menu (RB_APPLICATION (app), "app-menu");
 	gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (menu_button), model);
-	gtk_widget_set_valign (menu_button, GTK_ALIGN_CENTER);
-	gtk_widget_set_margin_end (menu_button, 6);
 	gtk_menu_button_set_icon_name (GTK_MENU_BUTTON (menu_button), "open-menu-symbolic");
-
 	rb_application_set_menu_accelerators (shell->priv->application, model, TRUE);
-
 	shell->priv->menu_button = menu_button;
-	gtk_box_append (GTK_BOX (toolbar), menu_button);
+	adw_header_bar_pack_end (ADW_HEADER_BAR (headerbar), menu_button);
+
+	/* volume button (next to menu button) */
+	volume_button = rb_header_get_volume_button (shell->priv->header);
+	adw_header_bar_pack_end (ADW_HEADER_BAR (headerbar), volume_button);
+
+	/* seek slider (adjacent to volume button) */
+	{
+		GtkWidget *scale = rb_header_get_scale (shell->priv->header);
+		gtk_widget_set_hexpand (scale, FALSE);
+		gtk_widget_set_size_request (scale, 200, -1);
+		adw_header_bar_pack_end (ADW_HEADER_BAR (headerbar), scale);
+	}
+
+	/* time display (adjacent to slider) */
+	{
+		GtkWidget *timebutton = rb_header_get_timebutton (shell->priv->header);
+		gtk_widget_set_valign (timebutton, GTK_ALIGN_CENTER);
+		adw_header_bar_pack_end (ADW_HEADER_BAR (headerbar), timebutton);
+	}
+
+	/* add header bar as the top bar */
+	adw_toolbar_view_add_top_bar (ADW_TOOLBAR_VIEW (shell->priv->toolbar_view), headerbar);
 
 	rb_application_add_accelerator (RB_APPLICATION (app), "<Primary>q", "app.quit", NULL);
 	rb_application_add_accelerator (RB_APPLICATION (app), "F10", "win.show-menu", NULL);

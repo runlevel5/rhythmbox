@@ -65,6 +65,11 @@ GType		rb_header_get_type		(void);
 RBHeader *	rb_header_new			(RBShellPlayer *shell_player,
 						 RhythmDB *db);
 
+GtkWidget *	rb_header_get_volume_button	(RBHeader *header);
+GtkWidget *	rb_header_get_scale		(RBHeader *header);
+GtkWidget *	rb_header_get_image		(RBHeader *header);
+GtkWidget *	rb_header_get_timebutton	(RBHeader *header);
+
 G_END_DECLS
 
 #endif /* __RB_HEADER_H */

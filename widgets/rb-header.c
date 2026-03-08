@@ -76,7 +76,6 @@ static void rb_header_get_property (GObject *object,
 				    guint prop_id,
 				    GValue *value,
 				    GParamSpec *pspec);
-static void rb_header_size_allocate (GtkWidget *widget, int width, int height, int baseline);
 static void rb_header_update_elapsed (RBHeader *header);
 static void apply_slider_position (RBHeader *header);
 static void slider_press_callback (GtkGestureClick *gesture, int n_press, double x, double y, RBHeader *header);
@@ -171,7 +170,6 @@ static void
 rb_header_class_init (RBHeaderClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
-	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
 	object_class->constructed = rb_header_constructed;
 	object_class->dispose = rb_header_dispose;
@@ -179,8 +177,6 @@ rb_header_class_init (RBHeaderClass *klass)
 
 	object_class->set_property = rb_header_set_property;
 	object_class->get_property = rb_header_get_property;
-
-	widget_class->size_allocate = rb_header_size_allocate;
 
 	/**
 	 * RBHeader:db:
@@ -288,7 +284,7 @@ rb_header_constructed (GObject *object)
 	RB_CHAIN_GOBJECT_METHOD (rb_header_parent_class, constructed, object);
 
 	gtk_grid_set_column_spacing (GTK_GRID (header), 6);
-	gtk_grid_set_column_homogeneous (GTK_GRID (header), TRUE);
+	gtk_grid_set_column_homogeneous (GTK_GRID (header), FALSE);
 
 	/* set up position slider */
 	header->priv->adjustment = GTK_ADJUSTMENT (gtk_adjustment_new (0.0, 0.0, 10.0, 1.0, 10.0, 0.0));
@@ -429,11 +425,17 @@ rb_header_constructed (GObject *object)
 			  G_CALLBACK (player_volume_changed_cb),
 			  header);
 
-	gtk_grid_attach (GTK_GRID (header), header->priv->image, 0, 0, 1, 1);
+	gtk_widget_set_size_request (header->priv->image, 48, 48);
+	gtk_widget_set_valign (header->priv->image, GTK_ALIGN_CENTER);
+	gtk_widget_set_valign (header->priv->songbox, GTK_ALIGN_CENTER);
+	gtk_widget_set_valign (header->priv->scale, GTK_ALIGN_CENTER);
+	gtk_widget_set_valign (GTK_WIDGET (header), GTK_ALIGN_CENTER);
+	gtk_widget_set_vexpand (GTK_WIDGET (header), FALSE);
+	/* image is added to the headerbar by rb-shell.c */
 	gtk_grid_attach (GTK_GRID (header), header->priv->songbox, 2, 0, 1, 1);
-	gtk_grid_attach (GTK_GRID (header), header->priv->timebutton, 3, 0, 1, 1);
-	gtk_grid_attach (GTK_GRID (header), header->priv->scale, 4, 0, 1, 1);
-	gtk_grid_attach (GTK_GRID (header), header->priv->volume_button, 5, 0, 1, 1);
+	/* timebutton is added to the headerbar by rb-shell.c */
+	/* scale is added to the headerbar by rb-shell.c */
+	/* volume button is added to the headerbar by rb-shell.c */
 
 	/* currently, nothing sets this.  it should be set on track changes. */
 	header->priv->seekable = TRUE;
@@ -578,137 +580,6 @@ rb_header_playing_song_changed_cb (RBShellPlayer *player, RhythmDBEntry *entry, 
 
 	g_free (header->priv->image_path);
 	header->priv->image_path = NULL;
-}
-
-static void
-rb_header_size_allocate (GtkWidget *widget, int width, int height, int baseline)
-{
-	int spacing;
-	int scale_width;
-	int info_width;
-	int time_width;
-	int image_width;
-	int volume_width;
-	int alloc_x, alloc_width;
-	GtkAllocation child_alloc;
-	gboolean rtl;
-
-	GTK_WIDGET_CLASS (rb_header_parent_class)->size_allocate (widget, width, height, baseline);
-
-	spacing = gtk_grid_get_column_spacing (GTK_GRID (widget));
-	rtl = (gtk_widget_get_direction (widget) == GTK_TEXT_DIR_RTL);
-
-	alloc_x = 0;
-	alloc_width = width;
-
-	/* take some leading space for the image, which we always make square */
-	if (RB_HEADER (widget)->priv->show_album_art) {
-		image_width = height;
-		if (rtl) {
-			child_alloc.x = alloc_width - image_width;
-		} else {
-			child_alloc.x = alloc_x;
-			alloc_x += image_width + spacing;
-		}
-		alloc_width -= image_width + spacing;
-		child_alloc.y = 0;
-		child_alloc.width = image_width;
-		child_alloc.height = height;
-		gtk_widget_size_allocate (RB_HEADER (widget)->priv->image, &child_alloc, baseline);
-	} else {
-		image_width = 0;
-	}
-
-	/* allocate space for the volume button at the end */
-	gtk_widget_measure (RB_HEADER (widget)->priv->volume_button, GTK_ORIENTATION_HORIZONTAL, -1, &volume_width, NULL, NULL, NULL);
-	if (rtl) {
-		child_alloc.x = alloc_x;
-		alloc_x += volume_width + spacing;
-	} else {
-		child_alloc.x = (alloc_x + alloc_width) - volume_width;
-	}
-	child_alloc.y = 0;
-	child_alloc.width = volume_width;
-	child_alloc.height = height;
-	alloc_width -= volume_width + spacing;
-	gtk_widget_size_allocate (RB_HEADER (widget)->priv->volume_button, &child_alloc, baseline);
-
-	/* figure out how much space to allocate to the scale.
-	 * it gets at least its minimum size, at most 1/3 of the
-	 * space we have.
-	 */
-	if (RB_HEADER (widget)->priv->show_slider) {
-		gtk_widget_measure (RB_HEADER (widget)->priv->scale, GTK_ORIENTATION_HORIZONTAL, -1, &scale_width, NULL, NULL, NULL);
-		if (scale_width < alloc_width / 3)
-			scale_width = alloc_width / 3;
-
-		if (scale_width + image_width > alloc_width)
-			scale_width = alloc_width - image_width;
-
-		if (scale_width > 0) {
-			if (rtl) {
-				child_alloc.x = alloc_x;
-			} else {
-				child_alloc.x = alloc_x + (alloc_width - scale_width) + spacing;
-			}
-			child_alloc.y = 0;
-			child_alloc.width = scale_width - spacing;
-			child_alloc.height = height;
-			gtk_widget_set_visible (RB_HEADER (widget)->priv->scale, TRUE);
-			gtk_widget_size_allocate (RB_HEADER (widget)->priv->scale, &child_alloc, baseline);
-		} else {
-			gtk_widget_set_visible (RB_HEADER (widget)->priv->scale, FALSE);
-		}
-	} else {
-		scale_width = 0;
-	}
-
-	/* time button gets its minimum size */
-	{
-		int natural_info;
-		gtk_widget_measure (RB_HEADER (widget)->priv->songbox, GTK_ORIENTATION_HORIZONTAL, -1, NULL, &natural_info, NULL, NULL);
-	}
-	if (gtk_widget_get_visible (RB_HEADER (widget)->priv->timelabel)) {
-		gtk_widget_measure (RB_HEADER (widget)->priv->timebutton, GTK_ORIENTATION_HORIZONTAL, -1, &time_width, NULL, NULL, NULL);
-	} else {
-		time_width = 0;
-	}
-
-	info_width = alloc_width - (scale_width + time_width) - (2 * spacing);
-
-	if (rtl) {
-		child_alloc.x = alloc_x + alloc_width - info_width;
-	} else {
-		child_alloc.x = alloc_x;
-	}
-
-	if (info_width > 0) {
-		child_alloc.y = 0;
-		child_alloc.width = info_width;
-		child_alloc.height = height;
-		gtk_widget_set_visible (RB_HEADER (widget)->priv->songbox, TRUE);
-		gtk_widget_size_allocate (RB_HEADER (widget)->priv->songbox, &child_alloc, baseline);
-	} else {
-		gtk_widget_set_visible (RB_HEADER (widget)->priv->songbox, FALSE);
-		info_width = 0;
-	}
-
-	if (time_width == 0) {
-		gtk_widget_set_visible (RB_HEADER (widget)->priv->timebutton, FALSE);
-	} else if (info_width + scale_width + (2 * spacing) + time_width > alloc_width) {
-		gtk_widget_set_visible (RB_HEADER (widget)->priv->timebutton, FALSE);
-	} else {
-		if (rtl) {
-			child_alloc.x = alloc_x + scale_width + spacing;
-		} else {
-			child_alloc.x = alloc_x + info_width + spacing;
-		}
-		child_alloc.y = 0;
-		child_alloc.width = time_width;
-		child_alloc.height = height;
-		gtk_widget_set_visible (RB_HEADER (widget)->priv->timebutton, TRUE);
-		gtk_widget_size_allocate (RB_HEADER (widget)->priv->timebutton, &child_alloc, baseline);
-	}
 }
 
 static void
@@ -1172,6 +1043,7 @@ rb_header_update_elapsed (RBHeader *header)
 	if (header->priv->entry == NULL) {
 		gtk_label_set_text (GTK_LABEL (header->priv->timelabel), "");
 		gtk_widget_hide (header->priv->timelabel);
+		gtk_widget_hide (header->priv->timebutton);
 		return;
 	}
 	gtk_widget_show (header->priv->timelabel);
@@ -1349,4 +1221,31 @@ label_button_press_cb (GtkGestureClick *gesture, int n_press, double x, double y
 	/* Window dragging via label clicks is not supported in GTK4 (no begin_move_drag from gesture).
 	 * Labels are still selectable, which is the main functionality needed.
 	 */
+}
+
+GtkWidget *
+rb_header_get_volume_button (RBHeader *header)
+{
+	g_return_val_if_fail (RB_IS_HEADER (header), NULL);
+	return header->priv->volume_button;
+}
+
+GtkWidget *
+rb_header_get_scale (RBHeader *header)
+{
+	g_return_val_if_fail (RB_IS_HEADER (header), NULL);
+	return header->priv->scale;
+}
+
+GtkWidget *
+rb_header_get_image (RBHeader *header)
+{
+	g_return_val_if_fail (RB_IS_HEADER (header), NULL);
+	return header->priv->image;
+}
+GtkWidget *
+rb_header_get_timebutton (RBHeader *header)
+{
+	g_return_val_if_fail (RB_IS_HEADER (header), NULL);
+	return header->priv->timebutton;
 }
