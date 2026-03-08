@@ -5,6 +5,7 @@
     <property name="spacing">0</property>
     <child>
       <object class="GtkBox" id="playback">
+        <property name="margin-start">6</property>
         <property name="margin-end">6</property>
         <child>
           <object class="GtkBox" id="box3">

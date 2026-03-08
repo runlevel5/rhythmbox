@@ -727,6 +727,7 @@ construct_load_ui (RBShell *shell)
 	model = rb_application_get_shared_menu (RB_APPLICATION (app), "app-menu");
 	gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (menu_button), model);
 	gtk_widget_set_valign (menu_button, GTK_ALIGN_CENTER);
+	gtk_widget_set_margin_end (menu_button, 6);
 	gtk_menu_button_set_icon_name (GTK_MENU_BUTTON (menu_button), "open-menu-symbolic");
 
 	rb_application_set_menu_accelerators (shell->priv->application, model, TRUE);
