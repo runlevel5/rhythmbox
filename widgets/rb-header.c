@@ -297,6 +297,7 @@ rb_header_constructed (GObject *object)
 	gtk_range_set_show_fill_level (GTK_RANGE (header->priv->scale), FALSE);
 	gtk_range_set_restrict_to_fill_level (GTK_RANGE (header->priv->scale), FALSE);
 	gtk_widget_set_hexpand (header->priv->scale, TRUE);
+	gtk_widget_set_valign (header->priv->scale, GTK_ALIGN_CENTER);
 	{
 		GtkGesture *click = gtk_gesture_click_new ();
 		gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (click), 0);
@@ -619,7 +620,7 @@ rb_header_size_allocate (GtkWidget *widget, int width, int height, int baseline)
 	}
 
 	/* allocate space for the volume button at the end */
-	volume_width = 36;
+	gtk_widget_measure (RB_HEADER (widget)->priv->volume_button, GTK_ORIENTATION_HORIZONTAL, -1, &volume_width, NULL, NULL, NULL);
 	if (rtl) {
 		child_alloc.x = alloc_x;
 		alloc_x += volume_width + spacing;
@@ -682,16 +683,9 @@ rb_header_size_allocate (GtkWidget *widget, int width, int height, int baseline)
 	}
 
 	if (info_width > 0) {
-		int songbox_nat_height;
-		gtk_widget_measure (RB_HEADER (widget)->priv->songbox, GTK_ORIENTATION_VERTICAL, info_width, NULL, &songbox_nat_height, NULL, NULL);
-		if (songbox_nat_height < height) {
-			child_alloc.y = (height - songbox_nat_height) / 2;
-			child_alloc.height = songbox_nat_height;
-		} else {
-			child_alloc.y = 0;
-			child_alloc.height = height;
-		}
+		child_alloc.y = 0;
 		child_alloc.width = info_width;
+		child_alloc.height = height;
 		gtk_widget_set_visible (RB_HEADER (widget)->priv->songbox, TRUE);
 		gtk_widget_size_allocate (RB_HEADER (widget)->priv->songbox, &child_alloc, baseline);
 	} else {
@@ -979,8 +973,8 @@ rb_header_sync (RBHeader *header)
 	} else {
 		rb_debug ("not playing");
 		if (gtk_widget_get_parent (header->priv->not_playing) == NULL) {
-			gtk_box_remove (GTK_BOX (header->priv->songbox), header->priv->song);
-			gtk_box_remove (GTK_BOX (header->priv->songbox), header->priv->details);
+			gtk_grid_remove (GTK_GRID (header->priv->songbox), header->priv->song);
+			gtk_grid_remove (GTK_GRID (header->priv->songbox), header->priv->details);
 			gtk_grid_attach (GTK_GRID (header->priv->songbox), header->priv->not_playing, 0, 0, 1, 1);
 		}
 
