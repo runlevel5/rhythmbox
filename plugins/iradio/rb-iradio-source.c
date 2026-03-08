@@ -321,10 +321,7 @@ rb_iradio_source_constructed (GObject *object)
 				 "drag_data_received",
 				 G_CALLBACK (stations_view_drag_data_received_cb),
 				 source, 0);
-	gtk_drag_dest_set (GTK_WIDGET (source->priv->stations),
-			   GTK_DEST_DEFAULT_ALL,
-			   stations_view_drag_types, 2,
-			   GDK_ACTION_COPY | GDK_ACTION_MOVE);
+	/* TODO: set up GtkDropTarget for GTK4 DnD */
 
 	g_signal_connect_object (source->priv->stations, "show_popup",
 				 G_CALLBACK (rb_iradio_source_songs_show_popup_cb), source, 0);

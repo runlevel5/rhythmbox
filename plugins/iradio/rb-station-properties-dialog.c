@@ -161,7 +161,7 @@ rb_station_properties_dialog_constructed (GObject *object)
 	RBStationPropertiesDialog *dialog;
 	GtkWidget *content_area;
 	GtkBuilder *builder;
-	AtkObject *lobj, *robj;
+
 
 	RB_CHAIN_GOBJECT_METHOD (rb_station_properties_dialog_parent_class, constructed, object);
 	dialog = RB_STATION_PROPERTIES_DIALOG (object);
@@ -173,13 +173,13 @@ rb_station_properties_dialog_constructed (GObject *object)
 
 	content_area = gtk_dialog_get_content_area (GTK_DIALOG (dialog));
 
-	gtk_container_set_border_width (GTK_CONTAINER (dialog), 5);
+	/* removed: border_width */
 	gtk_box_set_spacing (GTK_BOX (content_area), 2);
 
 	builder = rb_builder_load_plugin_file (dialog->priv->plugin, "station-properties.ui", dialog);
 
-	gtk_container_add (GTK_CONTAINER (content_area),
-			   GTK_WIDGET (gtk_builder_get_object (builder, "stationproperties")));
+	gtk_box_append (GTK_BOX (content_area),
+			GTK_WIDGET (gtk_builder_get_object (builder, "stationproperties")));
 
 	dialog->priv->close_button = gtk_dialog_add_button (GTK_DIALOG (dialog),
 							    _("_Close"),
@@ -215,15 +215,14 @@ rb_station_properties_dialog_constructed (GObject *object)
 				 "rated",
 				 G_CALLBACK (rb_station_properties_dialog_rated_cb),
 				 G_OBJECT (dialog), 0);
-	gtk_container_add (GTK_CONTAINER (gtk_builder_get_object (builder, "ratingVBox")),
-			   dialog->priv->rating);
+	gtk_box_append (GTK_BOX (gtk_builder_get_object (builder, "ratingVBox")),
+			dialog->priv->rating);
 
-	/* add relationship between the rating label and the rating widget */
-	lobj = gtk_widget_get_accessible (GTK_WIDGET (gtk_builder_get_object (builder, "ratingLabel")));
-	robj = gtk_widget_get_accessible (dialog->priv->rating);
-
-	atk_object_add_relationship (lobj, ATK_RELATION_LABEL_FOR, robj);
-	atk_object_add_relationship (robj, ATK_RELATION_LABELLED_BY, lobj);
+	/* GTK4 accessible relationship */
+	gtk_accessible_update_relation (GTK_ACCESSIBLE (dialog->priv->rating),
+					GTK_ACCESSIBLE_RELATION_LABELLED_BY,
+					gtk_builder_get_object (builder, "ratingLabel"), NULL,
+					-1);
 
 	g_object_unref (builder);
 }
