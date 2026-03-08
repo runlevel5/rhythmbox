@@ -919,7 +919,7 @@ display_sync_settings_dialog (RBMediaPlayerSource *source)
 	gtk_box_append (GTK_BOX (widget), rb_sync_settings_ui_new (source, priv->sync_settings));
 
 	widget = GTK_WIDGET (gtk_builder_get_object (builder, "sync-state-ui-container"));
-	gtk_box_pack_start (GTK_BOX (widget), rb_sync_state_ui_new (priv->sync_state), TRUE, TRUE, 0);
+	gtk_box_append (GTK_BOX (widget), rb_sync_state_ui_new (priv->sync_state));
 
 	widget = GTK_WIDGET (gtk_builder_get_object (builder, "sync-dialog"));
 	gtk_box_append (GTK_BOX (content), widget);
@@ -1030,7 +1030,7 @@ impl_receive_drag (RBDisplayPage *page, gpointer data)
 	char *type;
 
 	entries = NULL;
-	type = gdk_atom_name (gtk_selection_data_get_data_type (data));
+	type = "unknown"; /* GTK4: DnD stub */
         db = get_db_for_source (RB_SOURCE (page));
 
 	if (strcmp (type, "text/uri-list") == 0) {
@@ -1038,7 +1038,7 @@ impl_receive_drag (RBDisplayPage *page, gpointer data)
 		GList *i;
 
 		rb_debug ("parsing uri list");
-		list = rb_uri_list_parse ((const char *) gtk_selection_data_get_data (data));
+		list = NULL; /* GTK4: DnD stub - no selection data in GTK4 */
 
 		for (i = list; i != NULL; i = g_list_next (i)) {
 			char *uri;
@@ -1065,7 +1065,7 @@ impl_receive_drag (RBDisplayPage *page, gpointer data)
 		char **i;
 
 		rb_debug ("parsing entry ids");
-		list = g_strsplit ((const char*) gtk_selection_data_get_data (data), "\n", -1);
+		list = g_strsplit ((const char*) (const guchar *)"" /* GTK4: DnD stub */, "\n", -1);
 		for (i = list; *i != NULL; i++) {
 			RhythmDBEntry *entry;
 			gulong id;

@@ -225,8 +225,8 @@ rb_auto_playlist_source_constructed (GObject *object)
 	priv->browser = rb_library_browser_new (rb_playlist_source_get_db (RB_PLAYLIST_SOURCE (source)),
 						entry_type);
 	g_object_unref (entry_type);
-	gtk_paned_pack1 (GTK_PANED (priv->paned), GTK_WIDGET (priv->browser), TRUE, FALSE);
-	gtk_widget_set_no_show_all (GTK_WIDGET (priv->browser), TRUE);
+	gtk_paned_set_start_child (GTK_PANED (priv->paned), GTK_WIDGET (priv->browser));
+	/* removed: no_show_all not needed in GTK4 */
 	g_signal_connect_object (G_OBJECT (priv->browser), "notify::output-model",
 				 G_CALLBACK (rb_auto_playlist_source_browser_changed_cb),
 				 source, 0);
@@ -271,8 +271,8 @@ rb_auto_playlist_source_constructed (GObject *object)
 
 	/* reparent the entry view */
 	g_object_ref (songs);
-	gtk_container_remove (GTK_CONTAINER (source), GTK_WIDGET (songs));
-	gtk_paned_pack2 (GTK_PANED (priv->paned), GTK_WIDGET (songs), TRUE, FALSE);
+	gtk_box_remove (GTK_BOX (source), GTK_WIDGET (songs));
+	gtk_paned_set_end_child (GTK_PANED (priv->paned), GTK_WIDGET (songs));
 
 	grid = gtk_grid_new ();
 	gtk_grid_set_column_spacing (GTK_GRID (grid), 6);
@@ -280,7 +280,7 @@ rb_auto_playlist_source_constructed (GObject *object)
 	gtk_widget_set_margin_top (GTK_WIDGET (grid), 6);
 	gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (priv->toolbar), 0, 0, 1, 1);
 	gtk_grid_attach (GTK_GRID (grid), priv->paned, 0, 1, 1, 1);
-	gtk_container_add (GTK_CONTAINER (source), grid);
+	gtk_box_append (GTK_BOX (source), grid);
 
 	rb_source_bind_settings (RB_SOURCE (source), GTK_WIDGET (songs), priv->paned, GTK_WIDGET (priv->browser), TRUE);
 	g_object_unref (songs);
@@ -289,7 +289,7 @@ rb_auto_playlist_source_constructed (GObject *object)
 		      "playlist-menu", rb_application_get_shared_menu (app, "playlist-page-menu"),
 		      NULL);
 
-	gtk_widget_show_all (GTK_WIDGET (source));
+	gtk_widget_show (GTK_WIDGET (source));
 }
 
 /**
@@ -529,11 +529,11 @@ impl_get_property_views (RBSource *source)
 static RhythmDBPropType
 rb_auto_playlist_source_drag_atom_to_prop (GdkAtom smasher)
 {
-	if (smasher == gdk_atom_intern ("text/x-rhythmbox-album", TRUE))
+	if (smasher == (gpointer)0 /* GTK4: DnD stub */)
 		return RHYTHMDB_PROP_ALBUM;
-	else if (smasher == gdk_atom_intern ("text/x-rhythmbox-artist", TRUE))
+	else if (smasher == (gpointer)0 /* GTK4: DnD stub */)
 		return RHYTHMDB_PROP_ARTIST;
-	else if (smasher == gdk_atom_intern ("text/x-rhythmbox-genre", TRUE))
+	else if (smasher == (gpointer)0 /* GTK4: DnD stub */)
 		return RHYTHMDB_PROP_GENRE;
 	else {
 		g_assert_not_reached ();
@@ -553,14 +553,14 @@ impl_receive_drag (RBDisplayPage *page, gpointer data)
 	int i;
 	RhythmDB *db;
 
-	type = gtk_selection_data_get_data_type (data);
+	type = (gpointer)0 /* GTK4: DnD stub */;
 
 	/* ignore URI and entry ID lists */
-	if (type == gdk_atom_intern ("text/uri-list", TRUE) ||
-	    type == gdk_atom_intern ("application/x-rhythmbox-entry", TRUE))
+	if (type == (gpointer)0 /* GTK4: DnD stub */ ||
+	    type == (gpointer)0 /* GTK4: DnD stub */)
 		return TRUE;
 
-	names = g_strsplit ((char *) gtk_selection_data_get_data (data), "\r\n", 0);
+	names = g_strsplit ((char *) (const guchar *)"" /* GTK4: DnD stub */, "\r\n", 0);
 	propid = rb_auto_playlist_source_drag_atom_to_prop (type);
 
 	g_object_get (page, "db", &db, NULL);

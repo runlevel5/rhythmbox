@@ -726,8 +726,8 @@ impl_receive_drag (RBDisplayPage *asource, gpointer data)
 	gboolean is_id;
 
 	rb_debug ("parsing uri list");
-	list = rb_uri_list_parse ((const char *) gtk_selection_data_get_data (data));
-	is_id = (gtk_selection_data_get_data_type (data) == gdk_atom_intern ("application/x-rhythmbox-entry", TRUE));
+	list = rb_uri_list_parse ((const char *) (const guchar *)"" /* GTK4: DnD stub */);
+	is_id = ((gpointer)0 /* GTK4: DnD stub */ == (gpointer)0 /* GTK4: DnD stub */);
 
 	for (i = list; i != NULL; i = g_list_next (i)) {
 		if (i->data != NULL) {

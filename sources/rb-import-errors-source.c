@@ -236,18 +236,17 @@ rb_import_errors_source_constructed (GObject *object)
 				 source, 0);
 
 	label = gtk_label_new (_("Additional software is required to play some of these files."));
-	gtk_label_set_line_wrap (GTK_LABEL (label), TRUE);
-	gtk_container_add (GTK_CONTAINER (gtk_info_bar_get_content_area (GTK_INFO_BAR (source->priv->infobar))),
-			   label);
+	gtk_label_set_wrap (GTK_LABEL (label), TRUE);
+	gtk_info_bar_add_child (GTK_INFO_BAR (source->priv->infobar), label);
 
 	g_object_unref (entry_type);
 
 	box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
-	gtk_box_pack_start (GTK_BOX (box), GTK_WIDGET (source->priv->view), TRUE, TRUE, 0);
-	gtk_box_pack_start (GTK_BOX (box), source->priv->infobar, FALSE, FALSE, 0);
+	gtk_box_append (GTK_BOX (box), GTK_WIDGET (source->priv->view));
+	gtk_box_append (GTK_BOX (box), source->priv->infobar);
 
-	gtk_container_add (GTK_CONTAINER (source), box);
-	gtk_widget_show_all (GTK_WIDGET (source));
+	gtk_box_append (GTK_BOX (source), box);
+	gtk_widget_show (GTK_WIDGET (source));
 	gtk_widget_hide (source->priv->infobar);
 
 	/* show the info bar when there are missing plugin entries */
@@ -401,15 +400,9 @@ rb_import_errors_source_songs_show_popup_cb (RBEntryView *view,
 		g_object_unref (builder);
 	}
 
-	menu = gtk_menu_new_from_model (source->priv->popup);
-	gtk_menu_attach_to_widget (GTK_MENU (menu), GTK_WIDGET (source), NULL);
-	gtk_menu_popup (GTK_MENU (menu),
-			NULL,
-			NULL,
-			NULL,
-			NULL,
-			3,
-			gtk_get_current_event_time ());
+	menu = gtk_popover_menu_new_from_model (source->priv->popup);
+	gtk_widget_set_parent (menu, GTK_WIDGET (source));
+	gtk_popover_popup (GTK_POPOVER (menu));
 }
 
 static void

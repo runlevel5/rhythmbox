@@ -861,7 +861,7 @@ impl_constructed (GObject *object)
 	gtk_tree_view_append_column (GTK_TREE_VIEW (display_page_tree->priv->treeview),
 				     display_page_tree->priv->main_column);
 
-	gtk_icon_size_lookup (RB_DISPLAY_PAGE_ICON_SIZE, &pixbuf_width, &pixbuf_height);
+	pixbuf_width = 16; pixbuf_height = 16; /* GTK4: icon_size_lookup removed */
 	display_page_tree->priv->blank_pixbuf = gdk_pixbuf_new (GDK_COLORSPACE_RGB, TRUE, 8, pixbuf_width, pixbuf_height);
 	gdk_pixbuf_fill (display_page_tree->priv->blank_pixbuf, 0);
 
