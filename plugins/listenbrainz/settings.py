@@ -23,14 +23,13 @@ import rb
 from gi.repository import Gio
 from gi.repository import GObject
 from gi.repository import Gtk
-from gi.repository import PeasGtk
 
 
 def load_settings():
     return Gio.Settings.new("org.gnome.rhythmbox.plugins.listenbrainz")
 
 
-class ListenBrainzSettings(GObject.Object, PeasGtk.Configurable):
+class ListenBrainzSettings(GObject.Object):
     __gtype_name__ = 'ListenBrainzSettings'
     object = GObject.property(type=GObject.Object)
 

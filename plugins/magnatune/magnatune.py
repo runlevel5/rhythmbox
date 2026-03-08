@@ -34,7 +34,7 @@ import re
 
 import rb
 from gi.repository import RB
-from gi.repository import GObject, Gtk, Gio, Peas, PeasGtk
+from gi.repository import GObject, Gtk, Gio
 
 from MagnatuneSource import MagnatuneSource
 import MagnatuneAccount
@@ -70,7 +70,7 @@ class MagnatuneEntryType(RB.RhythmDBEntryType):
 
 
 
-class Magnatune(GObject.GObject, Peas.Activatable):
+class Magnatune(GObject.GObject, RB.PeasActivatable):
 	__gtype_name__ = 'Magnatune'
 	object = GObject.property(type=GObject.GObject)
 
@@ -144,7 +144,7 @@ class Magnatune(GObject.GObject, Peas.Activatable):
 
 
 
-class MagnatuneConfig(GObject.GObject, PeasGtk.Configurable):
+class MagnatuneConfig(GObject.GObject):
 	__gtype_name__ = 'MagnatuneConfig'
 	object = GObject.property(type=GObject.GObject)
 

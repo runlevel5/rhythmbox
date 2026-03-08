@@ -30,11 +30,10 @@ import gi
 import rb
 import time
 
-gi.require_version('Peas', '1.0')
 gi.require_version('RB', '3.0')
 gi.require_version('Zeitgeist', '2.0')
 
-from gi.repository import GObject, Gio, GLib, Peas, Zeitgeist
+from gi.repository import GObject, Gio, GLib, Zeitgeist
 from gi.repository import RB
 
 try:
@@ -44,7 +43,7 @@ except RuntimeError as e:
     print("Unable to connect to Zeitgeist, won't send events. Reason: '%s'" % e)
     logger = None
 
-class ZeitgeistPlugin(GObject.Object, Peas.Activatable):
+class ZeitgeistPlugin(GObject.Object, RB.PeasActivatable):
     __gtype_name__ = 'ZeitgeistPlugin'
     object = GObject.property(type=GObject.Object)
 

@@ -28,7 +28,7 @@
 
 import rb
 import gi
-from gi.repository import Gio, GLib, GObject, Peas
+from gi.repository import Gio, GLib, GObject
 from gi.repository import RB
 
 import gettext
@@ -51,7 +51,7 @@ PURPLE_BUS_NAME = 'im.pidgin.purple.PurpleService'
 PURPLE_OBJ_PATH = '/im/pidgin/purple/PurpleObject'
 PURPLE_IFACE_NAME = 'im.pidgin.purple.PurpleInterface'
 
-class IMStatusPlugin (GObject.Object, Peas.Activatable):
+class IMStatusPlugin (GObject.Object, RB.PeasActivatable):
   __gtype_name__ = 'IMStatusPlugin'
   object = GObject.property(type=GObject.Object)
 

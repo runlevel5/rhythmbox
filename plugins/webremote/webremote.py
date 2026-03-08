@@ -26,7 +26,7 @@
 
 import gi
 gi.require_version('Soup', '3.0')
-from gi.repository import GLib, GObject, Gio, Peas, PeasGtk, Soup, Gtk
+from gi.repository import GLib, GObject, Gio, Soup, Gtk
 from gi.repository import RB
 import rb
 
@@ -170,7 +170,7 @@ class TrackStreamer(object):
 
 
 
-class WebRemotePlugin(GObject.Object, Peas.Activatable):
+class WebRemotePlugin(GObject.Object, RB.PeasActivatable):
 	__gtype_name = 'WebRemotePlugin'
 	object = GObject.property(type=GObject.GObject)
 
@@ -576,7 +576,7 @@ class WebRemotePlugin(GObject.Object, Peas.Activatable):
 		self.server = None
 		self.connections = {}
 
-class WebRemoteConfig(GObject.Object, PeasGtk.Configurable):
+class WebRemoteConfig(GObject.Object):
 	__gtype_name__ = 'WebRemoteConfig'
 	object = GObject.property(type=GObject.Object)
 

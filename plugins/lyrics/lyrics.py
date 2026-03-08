@@ -30,7 +30,7 @@ import os, re
 import urllib.request
 
 import rb
-from gi.repository import Gtk, Gio, GObject, Peas
+from gi.repository import Gtk, Gio, GObject
 from gi.repository import RB
 from gi.repository import Gst, GstPbutils
 
@@ -399,7 +399,7 @@ class LyricWindow (Gtk.Window):
 		lyrics_grabber.search_lyrics(self.__got_lyrics)
 
 
-class LyricsDisplayPlugin(GObject.Object, Peas.Activatable):
+class LyricsDisplayPlugin(GObject.Object, RB.PeasActivatable):
 	__gtype_name__ = 'LyricsDisplayPlugin'
 	object = GObject.property(type=GObject.Object)
 

@@ -26,7 +26,7 @@
 #
 
 import rb
-from gi.repository import Gtk, Gio, GObject, PeasGtk
+from gi.repository import Gtk, Gio, GObject
 from gi.repository import RB
 
 import gettext
@@ -40,7 +40,7 @@ REPLAYGAIN_MODE_ALBUM = 1
 # to apply for tracks that aren't tagged
 AVERAGE_GAIN_SAMPLES = 10
 
-class ReplayGainConfig(GObject.Object, PeasGtk.Configurable):
+class ReplayGainConfig(GObject.Object):
 	__gtype_name__ = 'ReplayGainConfig'
 	object = GObject.property(type=GObject.Object)
 

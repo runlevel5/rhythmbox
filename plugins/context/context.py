@@ -28,10 +28,10 @@
 
 import ContextView as cv
 
-from gi.repository import GObject, Peas
+from gi.repository import GObject
 from gi.repository import RB
 
-class ContextPlugin(GObject.Object, Peas.Activatable):
+class ContextPlugin(GObject.Object, RB.PeasActivatable):
     __gtype_name__ = 'ContextPlugin'
     object = GObject.property(type=GObject.Object)
 

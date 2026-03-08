@@ -24,7 +24,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-from gi.repository import GObject, Peas, RB, GdkPixbuf
+from gi.repository import GObject, RB, GdkPixbuf
 
 import gettext
 gettext.install('rhythmbox', RB.locale_dir())
@@ -60,7 +60,7 @@ class Search(object):
 	def search_done(self, args):
 		self.next_search()
 
-class ArtSearchPlugin (GObject.GObject, Peas.Activatable):
+class ArtSearchPlugin (GObject.GObject, RB.PeasActivatable):
 	__gtype_name__ = 'ArtSearchPlugin'
 	object = GObject.property(type=GObject.GObject)
 

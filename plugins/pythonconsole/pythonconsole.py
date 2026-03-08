@@ -38,7 +38,7 @@ import re
 import os
 import traceback
 
-from gi.repository import GLib, Gtk, Gdk, Gio, GObject, Pango, Peas
+from gi.repository import GLib, Gtk, Gdk, Gio, GObject, Pango
 from gi.repository import RB
 
 import gettext
@@ -59,7 +59,7 @@ except:
 	have_debugpy = False
 
 
-class PythonConsolePlugin(GObject.Object, Peas.Activatable):
+class PythonConsolePlugin(GObject.Object, RB.PeasActivatable):
 	__gtype_name__ = 'PythonConsolePlugin'
 
 	object = GObject.property (type = GObject.Object)
