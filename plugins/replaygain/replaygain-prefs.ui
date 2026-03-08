@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Generated with glade 3.19.0 -->
 <interface>
-  <requires lib="gtk+" version="3.12"/>
+  <requires lib="gtk" version="4.0"/>
   <object class="GtkAdjustment" id="preampadjustment">
     <property name="lower">-15</property>
     <property name="upper">25</property>
-    <property name="step_increment">0.10000000000000001</property>
-    <property name="page_increment">5</property>
-    <property name="page_size">10</property>
+    <property name="step-increment">0.10000000000000001</property>
+    <property name="page-increment">5</property>
+    <property name="page-size">10</property>
   </object>
   <object class="GtkListStore" id="replaygainmodemodel">
     <columns>
@@ -27,82 +27,65 @@
       </row>
     </data>
   </object>
-  <object class="GtkBox" id="replaygain-prefs">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="orientation">vertical</property>
+  <object class="GtkBox" id="replaygain-prefs">    <property name="orientation">vertical</property>
     <property name="spacing">18</property>
     <child>
-      <object class="GtkLabel" id="headerlabel">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="label" translatable="yes">ReplayGain preferences</property>
+      <object class="GtkLabel" id="headerlabel">        <property name="label" translatable="yes">ReplayGain preferences</property>
         <property name="xalign">0</property>
         <attributes>
           <attribute name="weight" value="bold"/>
         </attributes>
-      </object>
-      <packing>
-        <property name="expand">False</property>
-        <property name="fill">True</property>
-        <property name="position">0</property>
-      </packing>
-    </child>
+      </object>    </child>
     <child>
-      <object class="GtkGrid" id="grid1">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="margin_start">8</property>
-        <property name="margin_end">8</property>
-        <property name="row_spacing">6</property>
-        <property name="column_spacing">6</property>
+      <object class="GtkGrid" id="grid1">        <property name="margin-start">8</property>
+        <property name="margin-end">8</property>
+        <property name="row-spacing">6</property>
+        <property name="column-spacing">6</property>
         <child>
-          <object class="GtkLabel" id="label3">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">ReplayGain _mode:</property>
-            <property name="use_underline">True</property>
+          <object class="GtkLabel" id="label3">            <property name="label" translatable="yes">ReplayGain _mode:</property>
+            <property name="use-underline">True</property>
             <property name="xalign">0</property>
           </object>
-          <packing>
-            <property name="left_attach">0</property>
-            <property name="top_attach">0</property>
-          </packing>
+          <layout>
+
+            <property name="column">0</property>
+
+            <property name="row">0</property>
+
+          </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="preamplabel">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">_Pre-amp:</property>
-            <property name="use_underline">True</property>
+          <object class="GtkLabel" id="preamplabel">            <property name="label" translatable="yes">_Pre-amp:</property>
+            <property name="use-underline">True</property>
             <property name="xalign">0</property>
           </object>
-          <packing>
-            <property name="left_attach">0</property>
-            <property name="top_attach">1</property>
-          </packing>
+          <layout>
+
+            <property name="column">0</property>
+
+            <property name="row">1</property>
+
+          </layout>
         </child>
         <child>
           <object class="GtkCheckButton" id="limiter">
-            <property name="label" translatable="yes">_Apply compression to prevent clipping</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">False</property>
-            <property name="use_underline">True</property>
+            <property name="label" translatable="yes">_Apply compression to prevent clipping</property>            <property name="receives-default">False</property>
+            <property name="use-underline">True</property>
             <property name="xalign">0</property>
-            <property name="draw_indicator">True</property>
+            <property name="draw-indicator">True</property>
           </object>
-          <packing>
-            <property name="left_attach">0</property>
-            <property name="top_attach">2</property>
-            <property name="width">2</property>
-          </packing>
+          <layout>
+
+            <property name="column">0</property>
+
+            <property name="row">2</property>
+
+            <property name="column-span">2</property>
+
+          </layout>
         </child>
         <child>
-          <object class="GtkComboBox" id="replaygainmode">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="model">replaygainmodemodel</property>
+          <object class="GtkComboBox" id="replaygainmode">            <property name="model">replaygainmodemodel</property>
             <child>
               <object class="GtkCellRendererText" id="cellrenderertext2"/>
               <attributes>
@@ -110,45 +93,33 @@
               </attributes>
             </child>
           </object>
-          <packing>
-            <property name="left_attach">1</property>
-            <property name="top_attach">0</property>
-          </packing>
+          <layout>
+
+            <property name="column">1</property>
+
+            <property name="row">0</property>
+
+          </layout>
         </child>
         <child>
-          <object class="GtkScale" id="preamp">
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="hexpand">True</property>
+          <object class="GtkScale" id="preamp">            <property name="hexpand">True</property>
             <property name="adjustment">preampadjustment</property>
           </object>
-          <packing>
-            <property name="left_attach">1</property>
-            <property name="top_attach">1</property>
-          </packing>
+          <layout>
+
+            <property name="column">1</property>
+
+            <property name="row">1</property>
+
+          </layout>
         </child>
-      </object>
-      <packing>
-        <property name="expand">False</property>
-        <property name="fill">True</property>
-        <property name="position">1</property>
-      </packing>
-    </child>
+      </object>    </child>
     <child>
       <object class="GtkLinkButton" id="linkbutton">
-        <property name="label" translatable="yes">Learn more about ReplayGain</property>
-        <property name="visible">True</property>
-        <property name="can_focus">True</property>
-        <property name="receives_default">True</property>
-        <property name="has_tooltip">True</property>
+        <property name="label" translatable="yes">Learn more about ReplayGain</property>        <property name="receives-default">True</property>
+        <property name="has-tooltip">True</property>
         <property name="relief">none</property>
 	<property name="uri">http://wiki.hydrogenaud.io/index.php/ReplayGain</property>
-      </object>
-      <packing>
-        <property name="expand">False</property>
-        <property name="fill">True</property>
-        <property name="position">2</property>
-      </packing>
-    </child>
+      </object>    </child>
   </object>
 </interface>
