@@ -14,16 +14,18 @@ int main (int argc, char **argv)
 {
 	GtkWidget *dialog;
 
-	gtk_init (&argc, &argv);
+	gtk_init ();
 	rb_file_helpers_init ();
 
 	dialog = rb_uri_dialog_new ("Dialog title", "dialog label");
 	g_signal_connect (G_OBJECT (dialog), "location-added",
 			  G_CALLBACK (location_added), NULL);
 
-	gtk_dialog_run (GTK_DIALOG (dialog));
+	gtk_window_present (GTK_WINDOW (dialog));
 
-	gtk_widget_destroy (dialog);
+	while (g_list_model_get_n_items (gtk_window_get_toplevels ()) > 0)
+		g_main_context_iteration (NULL, TRUE);
+
 
 	return 0;
 }

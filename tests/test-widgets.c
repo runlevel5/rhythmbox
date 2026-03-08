@@ -114,7 +114,7 @@ query_creator_test_load_query (RhythmDB *db,
 		       "sort directions differ: %d; %d", sort_direction, sort_direction2);
 
 	rhythmdb_query_free (squery);
-	gtk_widget_destroy (creator);
+	gtk_window_destroy (GTK_WINDOW (creator));
 }
 
 START_TEST (test_query_creator_load_query_empty)
