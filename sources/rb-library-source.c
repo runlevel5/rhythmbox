@@ -437,24 +437,23 @@ impl_pack_content (RBBrowserSource *bsource, GtkWidget *content)
 }
 
 static void
-location_select_folder_cb (GObject *source_object,
-			  GAsyncResult *result,
+location_select_folder_cb (GtkDialog *dialog,
+			  int response,
 			  gpointer data)
 {
 	RBLibrarySource *source = RB_LIBRARY_SOURCE (data);
-	GtkFileDialog *dialog = GTK_FILE_DIALOG (source_object);
 	GFile *file;
-	GError *error = NULL;
 
-	file = gtk_file_dialog_select_folder_finish (dialog, result, &error);
-	if (file == NULL) {
-		if (!g_error_matches (error, GTK_DIALOG_ERROR, GTK_DIALOG_ERROR_DISMISSED))
-			g_warning ("file dialog error: %s", error->message);
-		g_clear_error (&error);
+	if (response != GTK_RESPONSE_ACCEPT) {
+		gtk_window_destroy (GTK_WINDOW (dialog));
 		return;
 	}
 
-	{
+G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+	file = gtk_file_chooser_get_file (GTK_FILE_CHOOSER (dialog));
+G_GNUC_END_IGNORE_DEPRECATIONS
+
+	if (file != NULL) {
 		char *uri = g_file_get_uri (file);
 		char *path = g_uri_unescape_string (uri, NULL);
 
@@ -463,23 +462,37 @@ location_select_folder_cb (GObject *source_object,
 						       NULL, source);
 		g_free (path);
 		g_free (uri);
+		g_object_unref (file);
 	}
 
-	g_object_unref (file);
+	gtk_window_destroy (GTK_WINDOW (dialog));
 }
 
 static void
 rb_library_source_location_button_clicked_cb (GtkButton *button, RBLibrarySource *source)
 {
-	GtkFileDialog *dialog;
+	GtkWidget *dialog;
+	const char *path;
 
-	dialog = gtk_file_dialog_new ();
-	gtk_file_dialog_set_title (dialog, _("Choose Library Location"));
-	gtk_file_dialog_select_folder (dialog,
-				       GTK_WINDOW (source->priv->shell_prefs),
-				       NULL,
-				       location_select_folder_cb,
-				       source);
+G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+	dialog = gtk_file_chooser_dialog_new (_("Choose Library Location"),
+					      GTK_WINDOW (source->priv->shell_prefs),
+					      GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
+					      _("_Cancel"), GTK_RESPONSE_CANCEL,
+					      _("_Select"), GTK_RESPONSE_ACCEPT,
+					      NULL);
+
+	path = gtk_editable_get_text (GTK_EDITABLE (source->priv->library_location_entry));
+	if (path != NULL && path[0] != '\0') {
+		GFile *folder = g_file_parse_name (path);
+		gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), folder, NULL);
+		g_object_unref (folder);
+	}
+G_GNUC_END_IGNORE_DEPRECATIONS
+
+	g_signal_connect (dialog, "response",
+			  G_CALLBACK (location_select_folder_cb), source);
+	gtk_window_present (GTK_WINDOW (dialog));
 }
 
 static void
@@ -683,10 +696,15 @@ impl_get_config_widget (RBDisplayPage *asource, RBShellPreferences *prefs)
 	}
 
 	holder = GTK_WIDGET (gtk_builder_get_object (builder, "encoding_settings_holder"));
-	gtk_box_append (GTK_BOX (holder),
-			rb_encoding_settings_new (source->priv->encoding_settings,
-						  rb_gst_get_default_encoding_target (),
-						  FALSE));
+	{
+		GstEncodingTarget *target = rb_gst_get_default_encoding_target ();
+		if (target != NULL) {
+			gtk_box_append (GTK_BOX (holder),
+					rb_encoding_settings_new (source->priv->encoding_settings,
+								  target,
+								  FALSE));
+		}
+	}
 
 	source->priv->layout_example_label = GTK_WIDGET (gtk_builder_get_object (builder, "layout_example_label"));
 
