@@ -597,11 +597,7 @@ rb_song_info_constructed (GObject *object)
 			song_info->priv->rating);
 	g_object_set (gtk_builder_get_object (builder, "rating_label"), "mnemonic-widget", song_info->priv->rating, NULL);
 
-	/* accessible relationship between rating label and widget */
-	gtk_accessible_update_relation (GTK_ACCESSIBLE (song_info->priv->rating),
-					GTK_ACCESSIBLE_RELATION_LABELLED_BY,
-					gtk_builder_get_object (builder, "rating_label"), NULL,
-					-1);
+	/* rating label is set via mnemonic-widget above */
 
 	gtk_editable_set_editable (GTK_EDITABLE (song_info->priv->artist), editable);
 	gtk_editable_set_editable (GTK_EDITABLE (song_info->priv->album), editable);
