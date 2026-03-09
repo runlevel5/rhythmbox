@@ -42,7 +42,6 @@
 #include "rb-display-page-tree.h"
 #include "rb-display-page-model.h"
 #include "rb-debug.h"
-#include "rb-cell-renderer-pixbuf.h"
 #include "gossip-cell-renderer-expander.h"
 #include "rb-tree-dnd.h"
 #include "rb-util.h"

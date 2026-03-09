@@ -62,7 +62,6 @@
 #include "rb-static-playlist-source.h"
 #include "rb-cut-and-paste-code.h"
 #include "rb-source-search-basic.h"
-#include "rb-cell-renderer-pixbuf.h"
 #include "rb-podcast-add-dialog.h"
 #include "rb-source-toolbar.h"
 #include "rb-builder-helpers.h"
@@ -945,41 +944,6 @@ podcast_entry_changed_cb (RhythmDB *db,
 	}
 }
 
-static void
-podcast_status_pixbuf_clicked_cb (RBCellRendererPixbuf *renderer,
-				  const char *path_string,
-				  RBPodcastSource *source)
-{
-	GtkTreePath *path;
-	GtkTreeIter iter;
-
-	g_return_if_fail (path_string != NULL);
-
-	path = gtk_tree_path_new_from_string (path_string);
-	if (gtk_tree_model_get_iter (GTK_TREE_MODEL (source->priv->feed_model), &iter, path)) {
-		RhythmDBEntry *entry;
-		char *feed_url;
-
-		gtk_tree_model_get (GTK_TREE_MODEL (source->priv->feed_model),
-				    &iter,
-				    RHYTHMDB_PROPERTY_MODEL_COLUMN_TITLE, &feed_url,
-				    -1);
-
-		entry = rhythmdb_entry_lookup_by_location (source->priv->db, feed_url);
-		if (entry != NULL) {
-			const gchar *error;
-
-			error = rhythmdb_entry_get_string (entry, RHYTHMDB_PROP_PLAYBACK_ERROR);
-			if (error) {
-				rb_error_dialog (NULL, _("Podcast Error"), "%s", error);
-			}
-		}
-
-		g_free (feed_url);
-	}
-
-	gtk_tree_path_free (path);
-}
 
 static void
 settings_changed_cb (GSettings *settings, const char *key, RBPodcastSource *source)
@@ -1512,7 +1476,7 @@ impl_constructed (GObject *object)
 
 	/* status indicator column */
 	column = gtk_tree_view_column_new ();
-	renderer = rb_cell_renderer_pixbuf_new ();
+	renderer = gtk_cell_renderer_pixbuf_new ();
 	gtk_tree_view_column_pack_start (column, renderer, TRUE);
 	gtk_tree_view_column_set_cell_data_func (column, renderer,
 						 (GtkTreeCellDataFunc) podcast_feed_pixbuf_cell_data_func,
@@ -1522,10 +1486,6 @@ impl_constructed (GObject *object)
 	gtk_tree_view_column_set_reorderable (column, FALSE);
 	gtk_tree_view_column_set_visible (column, TRUE);
 	rb_property_view_append_column_custom (source->priv->feeds, column);
-	g_signal_connect_object (renderer,
-				 "pixbuf-clicked",
-				 G_CALLBACK (podcast_status_pixbuf_clicked_cb),
-				 source, 0);
 
 	/* redraw status when errors are set or cleared */
 	g_signal_connect_object (source->priv->db,

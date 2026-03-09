@@ -91,7 +91,6 @@
 #include "rb-text-helpers.h"
 #include "rhythmdb.h"
 #include "rhythmdb-query-model.h"
-#include "rb-cell-renderer-pixbuf.h"
 #include "rb-cell-renderer-rating.h"
 #include "rb-shell-player.h"
 #include "rb-cut-and-paste-code.h"
@@ -152,9 +151,6 @@ static void rb_entry_view_rated_cb (RBCellRendererRating *cellrating,
 				   const char *path,
 				   double rating,
 				   RBEntryView *view);
-static void rb_entry_view_pixbuf_clicked_cb (RBEntryView *view,
-					     const char *path,
-					     RBCellRendererPixbuf *cellpixbuf);
 static void rb_entry_view_playing_column_clicked_cb (GtkTreeViewColumn *column,
 						     RBEntryView *view);
 static void rb_entry_view_button_press_cb (GtkGestureClick *gesture,
@@ -1947,29 +1943,6 @@ rb_entry_view_rated_cb (RBCellRendererRating *cellrating,
 	rhythmdb_entry_unref (entry);
 }
 
-static void
-rb_entry_view_pixbuf_clicked_cb (RBEntryView          *view,
-				 const char           *path_string,
-				 RBCellRendererPixbuf *cellpixbuf)
-{
-	GtkTreePath *path;
-	RhythmDBEntry *entry;
-	const gchar *error;
-
-	g_return_if_fail (path_string != NULL);
-
-	path = gtk_tree_path_new_from_string (path_string);
-	entry = rhythmdb_query_model_tree_path_to_entry (view->priv->model, path);
-
-	gtk_tree_path_free (path);
-
-	error = rhythmdb_entry_get_string (entry, RHYTHMDB_PROP_PLAYBACK_ERROR);
-	if (error) {
-		rb_error_dialog (NULL, _("Playback Error"), "%s", error);
-	}
-
-	rhythmdb_entry_unref (entry);
-}
 
 static void
 rb_entry_view_playing_column_clicked_cb (GtkTreeViewColumn *column,

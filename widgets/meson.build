@@ -1,6 +1,5 @@
 widgets_headers = files(
   'rb-button-bar.h',
-  'rb-cell-renderer-pixbuf.h',
   'rb-cell-renderer-rating.h',
   'rb-dialog.h',
   'rb-entry-view.h',
@@ -22,7 +21,6 @@ widgets_sources = files(
   'nautilus-floating-bar.c',
   'rb-alert-dialog.c',
   'rb-button-bar.c',
-  'rb-cell-renderer-pixbuf.c',
   'rb-cell-renderer-rating.c',
   'rb-dialog.c',
   'rb-encoding-settings.c',
