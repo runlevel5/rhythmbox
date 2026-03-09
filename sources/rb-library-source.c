@@ -437,43 +437,49 @@ impl_pack_content (RBBrowserSource *bsource, GtkWidget *content)
 }
 
 static void
-location_response_cb (GtkDialog *dialog, int response, RBLibrarySource *source)
+location_select_folder_cb (GObject *source_object,
+			  GAsyncResult *result,
+			  gpointer data)
 {
-	char *uri;
+	RBLibrarySource *source = RB_LIBRARY_SOURCE (data);
+	GtkFileDialog *dialog = GTK_FILE_DIALOG (source_object);
+	GFile *file;
+	GError *error = NULL;
+
+	file = gtk_file_dialog_select_folder_finish (dialog, result, &error);
+	if (file == NULL) {
+		if (!g_error_matches (error, GTK_DIALOG_ERROR, GTK_DIALOG_ERROR_DISMISSED))
+			g_warning ("file dialog error: %s", error->message);
+		g_clear_error (&error);
+		return;
+	}
 
 	{
-		GFile *file = gtk_file_chooser_get_file (GTK_FILE_CHOOSER (dialog));
-		if (file != NULL) {
-			uri = g_file_get_uri (file);
-			g_object_unref (file);
-		}
-	}
-	gtk_window_destroy (GTK_WINDOW (dialog));
-
-	if (response == GTK_RESPONSE_ACCEPT) {
-		char *path;
-
-		path = g_uri_unescape_string (uri, NULL);
+		char *uri = g_file_get_uri (file);
+		char *path = g_uri_unescape_string (uri, NULL);
 
 		gtk_editable_set_text (GTK_EDITABLE (source->priv->library_location_entry), path);
 		rb_library_source_library_location_cb (GTK_ENTRY (source->priv->library_location_entry),
 						       NULL, source);
 		g_free (path);
+		g_free (uri);
 	}
-	g_free (uri);
+
+	g_object_unref (file);
 }
 
 static void
 rb_library_source_location_button_clicked_cb (GtkButton *button, RBLibrarySource *source)
 {
-	GtkWidget *dialog;
+	GtkFileDialog *dialog;
 
-	dialog = rb_file_chooser_new (_("Choose Library Location"),
-				      GTK_WINDOW (source->priv->shell_prefs),
-				      GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
-				      FALSE);
-	g_signal_connect (dialog, "response", G_CALLBACK (location_response_cb), source);
-	gtk_widget_show (dialog);
+	dialog = gtk_file_dialog_new ();
+	gtk_file_dialog_set_title (dialog, _("Choose Library Location"));
+	gtk_file_dialog_select_folder (dialog,
+				       GTK_WINDOW (source->priv->shell_prefs),
+				       NULL,
+				       location_select_folder_cb,
+				       source);
 }
 
 static void
