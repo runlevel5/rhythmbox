@@ -61,6 +61,7 @@
 #include "rb-debug.h"
 #include "rb-shell.h"
 #include "rb-util.h"
+#include <libpeas.h>
 
 static void rb_shell_preferences_class_init (RBShellPreferencesClass *klass);
 static void rb_shell_preferences_init (RBShellPreferences *shell_preferences);
@@ -82,6 +83,7 @@ static void column_check_toggled_cb (GtkWidget *widget, RBShellPreferences *pref
 static void player_settings_changed_cb (GSettings *settings, const char *key, RBShellPreferences *preferences);
 static void source_settings_changed_cb (GSettings *settings, const char *key, RBShellPreferences *preferences);
 static void transition_time_changed_cb (GtkRange *range, RBShellPreferences *preferences);
+static void plugin_check_toggled_cb (GtkCheckButton *check, PeasEngine *engine);
 
 enum
 {
@@ -375,6 +377,23 @@ rb_shell_preferences_append_view_page (RBShellPreferences *prefs,
 	rb_shell_preferences_append_page (prefs, name, widget);
 }
 
+
+static void
+plugin_check_toggled_cb (GtkCheckButton *check, PeasEngine *engine)
+{
+	PeasPluginInfo *info;
+
+	info = g_object_get_data (G_OBJECT (check), "peas-plugin-info");
+	if (info == NULL)
+		return;
+
+	if (gtk_check_button_get_active (check)) {
+		peas_engine_load_plugin (engine, info);
+	} else {
+		peas_engine_unload_plugin (engine, info);
+	}
+}
+
 /**
  * rb_shell_preferences_new:
  * @views: (element-type RB.Source) (transfer none): list of sources to check for preferences pages
@@ -388,7 +407,6 @@ GtkWidget *
 rb_shell_preferences_new (GList *views)
 {
 	RBShellPreferences *shell_preferences;
-	GtkBuilder *builder;
 
 	shell_preferences = g_object_new (RB_TYPE_SHELL_PREFERENCES,
 				          NULL, NULL);
@@ -412,11 +430,123 @@ rb_shell_preferences_new (GList *views)
 	}
 
 	/* make sure this goes last */
-	builder = rb_builder_load ("plugin-prefs.ui", NULL);
-	gtk_notebook_append_page (GTK_NOTEBOOK (shell_preferences->priv->notebook),
-				  GTK_WIDGET (gtk_builder_get_object (builder, "plugins_box")),
-				  gtk_label_new (_("Plugins")));
-	g_object_unref (builder);
+	{
+		GtkWidget *plugins_page;
+		GtkWidget *plugins_scroll;
+		GtkWidget *plugins_list;
+		PeasEngine *engine;
+		guint n_plugins;
+		guint i;
+
+		engine = peas_engine_get_default ();
+
+		plugins_page = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+		gtk_widget_set_margin_start (plugins_page, 12);
+		gtk_widget_set_margin_end (plugins_page, 12);
+		gtk_widget_set_margin_top (plugins_page, 12);
+		gtk_widget_set_margin_bottom (plugins_page, 12);
+
+		plugins_scroll = gtk_scrolled_window_new ();
+		gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (plugins_scroll),
+						GTK_POLICY_NEVER,
+						GTK_POLICY_AUTOMATIC);
+		gtk_widget_set_vexpand (plugins_scroll, TRUE);
+		gtk_scrolled_window_set_min_content_height (GTK_SCROLLED_WINDOW (plugins_scroll), 300);
+
+		plugins_list = gtk_list_box_new ();
+		gtk_list_box_set_selection_mode (GTK_LIST_BOX (plugins_list), GTK_SELECTION_NONE);
+		gtk_widget_add_css_class (plugins_list, "boxed-list");
+
+		n_plugins = g_list_model_get_n_items (G_LIST_MODEL (engine));
+		for (i = 0; i < n_plugins; i++) {
+			PeasPluginInfo *info;
+			GtkWidget *row;
+			GtkWidget *hbox;
+			GtkWidget *check;
+			GtkWidget *icon;
+			GtkWidget *label_box;
+			GtkWidget *name_label;
+			GtkWidget *desc_label;
+			const char *plugin_name;
+			const char *plugin_desc;
+			const char *icon_name;
+			char *name_markup;
+
+			info = g_list_model_get_item (G_LIST_MODEL (engine), i);
+			if (peas_plugin_info_is_hidden (info)) {
+				g_object_unref (info);
+				continue;
+			}
+
+			plugin_name = peas_plugin_info_get_name (info);
+			plugin_desc = peas_plugin_info_get_description (info);
+			icon_name = peas_plugin_info_get_icon_name (info);
+
+			row = gtk_list_box_row_new ();
+			gtk_list_box_row_set_activatable (GTK_LIST_BOX_ROW (row), FALSE);
+
+			hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 12);
+			gtk_widget_set_margin_start (hbox, 8);
+			gtk_widget_set_margin_end (hbox, 8);
+			gtk_widget_set_margin_top (hbox, 8);
+			gtk_widget_set_margin_bottom (hbox, 8);
+
+			check = gtk_check_button_new ();
+			gtk_check_button_set_active (GTK_CHECK_BUTTON (check),
+						     peas_plugin_info_is_loaded (info));
+			gtk_widget_set_valign (check, GTK_ALIGN_CENTER);
+			if (peas_plugin_info_is_builtin (info))
+				gtk_widget_set_sensitive (check, FALSE);
+
+			g_object_set_data (G_OBJECT (check), "peas-plugin-info", info);
+			g_signal_connect_object (check, "toggled",
+						 G_CALLBACK (plugin_check_toggled_cb),
+						 engine, 0);
+
+			icon = gtk_image_new_from_icon_name (
+				(icon_name != NULL) ? icon_name : "application-x-addon");
+			gtk_image_set_pixel_size (GTK_IMAGE (icon), 32);
+			gtk_widget_set_valign (icon, GTK_ALIGN_CENTER);
+
+			label_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 2);
+			gtk_widget_set_hexpand (label_box, TRUE);
+			gtk_widget_set_valign (label_box, GTK_ALIGN_CENTER);
+
+			name_markup = g_markup_printf_escaped ("<b>%s</b>",
+							       plugin_name ? plugin_name : "");
+			name_label = gtk_label_new (NULL);
+			gtk_label_set_markup (GTK_LABEL (name_label), name_markup);
+			gtk_label_set_xalign (GTK_LABEL (name_label), 0.0);
+			gtk_label_set_ellipsize (GTK_LABEL (name_label), PANGO_ELLIPSIZE_END);
+			g_free (name_markup);
+
+			desc_label = gtk_label_new (plugin_desc);
+			gtk_label_set_xalign (GTK_LABEL (desc_label), 0.0);
+			gtk_label_set_ellipsize (GTK_LABEL (desc_label), PANGO_ELLIPSIZE_END);
+			gtk_widget_add_css_class (desc_label, "dim-label");
+			gtk_widget_add_css_class (desc_label, "caption");
+
+			gtk_box_append (GTK_BOX (label_box), name_label);
+			if (plugin_desc != NULL && plugin_desc[0] != '\0')
+				gtk_box_append (GTK_BOX (label_box), desc_label);
+
+			gtk_box_append (GTK_BOX (hbox), check);
+			gtk_box_append (GTK_BOX (hbox), icon);
+			gtk_box_append (GTK_BOX (hbox), label_box);
+
+			gtk_list_box_row_set_child (GTK_LIST_BOX_ROW (row), hbox);
+			gtk_list_box_append (GTK_LIST_BOX (plugins_list), row);
+
+			g_object_unref (info);
+		}
+
+		gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (plugins_scroll), plugins_list);
+		gtk_box_append (GTK_BOX (plugins_page), plugins_scroll);
+
+		gtk_notebook_append_page (GTK_NOTEBOOK (shell_preferences->priv->notebook),
+					  plugins_page,
+					  gtk_label_new (_("Plugins")));
+	}
 
 	return GTK_WIDGET (shell_preferences);
 }
