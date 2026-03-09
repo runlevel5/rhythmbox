@@ -653,6 +653,7 @@ construct_widgets (RBShell *shell)
 
 	{
 		GtkWidget *toolbar_view = adw_toolbar_view_new ();
+		adw_toolbar_view_set_top_bar_style (ADW_TOOLBAR_VIEW (toolbar_view), ADW_TOOLBAR_RAISED);
 		adw_toolbar_view_set_content (ADW_TOOLBAR_VIEW (toolbar_view), shell->priv->main_vbox);
 		shell->priv->toolbar_view = toolbar_view;
 		adw_application_window_set_content (ADW_APPLICATION_WINDOW (win), toolbar_view);
