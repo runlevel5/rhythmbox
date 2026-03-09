@@ -405,9 +405,9 @@ rb_query_creator_load_query (RBQueryCreator *creator,
 	}
 
 	/* setup the limits */
-	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->disjunction_check),
+	gtk_check_button_set_active (GTK_CHECK_BUTTON (priv->disjunction_check),
 				      disjunction);
-	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->limit_check),
+	gtk_check_button_set_active (GTK_CHECK_BUTTON (priv->limit_check),
 				      limit_type != RHYTHMDB_QUERY_MODEL_LIMIT_NONE);
 
 	switch (limit_type) {
@@ -461,7 +461,7 @@ rb_query_creator_set_sorting (RBQueryCreator *creator,
 		sort_direction = DEFAULT_SORTING_ORDER;
 	}
 
-	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->sort_desc), (sort_direction == GTK_SORT_DESCENDING));
+	gtk_check_button_set_active (GTK_CHECK_BUTTON (priv->sort_desc), (sort_direction == GTK_SORT_DESCENDING));
 
 	for (i = 0; i < num_sort_options; i++)
 		if (strcmp (sort_options[i].sort_key, sort_column) == 0)
@@ -570,7 +570,7 @@ rb_query_creator_get_query (RBQueryCreator *creator)
 
 	priv = QUERY_CREATOR_GET_PRIVATE (creator);
 
-	disjunction = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (priv->disjunction_check));
+	disjunction = gtk_check_button_get_active (GTK_CHECK_BUTTON (priv->disjunction_check));
 	sub_query = g_ptr_array_new ();
 	rows = priv->rows;
 
@@ -635,7 +635,7 @@ rb_query_creator_get_limit (RBQueryCreator *creator,
 
 	priv = QUERY_CREATOR_GET_PRIVATE (creator);
 
-	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (priv->limit_check))) {
+	if (gtk_check_button_get_active (GTK_CHECK_BUTTON (priv->limit_check))) {
 		guint64 l;
 		l = gtk_spin_button_get_value(GTK_SPIN_BUTTON (priv->limit_entry));
 
@@ -689,7 +689,7 @@ rb_query_creator_get_sort_order (RBQueryCreator *creator,
 	priv = QUERY_CREATOR_GET_PRIVATE (creator);
 
 	if (sort_direction != NULL) {
-		if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (priv->sort_desc)))
+		if (gtk_check_button_get_active (GTK_CHECK_BUTTON (priv->sort_desc)))
 			*sort_direction = GTK_SORT_DESCENDING;
 		else
 			*sort_direction = GTK_SORT_ASCENDING;
@@ -707,7 +707,7 @@ limit_toggled_cb (GtkWidget *limit,
                   RBQueryCreator *creator)
 {
 	RBQueryCreatorPrivate *priv = QUERY_CREATOR_GET_PRIVATE (creator);
-	gboolean active = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (limit));
+	gboolean active = gtk_check_button_get_active (GTK_CHECK_BUTTON (limit));
 
 	gtk_widget_set_sensitive (priv->limit_entry, active);
 	gtk_widget_set_sensitive (priv->limit_option, active);
@@ -940,7 +940,7 @@ sort_option_menu_changed (GtkComboBox *propmenu,
 	RBQueryCreatorPrivate *priv = QUERY_CREATOR_GET_PRIVATE (creator);
 	int index = gtk_combo_box_get_active (propmenu);
 
-	gtk_button_set_label (GTK_BUTTON (priv->sort_desc), _(sort_options[index].sort_descending_name));
+	gtk_check_button_set_label (GTK_CHECK_BUTTON (priv->sort_desc), _(sort_options[index].sort_descending_name));
 	rb_debug("changing descending label to %s[%d]", sort_options[index].sort_descending_name, index);
 }
 
