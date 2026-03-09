@@ -469,8 +469,11 @@ rb_display_page_tree_edit_source_name (RBDisplayPageTree *display_page_tree,
 					&iter);
 	gtk_tree_view_expand_to_path (GTK_TREE_VIEW (display_page_tree->priv->treeview), path);
 
-	/* Make cell editable just for the moment.
-	   We'll turn it off once editing is done. */
+	/* FIXME: inline cell editing is broken in GTK4 (4.20.x) when
+	   multiple cell renderers are packed into a single GtkTreeViewColumn.
+	   gtk_tree_view_set_cursor_on_cell() triggers a
+	   gtk_css_node_insert_after assertion failure and the editing widget
+	   never appears.  This needs to be fixed upstream in GTK4. */
 	g_object_set (display_page_tree->priv->title_renderer, "editable", TRUE, NULL);
 
 	gtk_tree_view_set_cursor_on_cell (GTK_TREE_VIEW (display_page_tree->priv->treeview),
