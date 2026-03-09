@@ -779,8 +779,7 @@ append_row (RBQueryCreator *creator)
 
 	hbox = GTK_BOX (gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 5));
 	gtk_box_append (GTK_BOX (priv->vbox), GTK_WIDGET (hbox));
-	priv->rows = g_list_prepend (priv->rows, hbox);
-	/* TODO: use gtk_box_reorder_child_after in GTK4 */
+	priv->rows = g_list_append (priv->rows, hbox);
 
 	/* This is the main (leftmost) GtkComboBox, for types. */
 	option = create_property_option_menu (creator, property_options, num_property_options);
@@ -879,8 +878,8 @@ property_option_menu_changed (GtkComboBox *propmenu,
 	criteria = create_criteria_option_menu (criteria_options, length);
 	gtk_widget_show (criteria);
 	gtk_size_group_add_widget (priv->criteria_size_group, criteria);
-	gtk_box_append (GTK_BOX (row), GTK_WIDGET (criteria));
-	/* TODO: use gtk_box_reorder_child_after in GTK4 */
+	gtk_box_insert_child_after (GTK_BOX (row), GTK_WIDGET (criteria),
+				   get_box_widget_at_pos (GTK_BOX (row), 0));
 
 	entry = get_box_widget_at_pos (GTK_BOX (row), 2);
 	gtk_box_remove (GTK_BOX (row), entry);
@@ -890,8 +889,8 @@ property_option_menu_changed (GtkComboBox *propmenu,
 
 	if (constrain)
 		gtk_size_group_add_widget (priv->entry_size_group, entry);
-	gtk_box_append (GTK_BOX (row), GTK_WIDGET (entry));
-	/* TODO: use gtk_box_reorder_child_after in GTK4 */
+	gtk_box_insert_child_after (GTK_BOX (row), GTK_WIDGET (entry),
+				   get_box_widget_at_pos (GTK_BOX (row), 1));
 }
 
 static GtkWidget*

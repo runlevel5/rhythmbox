@@ -65,7 +65,6 @@
               <object class="GtkCheckButton" id="disjunctionCheck">
                 <property name="label" translatable="yes">A_dd if any criteria are matched</property>                <property name="receives-default">False</property>
                 <property name="use-underline">True</property>
-                <property name="draw-indicator">True</property>
               </object>            </child>
             <child>
               <object class="GtkButton" id="addButton">
@@ -79,7 +78,6 @@
               <object class="GtkCheckButton" id="limitCheck">
                 <property name="label" translatable="yes">_Limit to: </property>                <property name="receives-default">False</property>
                 <property name="use-underline">True</property>
-                <property name="draw-indicator">True</property>
               </object>            </child>
             <child>
               <object class="GtkSpinButton" id="limitEntry">                <property name="adjustment">adjustment1</property>
@@ -114,7 +112,6 @@
             <child>
               <object class="GtkCheckButton" id="sortDesc">                <property name="receives-default">False</property>
                 <property name="use-underline">True</property>
-                <property name="draw-indicator">True</property>
               </object>            </child>
           </object>        </child>
       </object>    </child>
