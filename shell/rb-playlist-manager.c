@@ -939,36 +939,34 @@ rename_playlist_action_cb (GSimpleAction *action, GVariant *parameter, gpointer 
 
 
 static void
-load_playlist_response_cb (GtkDialog *dialog,
-			   int response_id,
-			   RBPlaylistManager *mgr)
+load_playlist_open_cb (GObject *source,
+		       GAsyncResult *result,
+		       gpointer data)
 {
-	char *escaped_file = NULL;
+	RBPlaylistManager *mgr = RB_PLAYLIST_MANAGER (data);
+	GtkFileDialog *dialog = GTK_FILE_DIALOG (source);
+	GFile *file;
 	GError *error = NULL;
+	char *uri;
 
-	if (response_id != GTK_RESPONSE_ACCEPT) {
-		gtk_window_destroy (GTK_WINDOW (dialog));
+	file = gtk_file_dialog_open_finish (dialog, result, &error);
+	if (file == NULL) {
+		if (!g_error_matches (error, GTK_DIALOG_ERROR, GTK_DIALOG_ERROR_DISMISSED))
+			g_warning ("file dialog error: %s", error->message);
+		g_clear_error (&error);
 		return;
 	}
 
-	{
-		GFile *_f = gtk_file_chooser_get_file (GTK_FILE_CHOOSER (dialog));
-		escaped_file = _f ? g_file_get_uri (_f) : NULL;
-		g_clear_object (&_f);
-	};
+	uri = g_file_get_uri (file);
+	g_object_unref (file);
 
-	gtk_window_destroy (GTK_WINDOW (dialog));
-
-	if (escaped_file == NULL)
-		return;
-
-	if (!rb_playlist_manager_parse_file (mgr, escaped_file, &error)) {
+	if (!rb_playlist_manager_parse_file (mgr, uri, &error)) {
 		rb_error_dialog (NULL, _("Couldn't read playlist"),
 				 "%s", error->message);
 		g_error_free (error);
 	}
 
-	g_free (escaped_file);
+	g_free (uri);
 	rb_playlist_manager_set_dirty (mgr, TRUE);
 }
 
@@ -977,9 +975,10 @@ load_playlist_action_cb (GSimpleAction *action, GVariant *parameter, gpointer da
 {
 	RBPlaylistManager *mgr = RB_PLAYLIST_MANAGER (data);
 	GtkWindow *window;
-	GtkWidget *dialog;
+	GtkFileDialog *dialog;
 	GtkFileFilter *filter;
 	GtkFileFilter *filter_all;
+	GListStore *filters;
 	int i;
 
 	filter = gtk_file_filter_new ();
@@ -992,20 +991,24 @@ load_playlist_action_cb (GSimpleAction *action, GVariant *parameter, gpointer da
 	gtk_file_filter_set_name (filter_all, _("All Files"));
 	gtk_file_filter_add_pattern (filter_all, "*");
 
+	filters = g_list_store_new (GTK_TYPE_FILE_FILTER);
+	g_list_store_append (filters, filter);
+	g_list_store_append (filters, filter_all);
+
+	dialog = gtk_file_dialog_new ();
+	gtk_file_dialog_set_title (dialog, _("Load Playlist"));
+	gtk_file_dialog_set_filters (dialog, G_LIST_MODEL (filters));
+	gtk_file_dialog_set_default_filter (dialog, filter);
+
 	g_object_get (mgr->priv->shell, "window", &window, NULL);
 
-	dialog = rb_file_chooser_new (_("Load Playlist"),
-				      window,
-				      GTK_FILE_CHOOSER_ACTION_OPEN,
-				      FALSE);
-	gtk_file_chooser_add_filter (GTK_FILE_CHOOSER (dialog), filter);
-	gtk_file_chooser_add_filter (GTK_FILE_CHOOSER (dialog), filter_all);
-	gtk_file_chooser_set_filter (GTK_FILE_CHOOSER (dialog), filter);
-
-	g_signal_connect_object (dialog, "response",
-				 G_CALLBACK (load_playlist_response_cb), mgr, 0);
+	gtk_file_dialog_open (dialog, window, NULL,
+			      load_playlist_open_cb, mgr);
 
 	g_object_unref (window);
+	g_object_unref (filter);
+	g_object_unref (filter_all);
+	g_object_unref (filters);
 }
 
 static void
