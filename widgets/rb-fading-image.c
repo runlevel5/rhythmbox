@@ -43,6 +43,8 @@
 static void rb_fading_image_class_init (RBFadingImageClass *klass);
 static void rb_fading_image_init (RBFadingImage *image);
 static void impl_snapshot (GtkWidget *widget, GtkSnapshot *snapshot);
+static void impl_measure (GtkWidget *widget, GtkOrientation orientation, int for_size,
+                          int *minimum, int *natural, int *minimum_baseline, int *natural_baseline);
 
 struct _RBFadingImagePrivate
 {
@@ -206,6 +208,30 @@ render_next (RBFadingImage *image, cairo_t *cr, int width, int height, gboolean 
 }
 
 static void
+impl_measure (GtkWidget *widget, GtkOrientation orientation, int for_size,
+              int *minimum, int *natural, int *minimum_baseline, int *natural_baseline)
+{
+	int min_size, nat_size;
+
+	gtk_widget_get_size_request (widget,
+		orientation == GTK_ORIENTATION_HORIZONTAL ? &min_size : NULL,
+		orientation == GTK_ORIENTATION_VERTICAL ? &min_size : NULL);
+
+	if (min_size < 0)
+		min_size = 0;
+	nat_size = min_size > 0 ? min_size : 48;
+
+	if (minimum)
+		*minimum = min_size;
+	if (natural)
+		*natural = nat_size;
+	if (minimum_baseline)
+		*minimum_baseline = -1;
+	if (natural_baseline)
+		*natural_baseline = -1;
+}
+
+static void
 impl_snapshot (GtkWidget *widget, GtkSnapshot *snapshot)
 {
 	RBFadingImage *image;
@@ -218,7 +244,6 @@ impl_snapshot (GtkWidget *widget, GtkSnapshot *snapshot)
 	height = gtk_widget_get_height (widget);
 
 	image = RB_FADING_IMAGE (widget);
-
 	graphene_rect_init (&bounds, 0, 0, width, height);
 	cr = gtk_snapshot_append_cairo (snapshot, &bounds);
 
@@ -413,6 +438,7 @@ rb_fading_image_class_init (RBFadingImageClass *klass)
 	object_class->get_property = impl_get_property;
 
 	widget_class->snapshot = impl_snapshot;
+	widget_class->measure = impl_measure;
 	widget_class->query_tooltip = impl_query_tooltip;
 
 	/**
