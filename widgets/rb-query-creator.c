@@ -524,20 +524,14 @@ rb_query_creator_new_from_query (RhythmDB *db,
 GtkWidget *
 get_box_widget_at_pos (GtkBox *box, guint pos)
 {
-	GtkWidget *ret = NULL;
-	GList *children = /* TODO: use gtk_widget_get_first_child/next_sibling */ NULL;
-	GList *tem;
-	for (tem = children; tem; tem = tem->next) {
-		GValue thispos = { 0, };
-		g_value_init (&thispos, G_TYPE_INT);
-		/* TODO: GTK4 has no container child properties */
-		if (g_value_get_int (&thispos) == pos) {
-			ret = tem->data;
-			break;
-		}
-	}
-	g_list_free (children);
-	return GTK_WIDGET (ret);
+	GtkWidget *child;
+	guint i;
+
+	child = gtk_widget_get_first_child (GTK_WIDGET (box));
+	for (i = 0; child != NULL && i < pos; i++)
+		child = gtk_widget_get_next_sibling (child);
+
+	return child;
 }
 
 static GtkWidget *
@@ -730,12 +724,19 @@ lookup_row_by_widget (RBQueryCreator *creator,
 	GList *rows = priv->rows;
 	GList *row;
 	GtkWidget *ret = NULL;
-	guint i;
 
-	for (row = rows, i = 0; row; row = row->next, i++) {
-		GList *columns = /* TODO: use gtk_widget_get_first_child/next_sibling */ NULL;
-		gboolean found = g_list_find (columns, widget) != NULL;
-		g_list_free (columns);
+	for (row = rows; row; row = row->next) {
+		GtkWidget *child;
+		gboolean found = FALSE;
+
+		for (child = gtk_widget_get_first_child (GTK_WIDGET (row->data));
+		     child != NULL;
+		     child = gtk_widget_get_next_sibling (child)) {
+			if (child == widget) {
+				found = TRUE;
+				break;
+			}
+		}
 		if (found) {
 			ret = row->data;
 			break;
