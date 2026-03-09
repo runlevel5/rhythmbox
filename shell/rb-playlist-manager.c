@@ -1017,34 +1017,38 @@ save_playlist_response_cb (GtkDialog *dialog,
 			   RBSource *source)
 {
 	char *file = NULL;
-	GtkWidget *menu;
-	gint index;
+	const char *choice;
 	RBPlaylistExportType export_type = RB_PLAYLIST_EXPORT_TYPE_UNKNOWN;
+	GFile *gfile;
+	int i, j;
 
 	if (response_id != GTK_RESPONSE_OK) {
 		gtk_window_destroy (GTK_WINDOW (dialog));
 		return;
 	}
 
-	{
-		GFile *_f = gtk_file_chooser_get_file (GTK_FILE_CHOOSER (dialog));
-		file = _f ? g_file_get_uri (_f) : NULL;
-		g_clear_object (&_f);
-	};
-	if (file == NULL || file[0] == '\0')
+	gfile = gtk_file_chooser_get_file (GTK_FILE_CHOOSER (dialog));
+	file = gfile ? g_file_get_uri (gfile) : NULL;
+	g_clear_object (&gfile);
+
+	if (file == NULL || file[0] == '\0') {
+		g_free (file);
 		return;
+	}
 
-	menu = g_object_get_data (G_OBJECT(dialog), "export-menu");
-	index = gtk_combo_box_get_active (GTK_COMBO_BOX (menu));
+	choice = gtk_file_chooser_get_choice (GTK_FILE_CHOOSER (dialog), "format");
+	if (choice != NULL && strcmp (choice, "by-extension") != 0) {
+		for (i = 0; i < (int) G_N_ELEMENTS (playlist_formats); i++) {
+			if (strcmp (choice, playlist_formats[i].extensions[0]) == 0) {
+				export_type = playlist_formats[i].type;
+				break;
+			}
+		}
+	}
 
-	/* by extension selected */
-	if (index <= 0) {
-		int i;
-
-		for (i = 0; i < G_N_ELEMENTS (playlist_formats); i++) {
-			int j;
-
-			/* determine the playlist type from the extension */
+	/* fall back to detecting format from file extension */
+	if (export_type == RB_PLAYLIST_EXPORT_TYPE_UNKNOWN) {
+		for (i = 0; i < (int) G_N_ELEMENTS (playlist_formats); i++) {
 			for (j = 0; playlist_formats[i].extensions[j] != NULL; j++) {
 				if (g_str_has_suffix (file, playlist_formats[i].extensions[j])) {
 					export_type = playlist_formats[i].type;
@@ -1052,8 +1056,6 @@ save_playlist_response_cb (GtkDialog *dialog,
 				}
 			}
 		}
-	} else {
-		export_type = playlist_formats[index-1].type;
 	}
 
 	if (export_type == RB_PLAYLIST_EXPORT_TYPE_UNKNOWN) {
@@ -1066,111 +1068,43 @@ save_playlist_response_cb (GtkDialog *dialog,
 	g_free (file);
 }
 
-static void
-export_set_extension_cb (GtkWidget* widget, GtkDialog *dialog)
-{
-	gint index;
-	gchar *text;
-	gchar *last_dot;
-	const char *extension;
-	gchar *basename;
-	GString *basename_str;
-
-	index = gtk_combo_box_get_active (GTK_COMBO_BOX (widget));
-	if (index <= 0)
-		return;
-
-	extension = playlist_formats[index-1].extensions[0];
-	if (extension == NULL)
-		return;
-
-	{
-		GFile *_f = gtk_file_chooser_get_file (GTK_FILE_CHOOSER (dialog));
-		text = _f ? g_file_get_path (_f) : NULL;
-		g_clear_object (&_f);
-	};
-	if (text == NULL || text[0] == '\0') {
-		g_free (text);
-		return;
-	}
-
-	basename = g_path_get_basename (text);
-	basename_str = g_string_new (basename);
-	last_dot = g_utf8_strrchr (basename, -1, '.');
-	if (last_dot)
-		g_string_truncate (basename_str, (last_dot-basename));
-	g_free (basename);
-	g_free (text);
-
-	g_string_append_printf (basename_str, ".%s", extension);
-	gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), basename_str->str);
-	g_string_free (basename_str, TRUE);
-}
-
-static gchar *
-filter_get_export_filter_label (RBPlaylistExportFilter *efilter)
-{
-	GString *str;
-	gint ext;
-
-	str = g_string_new (_(efilter->description));
-	for (ext = 0; efilter->extensions[ext] != NULL; ext++) {
-		if (ext == 0)
-			g_string_append (str, " (*.");
-		else
-			g_string_append (str, ", *.");
-		g_string_append (str, efilter->extensions[ext]);
-	}
-
-	if (ext > 0)
-		g_string_append (str, ")");
-
-	return g_string_free (str, FALSE);
-}
-
-static void
-setup_format_menu (GtkWidget* menu, GtkWidget *dialog)
-{
-	GtkTreeModel *model;
-	int i;
-
-	model = gtk_combo_box_get_model (GTK_COMBO_BOX (menu));
-	gtk_combo_box_set_row_separator_func (GTK_COMBO_BOX (menu), rb_combo_box_hyphen_separator_func,
-					      NULL, NULL);
-
-	for (i = 0; i < G_N_ELEMENTS (playlist_formats); i++) {
-		gchar *filter_label;
-		GtkTreeIter iter;
-
-		filter_label = filter_get_export_filter_label (&playlist_formats[i]);
-		gtk_list_store_insert_with_values (GTK_LIST_STORE (model), &iter, -1,
-						   0, filter_label, -1);
-
-		g_free (filter_label);
-	}
-
-	g_signal_connect_object (menu,
-				 "changed", G_CALLBACK (export_set_extension_cb),
-				 dialog, 0);
-}
-
 void
 rb_playlist_manager_save_playlist_file (RBPlaylistManager *mgr, RBSource *source)
 {
-	GtkBuilder *builder;
 	GtkWidget *dialog;
-	GtkWidget *menu;
+	GtkWindow *window;
 	char *name;
 	char *tmp;
+	/* 1 "by extension" + 3 formats + NULL terminator */
+	const char *option_ids[5];
+	const char *option_labels[5];
+	int i;
 
 	g_return_if_fail (RB_IS_PLAYLIST_SOURCE (source));
 
-	builder = rb_builder_load ("playlist-save.ui", mgr);
-	dialog = GTK_WIDGET (gtk_builder_get_object (builder, "playlist_save_dialog"));
+	g_object_get (mgr->priv->shell, "window", &window, NULL);
+	dialog = gtk_file_chooser_dialog_new (_("Save Playlist"),
+					      window,
+					      GTK_FILE_CHOOSER_ACTION_SAVE,
+					      _("_Cancel"), GTK_RESPONSE_CANCEL,
+					      _("_Save"), GTK_RESPONSE_OK,
+					      NULL);
+	g_object_unref (window);
+	gtk_window_set_modal (GTK_WINDOW (dialog), TRUE);
 
-	menu = GTK_WIDGET (gtk_builder_get_object (builder, "playlist_format_menu"));
-	setup_format_menu (menu, dialog);
-	g_object_set_data (G_OBJECT (dialog), "export-menu", menu);
+	/* add format choice dropdown */
+	option_ids[0] = "by-extension";
+	option_labels[0] = _("By extension");
+	for (i = 0; i < (int) G_N_ELEMENTS (playlist_formats); i++) {
+		option_ids[i + 1] = playlist_formats[i].extensions[0];
+		option_labels[i + 1] = _(playlist_formats[i].description);
+	}
+	option_ids[i + 1] = NULL;
+	option_labels[i + 1] = NULL;
+	gtk_file_chooser_add_choice (GTK_FILE_CHOOSER (dialog),
+				     "format", _("Playlist format"),
+				     option_ids, option_labels);
+	gtk_file_chooser_set_choice (GTK_FILE_CHOOSER (dialog), "format", "by-extension");
 
 	g_object_get (source, "name", &name, NULL);
 	tmp = g_strconcat (name, ".pls", NULL);
@@ -1178,13 +1112,11 @@ rb_playlist_manager_save_playlist_file (RBPlaylistManager *mgr, RBSource *source
 	g_free (tmp);
 	g_free (name);
 
-	/* FIXME: always has "by extension" as default (it should probably remember the last selection) */
-	gtk_combo_box_set_active (GTK_COMBO_BOX (menu), 0);
 	g_signal_connect_object (dialog, "response",
 				 G_CALLBACK (save_playlist_response_cb),
 				 source, 0);
 
-	g_object_unref (builder);
+	gtk_window_present (GTK_WINDOW (dialog));
 }
 
 static void
