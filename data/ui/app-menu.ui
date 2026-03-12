@@ -6,26 +6,24 @@
 	<attribute name="label" translatable="yes">_View</attribute>
 	<section>
 	  <item>
+	    <attribute name="custom">view-side-pane</attribute>
 	    <attribute name="label" translatable="yes">Side Pane</attribute>
-	    <attribute name="action">win.display-page-tree-visible</attribute>
-	    <attribute name="accel">F9</attribute>
 	  </item>
 	  <item>
+	    <attribute name="custom">view-queue-sidebar</attribute>
 	    <attribute name="label" translatable="yes">Play Queue in Side Pane</attribute>
-	    <attribute name="action">win.queue-as-sidebar</attribute>
-	    <attribute name="accel">&lt;Primary&gt;k</attribute>
 	  </item>
 	  <item>
+	    <attribute name="custom">view-position-slider</attribute>
 	    <attribute name="label" translatable="yes">Song Position Slider</attribute>
-	    <attribute name="action">win.show-song-position-slider</attribute>
 	  </item>
 	  <item>
+	    <attribute name="custom">view-album-art</attribute>
 	    <attribute name="label" translatable="yes">Album Art</attribute>
-	    <attribute name="action">win.show-album-art</attribute>
 	  </item>
 	  <item>
+	    <attribute name="custom">view-follow-playing</attribute>
 	    <attribute name="label" translatable="yes">Follow Playing Track</attribute>
-	    <attribute name="action">win.follow-playing</attribute>
 	  </item>
 	</section>
 	<section>

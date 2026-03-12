@@ -769,6 +769,37 @@ construct_load_ui (RBShell *shell)
 	shell->priv->menu_button = menu_button;
 	adw_header_bar_pack_end (ADW_HEADER_BAR (headerbar), menu_button);
 
+	/* add custom check buttons for View submenu items so the popover
+	 * stays open when toggling them */
+	{
+		GtkPopoverMenu *popover;
+		GtkWidget *check;
+		struct {
+			const char *id;
+			const char *label;
+			const char *settings_key;
+		} view_items[] = {
+			{ "view-side-pane",        N_("Side Pane"),               "display-page-tree-visible" },
+			{ "view-queue-sidebar",    N_("Play Queue in Side Pane"), "queue-as-sidebar" },
+			{ "view-position-slider",  N_("Song Position Slider"),    "show-song-position-slider" },
+			{ "view-album-art",        N_("Album Art"),               "show-album-art" },
+			{ "view-follow-playing",   N_("Follow Playing Track"),    "follow-playing" },
+		};
+
+		popover = GTK_POPOVER_MENU (gtk_menu_button_get_popover (GTK_MENU_BUTTON (menu_button)));
+		for (int i = 0; i < G_N_ELEMENTS (view_items); i++) {
+			check = gtk_check_button_new_with_label (_(view_items[i].label));
+			g_settings_bind (shell->priv->settings, view_items[i].settings_key,
+					 check, "active",
+					 G_SETTINGS_BIND_DEFAULT);
+			gtk_popover_menu_add_child (popover, check, view_items[i].id);
+		}
+	}
+
+	/* register accelerators for View items (no longer in the menu model) */
+	rb_application_add_accelerator (RB_APPLICATION (app), "F9", "win.display-page-tree-visible", NULL);
+	rb_application_add_accelerator (RB_APPLICATION (app), "<Primary>k", "win.queue-as-sidebar", NULL);
+
 	/* volume button (next to menu button) */
 	volume_button = rb_header_get_volume_button (shell->priv->header);
 	adw_header_bar_pack_end (ADW_HEADER_BAR (headerbar), volume_button);
