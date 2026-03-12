@@ -129,7 +129,7 @@ static void rb_entry_view_get_property (GObject *object,
 				       GParamSpec *pspec);
 static void rb_entry_view_selection_changed_cb (GtkTreeSelection *selection,
 				               RBEntryView *view);
-static void rb_entry_view_grab_focus (GtkWidget *widget);
+static gboolean rb_entry_view_grab_focus (GtkWidget *widget);
 static void rb_entry_view_row_activated_cb (GtkTreeView *treeview,
 			                   GtkTreePath *path,
 			                   GtkTreeViewColumn *column,
@@ -2478,12 +2478,12 @@ rb_entry_view_set_state (RBEntryView *view,
 	g_object_set (view, "playing-state", state, NULL);
 }
 
-static void
+static gboolean
 rb_entry_view_grab_focus (GtkWidget *widget)
 {
 	RBEntryView *view = RB_ENTRY_VIEW (widget);
 
-	gtk_widget_grab_focus (GTK_WIDGET (view->priv->treeview));
+	return gtk_widget_grab_focus (GTK_WIDGET (view->priv->treeview));
 }
 
 static gboolean
