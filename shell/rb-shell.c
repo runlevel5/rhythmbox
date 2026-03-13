@@ -774,6 +774,7 @@ construct_load_ui (RBShell *shell)
 	{
 		GtkPopoverMenu *popover;
 		GtkWidget *check;
+		GtkCssProvider *css_provider;
 		struct {
 			const char *id;
 			const char *label;
@@ -787,8 +788,25 @@ construct_load_ui (RBShell *shell)
 		};
 
 		popover = GTK_POPOVER_MENU (gtk_menu_button_get_popover (GTK_MENU_BUTTON (menu_button)));
+
+		css_provider = gtk_css_provider_new ();
+		gtk_css_provider_load_from_string (css_provider,
+			".view-menu-check {"
+			"  padding: 4px 12px;"
+			"  border-radius: 6px;"
+			"}"
+			".view-menu-check:hover {"
+			"  background-color: alpha(currentColor, 0.08);"
+			"}");
+		gtk_style_context_add_provider_for_display (
+			gdk_display_get_default (),
+			GTK_STYLE_PROVIDER (css_provider),
+			GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+		g_object_unref (css_provider);
+
 		for (int i = 0; i < G_N_ELEMENTS (view_items); i++) {
 			check = gtk_check_button_new_with_label (_(view_items[i].label));
+			gtk_widget_add_css_class (check, "view-menu-check");
 			g_settings_bind (shell->priv->settings, view_items[i].settings_key,
 					 check, "active",
 					 G_SETTINGS_BIND_DEFAULT);
