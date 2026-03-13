@@ -496,12 +496,9 @@ rb_audioscrobbler_profile_page_set_property (GObject *object,
 static void
 init_login_ui (RBAudioscrobblerProfilePage *page)
 {
-	GtkWidget *content_area;
-
 	page->priv->login_bar = gtk_info_bar_new ();
 	page->priv->login_status_label = gtk_label_new ("");
 	page->priv->login_response_button = gtk_button_new ();
-	content_area = gtk_info_bar_get_content_area (GTK_INFO_BAR (page->priv->login_bar));
 	gtk_info_bar_add_child (GTK_INFO_BAR (page->priv->login_bar), page->priv->login_status_label);
 	page->priv->login_response_button =
 		gtk_info_bar_add_button (GTK_INFO_BAR (page->priv->login_bar),
@@ -1613,6 +1610,8 @@ create_popup_menu (RBAudioscrobblerProfilePage *page,
 	}
 
 	/* Similar artists radio */
+	/* TODO: port to GTK4 - gtk_menu_item removed in GTK4 */
+#if 0
 	if (data->type == RB_AUDIOSCROBBLER_USER_DATA_TYPE_TRACK ||
 	    data->type == RB_AUDIOSCROBBLER_USER_DATA_TYPE_ARTIST) {
 		GtkWidget *similar_artists_item;
@@ -1633,6 +1632,7 @@ create_popup_menu (RBAudioscrobblerProfilePage *page,
 
 		/* TODO: port menu items */
 	}
+#endif
 
 	gtk_widget_show (menu);
 

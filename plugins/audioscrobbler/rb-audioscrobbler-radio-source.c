@@ -388,7 +388,6 @@ rb_audioscrobbler_radio_source_constructed (GObject *object)
 	RBShellPlayer *shell_player;
 	RhythmDB *db;
 	GtkWidget *main_vbox;
-	GtkWidget *error_info_bar_content_area;
 	gpointer accel_group;
 	RBSourceToolbar *toolbar;
 
@@ -406,19 +405,18 @@ rb_audioscrobbler_radio_source_constructed (GObject *object)
 
 	main_vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 4);
 	gtk_widget_show (main_vbox);
-	gtk_container_add (GTK_CONTAINER (source), main_vbox);
+	gtk_box_append (GTK_BOX (source), main_vbox);
 
 	/* toolbar */
 	toolbar = rb_source_toolbar_new (RB_DISPLAY_PAGE (source), accel_group);
-	gtk_box_pack_start (GTK_BOX (main_vbox), GTK_WIDGET (toolbar), FALSE, FALSE, 0);
-	gtk_widget_show_all (GTK_WIDGET (toolbar));
+	gtk_box_append (GTK_BOX (main_vbox), GTK_WIDGET (toolbar));
+	gtk_widget_show (GTK_WIDGET (toolbar));
 
 	/* error info bar */
 	source->priv->error_info_bar = gtk_info_bar_new ();
 	source->priv->error_info_bar_label = gtk_label_new ("");
-	error_info_bar_content_area = gtk_info_bar_get_content_area (GTK_INFO_BAR (source->priv->error_info_bar));
-	gtk_container_add (GTK_CONTAINER (error_info_bar_content_area), source->priv->error_info_bar_label);
-	gtk_box_pack_start (GTK_BOX (main_vbox), source->priv->error_info_bar, FALSE, FALSE, 0);
+	gtk_info_bar_add_child (GTK_INFO_BAR (source->priv->error_info_bar), source->priv->error_info_bar_label);
+	gtk_box_append (GTK_BOX (main_vbox), source->priv->error_info_bar);
 
 	/* entry view */
 	source->priv->track_view = rb_entry_view_new (db, G_OBJECT (shell_player), FALSE, FALSE);
@@ -427,9 +425,9 @@ rb_audioscrobbler_radio_source_constructed (GObject *object)
 	rb_entry_view_append_column (source->priv->track_view, RB_ENTRY_VIEW_COL_ALBUM, FALSE);
 	rb_entry_view_append_column (source->priv->track_view, RB_ENTRY_VIEW_COL_DURATION, FALSE);
 	rb_entry_view_set_columns_clickable (source->priv->track_view, FALSE);
-	gtk_widget_show_all (GTK_WIDGET (source->priv->track_view));
+	gtk_widget_show (GTK_WIDGET (source->priv->track_view));
 
-	gtk_box_pack_start (GTK_BOX (main_vbox), GTK_WIDGET (source->priv->track_view), TRUE, TRUE, 0);
+	gtk_box_append (GTK_BOX (main_vbox), GTK_WIDGET (source->priv->track_view));
 
 	rb_source_bind_settings (RB_SOURCE (source), GTK_WIDGET (source->priv->track_view), NULL, NULL, TRUE);
 
@@ -1041,7 +1039,7 @@ display_error_info_bar (RBAudioscrobblerRadioSource *source,
 {
 	gtk_label_set_label (GTK_LABEL (source->priv->error_info_bar_label), message);
 	gtk_info_bar_set_message_type (GTK_INFO_BAR (source->priv->error_info_bar), GTK_MESSAGE_WARNING);
-	gtk_widget_show_all (source->priv->error_info_bar);
+	gtk_widget_show (source->priv->error_info_bar);
 }
 
 static gboolean

@@ -1340,11 +1340,11 @@ impl_show_properties (RBMediaPlayerSource *source, GtkWidget *info_box, GtkWidge
 	/* 'basic' tab stuff */
 
 	widget = GTK_WIDGET (gtk_builder_get_object (builder, "generic-player-basic-info"));
-	gtk_box_pack_start (GTK_BOX (info_box), widget, TRUE, TRUE, 0);
+	gtk_box_append (GTK_BOX (info_box), widget);
 
 	widget = GTK_WIDGET (gtk_builder_get_object (builder, "entry-device-name"));
 	g_object_get (source, "name", &device_name, NULL);
-	gtk_entry_set_text (GTK_ENTRY (widget), device_name);
+	gtk_editable_set_text (GTK_EDITABLE (widget), device_name);
 	g_free (device_name);
 	/* don't think we can support this..
 	g_signal_connect (widget, "focus-out-event",

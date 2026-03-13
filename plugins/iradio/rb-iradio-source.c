@@ -330,8 +330,8 @@ rb_iradio_source_constructed (GObject *object)
 	source->priv->genres = rb_property_view_new (source->priv->db,
 						     RHYTHMDB_PROP_GENRE,
 						     _("Genre"));
-	gtk_widget_show_all (GTK_WIDGET (source->priv->genres));
-	gtk_widget_set_no_show_all (GTK_WIDGET (source->priv->genres), TRUE);
+	gtk_widget_show (GTK_WIDGET (source->priv->genres));
+	gtk_widget_set_visible (GTK_WIDGET (source->priv->genres), TRUE);
 	g_signal_connect_object (source->priv->genres,
 				 "property-selected",
 				 G_CALLBACK (genre_selected_cb),
@@ -344,8 +344,12 @@ rb_iradio_source_constructed (GObject *object)
 	g_object_set (source->priv->genres, "vscrollbar_policy",
 		      GTK_POLICY_AUTOMATIC, NULL);
 
-	gtk_paned_pack1 (GTK_PANED (paned), GTK_WIDGET (source->priv->genres), FALSE, FALSE);
-	gtk_paned_pack2 (GTK_PANED (paned), GTK_WIDGET (source->priv->stations), TRUE, FALSE);
+	gtk_paned_set_start_child (GTK_PANED (paned), GTK_WIDGET (source->priv->genres));
+	gtk_paned_set_resize_start_child (GTK_PANED (paned), FALSE);
+	gtk_paned_set_shrink_start_child (GTK_PANED (paned), FALSE);
+	gtk_paned_set_end_child (GTK_PANED (paned), GTK_WIDGET (source->priv->stations));
+	gtk_paned_set_resize_end_child (GTK_PANED (paned), TRUE);
+	gtk_paned_set_shrink_end_child (GTK_PANED (paned), FALSE);
 
 	/* set up toolbar */
 	source->priv->toolbar = rb_source_toolbar_new (RB_DISPLAY_PAGE (source), accel_group);
@@ -358,7 +362,7 @@ rb_iradio_source_constructed (GObject *object)
 	gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (source->priv->toolbar), 0, 0, 1, 1);
 	gtk_grid_attach (GTK_GRID (grid), paned, 0, 1, 1, 1);
 
-	gtk_container_add (GTK_CONTAINER (source), grid);
+	gtk_box_append (GTK_BOX (source), grid);
 
 	rb_source_bind_settings (RB_SOURCE (source),
 				 GTK_WIDGET (source->priv->stations),
@@ -366,7 +370,7 @@ rb_iradio_source_constructed (GObject *object)
 				 GTK_WIDGET (source->priv->genres),
 				 TRUE);
 
-	gtk_widget_show_all (GTK_WIDGET (source));
+	gtk_widget_show (GTK_WIDGET (source));
 
 	g_signal_connect_object (source->priv->player, "playing-source-changed",
 				 G_CALLBACK (playing_source_changed_cb),
@@ -625,7 +629,7 @@ impl_song_properties (RBSource *asource)
 
 	rb_debug ("in song properties");
 	if (dialog)
-		gtk_widget_show_all (dialog);
+		gtk_widget_show (dialog);
 	else
 		rb_debug ("no selection!");
 }
@@ -685,7 +689,7 @@ rb_iradio_source_songs_show_popup_cb (RBEntryView *view,
 				      gboolean over_entry,
 				      RBIRadioSource *source)
 {
-	GtkWidget *menu;
+	GtkWidget *popover;
 
 	if (over_entry == FALSE)
 		return;
@@ -702,15 +706,9 @@ rb_iradio_source_songs_show_popup_cb (RBEntryView *view,
 		g_object_unref (builder);
 	}
 
-	menu = gtk_menu_new_from_model (source->priv->popup);
-	gtk_menu_attach_to_widget (GTK_MENU (menu), GTK_WIDGET (source), NULL);
-	gtk_menu_popup (GTK_MENU (menu),
-			NULL,
-			NULL,
-			NULL,
-			NULL,
-			3,
-			gtk_get_current_event_time ());
+	popover = gtk_popover_menu_new_from_model (source->priv->popup);
+	gtk_widget_set_parent (popover, GTK_WIDGET (source));
+	gtk_popover_popup (GTK_POPOVER (popover));
 }
 
 static void
@@ -942,7 +940,7 @@ new_station_location_added (RBURIDialog    *dialog,
 static void
 new_station_response_cb (GtkDialog *dialog, int response, gpointer meh)
 {
-	gtk_widget_destroy (GTK_WIDGET (dialog));
+	gtk_window_destroy (GTK_WINDOW (dialog));
 }
 
 static void
@@ -961,7 +959,7 @@ new_station_action_cb (GSimpleAction *action, GVariant *parameter, gpointer data
 				 source, 0);
 	g_signal_connect (dialog, "response", G_CALLBACK (new_station_response_cb), NULL);
 
-	gtk_widget_show_all (dialog);
+	gtk_widget_show (dialog);
 }
 
 static void

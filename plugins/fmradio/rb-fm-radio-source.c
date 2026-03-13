@@ -205,8 +205,8 @@ rb_fm_radio_source_constructed (GObject *object)
 	grid = gtk_grid_new ();
 	gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (toolbar), 0, 0, 1, 1);
 	gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (self->priv->stations), 0, 1, 1, 1);
-	gtk_container_add (GTK_CONTAINER (self), grid);
-	gtk_widget_show_all (GTK_WIDGET (self));
+	gtk_box_append (GTK_BOX (self), grid);
+	gtk_widget_show (GTK_WIDGET (self));
 
 	rb_fm_radio_source_do_query (self);
 
@@ -310,7 +310,7 @@ rb_fm_radio_source_songs_view_show_popup (RBEntryView *view,
 					  gboolean over_entry,
 					  RBFMRadioSource *source)
 {
-	GtkWidget *menu;
+	GtkWidget *popover;
 
 	if (over_entry == FALSE)
 		return;
@@ -327,15 +327,9 @@ rb_fm_radio_source_songs_view_show_popup (RBEntryView *view,
 		g_object_unref (builder);
 	}
 
-	menu = gtk_menu_new_from_model (source->priv->popup);
-	gtk_menu_attach_to_widget (GTK_MENU (menu), GTK_WIDGET (source), NULL);
-	gtk_menu_popup (GTK_MENU (menu),
-			NULL,
-			NULL,
-			NULL,
-			NULL,
-			3,
-			gtk_get_current_event_time ());
+	popover = gtk_popover_menu_new_from_model (source->priv->popup);
+	gtk_widget_set_parent (popover, GTK_WIDGET (source));
+	gtk_popover_popup (GTK_POPOVER (popover));
 }
 
 void
@@ -393,7 +387,7 @@ new_station_location_added (RBURIDialog *dialog, const char *frequency,
 static void
 new_station_response_cb (GtkDialog *dialog, int response, gpointer meh)
 {
-	gtk_widget_destroy (GTK_WIDGET (dialog));
+	gtk_window_destroy (GTK_WINDOW (dialog));
 }
 
 static void
@@ -408,7 +402,7 @@ new_station_action_cb (GSimpleAction *action, GVariant *parameter, gpointer data
 				 G_CALLBACK (new_station_location_added),
 				 source, 0);
 	g_signal_connect (dialog, "response", G_CALLBACK (new_station_response_cb), NULL);
-	gtk_widget_show_all (dialog);
+	gtk_widget_show (dialog);
 }
 
 static void

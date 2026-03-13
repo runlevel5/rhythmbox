@@ -339,7 +339,7 @@ rb_station_properties_dialog_response_cb (GtkDialog *gtkdialog,
 	if (dialog->priv->current_entry)
 		rb_station_properties_dialog_sync_entries (dialog);
 
-	gtk_widget_destroy (GTK_WIDGET (dialog));
+	gtk_window_destroy (GTK_WINDOW (dialog));
 }
 
 static gboolean
@@ -408,7 +408,7 @@ rb_station_properties_dialog_update_title_entry (RBStationPropertiesDialog *dial
 	const char *title;
 
 	title = rhythmdb_entry_get_string (dialog->priv->current_entry, RHYTHMDB_PROP_TITLE);
-	gtk_entry_set_text (GTK_ENTRY (dialog->priv->title),title);
+	gtk_editable_set_text (GTK_EDITABLE (dialog->priv->title),title);
 }
 
 static void
@@ -417,7 +417,7 @@ rb_station_properties_dialog_update_genre (RBStationPropertiesDialog *dialog)
 	const char *genre;
 
 	genre = rhythmdb_entry_get_string (dialog->priv->current_entry, RHYTHMDB_PROP_GENRE);
-	gtk_entry_set_text (GTK_ENTRY (dialog->priv->genre), genre);
+	gtk_editable_set_text (GTK_EDITABLE (dialog->priv->genre), genre);
 }
 
 static void
@@ -428,7 +428,7 @@ rb_station_properties_dialog_update_location (RBStationPropertiesDialog *dialog)
 
 	location = rhythmdb_entry_get_string (dialog->priv->current_entry, RHYTHMDB_PROP_LOCATION);
 	unescaped = g_uri_unescape_string (location, NULL);
-	gtk_entry_set_text (GTK_ENTRY (dialog->priv->location), unescaped);
+	gtk_editable_set_text (GTK_EDITABLE (dialog->priv->location), unescaped);
 	g_free (unescaped);
 }
 
@@ -542,9 +542,9 @@ rb_station_properties_dialog_sync_entries (RBStationPropertiesDialog *dialog)
 	gboolean changed = FALSE;
 	RhythmDBEntry *entry = dialog->priv->current_entry;
 
-	title = gtk_entry_get_text (GTK_ENTRY (dialog->priv->title));
-	genre = gtk_entry_get_text (GTK_ENTRY (dialog->priv->genre));
-	location = gtk_entry_get_text (GTK_ENTRY (dialog->priv->location));
+	title = gtk_editable_get_text (GTK_EDITABLE (dialog->priv->title));
+	genre = gtk_editable_get_text (GTK_EDITABLE (dialog->priv->genre));
+	location = gtk_editable_get_text (GTK_EDITABLE (dialog->priv->location));
 
 	string = rhythmdb_entry_get_string (entry, RHYTHMDB_PROP_TITLE);
 	if (strcmp (title, string)) {
