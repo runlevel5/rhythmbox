@@ -236,12 +236,7 @@ enum {
 	TARGET_URIS
 };
 
-static const GtkTargetEntry rhythmdb_query_model_drag_types[] = {
-	{ "application/x-rhythmbox-entry", 0, TARGET_ENTRIES },
-	{ "text/uri-list", 0, TARGET_URIS },
-};
-
-static GtkTargetList *rhythmdb_query_model_drag_target_list = NULL;
+/* TODO: GTK4 DnD content types */
 
 
 #define RHYTHMDB_QUERY_MODEL_GET_PRIVATE(o) (rhythmdb_query_model_get_instance_private (o))
@@ -666,8 +661,6 @@ static void
 rhythmdb_query_model_init (RhythmDBQueryModel *model)
 {
 	/* TODO: GTK4 DnD target lists removed */
-	if (!rhythmdb_query_model_drag_target_list)
-		rhythmdb_query_model_drag_target_list = NULL;
 
 	model->priv = RHYTHMDB_QUERY_MODEL_GET_PRIVATE (model);
 
@@ -2005,7 +1998,6 @@ rhythmdb_query_model_drag_data_get (RbTreeDragSource *dragsource,
 {
 	RhythmDBQueryModel *model = RHYTHMDB_QUERY_MODEL (dragsource);
 	RhythmDBEntry *entry;
-	GdkAtom selection_data_target;
 	GString *data;
 	guint target;
 	GList *tem;
@@ -2013,10 +2005,8 @@ rhythmdb_query_model_drag_data_get (RbTreeDragSource *dragsource,
 
 	rb_debug ("getting drag data");
 
-	selection_data_target = gtk_selection_data_get_target (selection_data);
-	if (!FALSE /* GTK4: DnD stub */) {
-		return FALSE;
-	}
+	/* TODO: reimplement DnD for GTK4 */
+	return FALSE;
 
 
 	data = g_string_new ("");

@@ -534,7 +534,6 @@ selection_changed_cb (RBEntryView *view, RBImportDialog *dialog)
 static void
 impl_constructed (GObject *object)
 {
-	GtkStyleContext *context;
 	RBImportDialog *dialog;
 	RhythmDBQuery *query;
 	GtkBuilder *builder;

@@ -150,10 +150,7 @@ struct RBIRadioSourcePrivate
 
 #define RB_IRADIO_SOURCE_GET_PRIVATE(o) (rb_iradio_source_get_instance_private (o))
 
-static const GtkTargetEntry stations_view_drag_types[] = {
-	{  "text/uri-list", 0, 0 },
-	{  "_NETSCAPE_URL", 0, 1 },
-};
+/* TODO: GTK4 DnD content types */
 
 G_DEFINE_DYNAMIC_TYPE_EXTENDED (RBIRadioSource,
 	rb_iradio_source,

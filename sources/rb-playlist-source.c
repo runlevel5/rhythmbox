@@ -94,14 +94,6 @@ static void impl_song_properties (RBSource *source);
 static void rb_playlist_source_songs_show_popup_cb (RBEntryView *view,
 						    gboolean over_entry,
 						    RBPlaylistSource *playlist_view);
-static void rb_playlist_source_drop_cb (GtkWidget *widget,
-				     GdkDragContext *context,
-				     gint x,
-				     gint y,
-				     gpointer data,
-				     guint info,
-				     guint time,
-				     gpointer user_data);
 
 static void rb_playlist_source_row_deleted (GtkTreeModel *model,
 					    GtkTreePath *path,
@@ -152,7 +144,7 @@ enum
 	PROP_LOCAL,
 };
 
-static const GtkTargetEntry target_uri [] = { { "text/uri-list", 0, 0 } };
+/* TODO: GTK4 DnD content types */
 
 static GSettingsBackend *playlist_settings_backend = NULL;
 
@@ -535,18 +527,7 @@ impl_song_properties (RBSource *asource)
 		rb_debug ("failed to create dialog, or no selection!");
 }
 
-static void
-rb_playlist_source_drop_cb (GtkWidget *widget,
-			    GdkDragContext *context,
-			    gint x,
-			    gint y,
-			    gpointer data,
-			    guint info,
-			    guint time,
-			    gpointer user_data)
-{
-	/* TODO: reimplement for GTK4 GtkDropTarget */
-}
+/* TODO: reimplement for GTK4 GtkDropTarget */
 
 static void
 set_field_from_property (TotemPlPlaylist *playlist,

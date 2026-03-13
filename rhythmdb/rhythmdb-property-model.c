@@ -161,31 +161,7 @@ enum {
 	TARGET_COMPOSERS
 };
 
-static const GtkTargetEntry targets_album  [] = {
-	{ "text/x-rhythmbox-album",  0, TARGET_ALBUMS },
-	{ "application/x-rhythmbox-entry", 0, TARGET_ENTRIES },
-	{ "text/uri-list", 0, TARGET_URIS },
-};
-static const GtkTargetEntry targets_genre  [] = {
-	{ "text/x-rhythmbox-genre",  0, TARGET_GENRE },
-	{ "application/x-rhythmbox-entry", 0, TARGET_ENTRIES },
-	{ "text/uri-list", 0, TARGET_URIS },
-};
-static const GtkTargetEntry targets_artist [] = {
-	{ "text/x-rhythmbox-artist", 0, TARGET_ARTISTS },
-	{ "application/x-rhythmbox-entry", 0, TARGET_ENTRIES },
-	{ "text/uri-list", 0, TARGET_URIS },
-};
-static const GtkTargetEntry targets_location [] = {
-	{ "text/x-rhythmbox-location", 0, TARGET_LOCATION },
-	{ "application/x-rhythmbox-entry", 0, TARGET_ENTRIES },
-	{ "text/uri-list", 0, TARGET_URIS },
-};
-static const GtkTargetEntry targets_composer [] = {
-	{ "text/x-rhythmbox-composer", 0, TARGET_COMPOSERS },
-	{ "application/x-rhythmbox-entry", 0, TARGET_ENTRIES },
-	{ "text/uri-list", 0, TARGET_URIS },
-};
+/* TODO: GTK4 DnD — GtkTargetEntry arrays removed, port to GdkContentProvider */
 
 static GtkTargetList *rhythmdb_property_model_album_drag_target_list = NULL;
 static GtkTargetList *rhythmdb_property_model_artist_drag_target_list = NULL;
@@ -1208,33 +1184,9 @@ rhythmdb_property_model_drag_data_get (RbTreeDragSource *dragsource,
 {
 	RhythmDBPropertyModel *model = RHYTHMDB_PROPERTY_MODEL (dragsource);
 	guint target;
-	GtkTargetList *drag_target_list;
-	GdkAtom selection_data_target;
 
-	switch (model->priv->propid) {
-	case RHYTHMDB_PROP_GENRE:
-		drag_target_list = rhythmdb_property_model_genre_drag_target_list;
-		break;
-	case RHYTHMDB_PROP_ALBUM:
-		drag_target_list = rhythmdb_property_model_album_drag_target_list;
-		break;
-	case RHYTHMDB_PROP_ARTIST:
-		drag_target_list = rhythmdb_property_model_artist_drag_target_list;
-		break;
-	case RHYTHMDB_PROP_LOCATION:
-		drag_target_list = rhythmdb_property_model_location_drag_target_list;
-		break;
-	case RHYTHMDB_PROP_COMPOSER:
-		drag_target_list = rhythmdb_property_model_composer_drag_target_list;
-		break;
-	default:
-		g_assert_not_reached ();
-	}
-
-	selection_data_target = gtk_selection_data_get_target (selection_data);
-	if (!FALSE /* GTK4: DnD stub */) {
-		return FALSE;
-	}
+	/* TODO: reimplement DnD for GTK4 */
+	return FALSE;
 
 	if (target == TARGET_URIS || target == TARGET_ENTRIES) {
 		RhythmDB *db = model->priv->db;
@@ -1368,36 +1320,7 @@ void
 rhythmdb_property_model_enable_drag (RhythmDBPropertyModel *model,
 				     GtkTreeView *view)
 {
-	const GtkTargetEntry *targets;
-	gint n_elements;
-
-	switch (model->priv->propid) {
-	case RHYTHMDB_PROP_GENRE:
-		targets = targets_genre;
-		n_elements = G_N_ELEMENTS (targets_genre);
-		break;
-	case RHYTHMDB_PROP_ALBUM:
-		targets = targets_album;
-		n_elements = G_N_ELEMENTS (targets_album);
-		break;
-	case RHYTHMDB_PROP_ARTIST:
-		targets = targets_artist;
-		n_elements = G_N_ELEMENTS (targets_artist);
-		break;
-	case RHYTHMDB_PROP_LOCATION:
-	case RHYTHMDB_PROP_SUBTITLE:		/* more or less */
-		targets = targets_location;
-		n_elements = G_N_ELEMENTS (targets_location);
-		break;
-	case RHYTHMDB_PROP_COMPOSER:
-		targets = targets_composer;
-		n_elements = G_N_ELEMENTS (targets_composer);
-		break;
-	default:
-		g_assert_not_reached ();
-	}
-
-	/* TODO: set up GtkDragSource */
+	/* TODO: set up GtkDragSource for GTK4 */
 }
 
 static gboolean

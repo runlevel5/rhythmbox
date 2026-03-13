@@ -786,7 +786,6 @@ impl_constructed (GObject *object)
 	RBDisplayPageTree *display_page_tree;
 	GtkCellRenderer *renderer;
 	GtkWidget *scrolled;
-	GtkStyleContext *context;
 	GtkWidget *box;
 	GtkWidget *button;
 	GMenuModel *menu;

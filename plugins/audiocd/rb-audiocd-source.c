@@ -256,11 +256,9 @@ force_no_spacing (GtkWidget *widget)
 	if (provider == NULL) {
 		const char *style =
 			"checkbutton { padding: 0; }";
-			"	-GtkCheckButton-indicator-spacing: 0\n"
-			"}\n";
 
 		provider = gtk_css_provider_new ();
-		gtk_css_provider_load_from_data (provider, style, -1);
+		gtk_css_provider_load_from_string (provider, style);
 	}
 
 	gtk_style_context_add_provider (gtk_widget_get_style_context (widget),

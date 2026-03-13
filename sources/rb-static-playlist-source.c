@@ -100,10 +100,6 @@ static void rb_static_playlist_source_browser_changed_cb (RBLibraryBrowser *entr
 
 static void rb_static_playlist_source_do_query (RBStaticPlaylistSource *source);
 
-static void rb_static_playlist_source_add_id_list (RBStaticPlaylistSource *source,
-						   GList *list);
-static void rb_static_playlist_source_add_uri_list (RBStaticPlaylistSource *source,
-						    GList *list);
 static void rb_static_playlist_source_row_inserted (GtkTreeModel *model,
 						    GtkTreePath *path,
 						    GtkTreeIter *iter,
@@ -663,66 +659,7 @@ impl_save_contents_to_xml (RBPlaylistSource *source,
 	} while (gtk_tree_model_iter_next (GTK_TREE_MODEL (priv->base_model), &iter));
 }
 
-static void
-rb_static_playlist_source_add_id_list (RBStaticPlaylistSource *source,
-				       GList *list)
-{
-	RBPlaylistSource *psource = RB_PLAYLIST_SOURCE (source);
-	GList *i;
-	gint id;
-
-	g_return_if_fail (list != NULL);
-
-	for (i = list; i != NULL; i = i->next) {
-		RhythmDBEntry *entry;
-
-		id = strtoul ((const char *)i->data, NULL, 0);
-		if (id == 0)
-			continue;
-
-		entry = rhythmdb_entry_lookup_by_id (rb_playlist_source_get_db (psource), id);
-		if (entry == NULL) {
-			rb_debug ("received id %d, but can't find the entry", id);
-			continue;
-		}
-
-		rb_static_playlist_source_add_entry (source, entry, -1);
-	}
-}
-
-static void
-rb_static_playlist_source_add_uri_list (RBStaticPlaylistSource *source,
-					GList *list)
-{
-	GList *i, *uri_list = NULL;
-	RBPlaylistSource *psource = RB_PLAYLIST_SOURCE (source);
-	RhythmDBEntry *entry;
-
-	g_return_if_fail (list != NULL);
-
-	for (i = list; i != NULL; i = g_list_next (i)) {
-		char *uri = (char *) i->data;
-		uri_list = g_list_prepend (uri_list, rb_canonicalise_uri (uri));
-	}
-
-	uri_list = g_list_reverse (uri_list);
-	if (uri_list == NULL)
-		return;
-
-	for (i = uri_list; i != NULL; i = i->next) {
-		char *uri = i->data;
-		if (uri != NULL) {
-			entry = rhythmdb_entry_lookup_by_location (rb_playlist_source_get_db (psource), uri);
-			if (entry == NULL)
-				rhythmdb_add_uri (rb_playlist_source_get_db (psource), uri);
-
-			rb_static_playlist_source_add_location (source, uri, -1);
-		}
-
-		g_free (uri);
-	}
-	g_list_free (uri_list);
-}
+/* TODO: reimplement DnD for GTK4 GtkDropTarget */
 
 static void
 rb_static_playlist_source_add_location_internal (RBStaticPlaylistSource *source,

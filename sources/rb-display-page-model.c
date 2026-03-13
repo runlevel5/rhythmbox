@@ -83,18 +83,7 @@ enum {
 	TARGET_DELETE
 };
 
-static const GtkTargetEntry dnd_targets[] = {
-	{ "text/x-rhythmbox-album", 0, TARGET_PROPERTY },
-	{ "text/x-rhythmbox-artist", 0, TARGET_PROPERTY },
-	{ "text/x-rhythmbox-genre", 0, TARGET_PROPERTY },
-	{ "application/x-rhythmbox-source", 0, TARGET_SOURCE },
-	{ "application/x-rhythmbox-entry", 0, TARGET_ENTRIES },
-	{ "text/uri-list", 0, TARGET_URIS },
-	{ "application/x-delete-me", 0, TARGET_DELETE }
-};
-
-/* TODO: GTK4 DnD */
-static gpointer drag_target_list = NULL;
+/* TODO: GTK4 DnD content types */
 
 static void rb_display_page_model_drag_dest_init (RbTreeDragDestIface *iface);
 static void rb_display_page_model_drag_source_init (RbTreeDragSourceIface *iface);

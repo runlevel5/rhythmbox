@@ -209,12 +209,6 @@ static GtkWidget *create_popup_menu (RBAudioscrobblerProfilePage *page,
 
 /* callbacks from data list buttons and related popup menus */
 static void list_item_clicked_cb (GtkButton *button, RBAudioscrobblerProfilePage *page);
-static void list_item_view_url_activated_cb (GtkWidget *menuitem,
-                                             RBAudioscrobblerProfilePage *page);
-static void list_item_listen_similar_artists_activated_cb (GtkWidget *menuitem,
-                                                           RBAudioscrobblerProfilePage *page);
-static void list_item_listen_top_fans_activated_cb (GtkWidget *menuitem,
-                                                    RBAudioscrobblerProfilePage *page);
 
 /* RBDisplayPage implementations */
 static void impl_selected (RBDisplayPage *page);
@@ -1497,8 +1491,10 @@ set_user_list (RBAudioscrobblerProfilePage *page,
 			button = create_list_button (page, data, max_image_width);
 			menu = create_popup_menu (page, data);
 
-			g_hash_table_insert (page->priv->button_to_popup_menu_map, button, g_object_ref_sink (menu));
-			g_hash_table_insert (page->priv->popup_menu_to_data_map, menu, data);
+			if (menu != NULL) {
+				g_hash_table_insert (page->priv->button_to_popup_menu_map, button, g_object_ref_sink (menu));
+				g_hash_table_insert (page->priv->popup_menu_to_data_map, menu, data);
+			}
 
 			gtk_flow_box_append (GTK_FLOW_BOX (list_wrap_box), button);
 		}
@@ -1584,168 +1580,19 @@ create_list_button (RBAudioscrobblerProfilePage *page,
 }
 
 /* creates a menu to be popped up when a button is clicked */
+/* TODO: port to GtkPopoverMenu for GTK4 */
 static GtkWidget *
 create_popup_menu (RBAudioscrobblerProfilePage *page,
                    RBAudioscrobblerUserData *data)
 {
-	GtkWidget *menu;
-
-	menu = NULL; /* TODO: port to GtkPopoverMenu */
-
-	/* Visit on website */
-	if (data->url != NULL && data->url[0] != '\0') {
-		GtkWidget *view_url_item;
-		char *item_text;
-
-		/* Translators: %s is the name of the audioscrobbler service, for example "Last.fm".
-		 * This is the label for menu item which when activated will take the user to the
-		 * artist/track's page on the service's website. */
-		item_text = g_strdup_printf (_("_View on %s"),
-		                             rb_audioscrobbler_service_get_name (page->priv->service));
-		view_url_item = NULL; /* TODO: port GtkMenuItem to actions */
-		/* TODO: reconnect with GAction */
-
-		/* TODO: port menu items */
-		g_free (item_text);
-	}
-
-	/* Similar artists radio */
-	/* TODO: port to GTK4 - gtk_menu_item removed in GTK4 */
-#if 0
-	if (data->type == RB_AUDIOSCROBBLER_USER_DATA_TYPE_TRACK ||
-	    data->type == RB_AUDIOSCROBBLER_USER_DATA_TYPE_ARTIST) {
-		GtkWidget *similar_artists_item;
-
-		similar_artists_item = gtk_menu_item_new_with_mnemonic (_("Listen to _Similar Artists Radio"));
-		/* TODO: reconnect with GAction */
-
-		/* TODO: port menu items */
-	}
-
-	/* Top fans radio */
-	if (data->type == RB_AUDIOSCROBBLER_USER_DATA_TYPE_TRACK ||
-	    data->type == RB_AUDIOSCROBBLER_USER_DATA_TYPE_ARTIST) {
-		GtkWidget *top_fans_item;
-
-		top_fans_item = gtk_menu_item_new_with_mnemonic (_("Listen to _Top Fans Radio"));
-		/* TODO: reconnect with GAction */
-
-		/* TODO: port menu items */
-	}
-#endif
-
-	gtk_widget_show (menu);
-
-	return menu;
+	return NULL;
 }
 
 /* popup the appropriate menu */
+/* TODO: port to GtkPopoverMenu for GTK4 */
 static void
 list_item_clicked_cb (GtkButton *button, RBAudioscrobblerProfilePage *page)
 {
-	GtkWidget *menu;
-
-	menu = g_hash_table_lookup (page->priv->button_to_popup_menu_map, button);
-
-	/* show menu if it has any items in it */
-	if (g_list_length (NULL /* GTK4: use gtk_widget_get_first_child iteration */) != 0) {
-		/* TODO: port to popover popup */
-	}
-}
-
-static void
-list_item_view_url_activated_cb (GtkWidget *menuitem,
-                                 RBAudioscrobblerProfilePage *page)
-{
-	GtkWidget *menu;
-	RBAudioscrobblerUserData *data;
-
-	menu = gtk_widget_get_parent (GTK_WIDGET (menuitem));
-	data = g_hash_table_lookup (page->priv->popup_menu_to_data_map, menu);
-
-	/* some urls are given to us without the http:// prefix */
-	if (g_str_has_prefix (data->url, "http://") || g_str_has_prefix (data->url, "https://")) {
-		gtk_show_uri (NULL, data->url, GDK_CURRENT_TIME);
-	} else {
-		char *url;
-		url = g_strdup_printf ("%s%s", "http://", data->url);
-		gtk_show_uri (NULL, url, GDK_CURRENT_TIME);
-		g_free (url);
-	}
-}
-
-static void
-list_item_listen_similar_artists_activated_cb (GtkWidget *menuitem,
-                                               RBAudioscrobblerProfilePage *page)
-{
-	GtkWidget *menu;
-	RBAudioscrobblerUserData *data;
-	const char *artist = NULL;
-	char *radio_url;
-	char *radio_name;
-	RBSource *radio;
-	RBShell *shell;
-	RBDisplayPageTree *page_tree;
-
-	menu = gtk_widget_get_parent (GTK_WIDGET (menuitem));
-	data = g_hash_table_lookup (page->priv->popup_menu_to_data_map, menu);
-	if (data->type == RB_AUDIOSCROBBLER_USER_DATA_TYPE_ARTIST) {
-		artist = data->artist.name;
-	} else if (data->type == RB_AUDIOSCROBBLER_USER_DATA_TYPE_TRACK) {
-		artist = data->track.artist;
-	}
-
-	radio_url = g_strdup_printf (rb_audioscrobbler_radio_type_get_url (RB_AUDIOSCROBBLER_RADIO_TYPE_SIMILAR_ARTISTS),
-	                             artist);
-	radio_name = g_strdup_printf (rb_audioscrobbler_radio_type_get_default_name (RB_AUDIOSCROBBLER_RADIO_TYPE_SIMILAR_ARTISTS),
-	                              artist);
-
-	radio = add_radio_station (page, radio_url, radio_name);
-	g_object_get (page, "shell", &shell, NULL);
-	g_object_get (shell, "display-page-tree", &page_tree, NULL);
-	rb_display_page_tree_select (page_tree, RB_DISPLAY_PAGE (radio));
-
-	g_free (radio_url);
-	g_free (radio_name);
-	g_object_unref (shell);
-	g_object_unref (page_tree);
-}
-
-static void
-list_item_listen_top_fans_activated_cb (GtkWidget *menuitem,
-                                        RBAudioscrobblerProfilePage *page)
-{
-	GtkWidget *menu;
-	RBAudioscrobblerUserData *data;
-	const char *artist = NULL;
-	char *radio_url;
-	char *radio_name;
-	RBSource *radio;
-	RBShell *shell;
-	RBDisplayPageTree *page_tree;
-
-	menu = gtk_widget_get_parent (GTK_WIDGET (menuitem));
-	data = g_hash_table_lookup (page->priv->popup_menu_to_data_map, menu);
-	if (data->type == RB_AUDIOSCROBBLER_USER_DATA_TYPE_ARTIST) {
-		artist = data->artist.name;
-	} else if (data->type == RB_AUDIOSCROBBLER_USER_DATA_TYPE_TRACK) {
-		artist = data->track.artist;
-	}
-
-	radio_url = g_strdup_printf (rb_audioscrobbler_radio_type_get_url (RB_AUDIOSCROBBLER_RADIO_TYPE_TOP_FANS),
-	                             artist);
-	radio_name = g_strdup_printf (rb_audioscrobbler_radio_type_get_default_name (RB_AUDIOSCROBBLER_RADIO_TYPE_TOP_FANS),
-	                              artist);
-
-	radio = add_radio_station (page, radio_url, radio_name);
-	g_object_get (page, "shell", &shell, NULL);
-	g_object_get (shell, "display-page-tree", &page_tree, NULL);
-	rb_display_page_tree_select (page_tree, RB_DISPLAY_PAGE (radio));
-
-	g_free (radio_url);
-	g_free (radio_name);
-	g_object_unref (shell);
-	g_object_unref (page_tree);
 }
 
 static void

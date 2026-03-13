@@ -96,10 +96,7 @@
 #include "rb-cut-and-paste-code.h"
 #include "nautilus-floating-bar.h"
 
-static const GtkTargetEntry rb_entry_view_drag_types[] = {
-	{ "application/x-rhythmbox-entry", 0, 0 },
-	{ "text/uri-list", 0, 1 }
-};
+/* TODO: GTK4 DnD content types */
 
 struct RBEntryViewColumnSortData
 {
