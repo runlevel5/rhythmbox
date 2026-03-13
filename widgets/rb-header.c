@@ -329,7 +329,7 @@ rb_header_constructed (GObject *object)
 	gtk_widget_set_valign (header->priv->songbox, GTK_ALIGN_CENTER);
 	gtk_orientable_set_orientation (GTK_ORIENTABLE (header->priv->songbox), GTK_ORIENTATION_VERTICAL);
 
-	header->priv->song = g_object_ref (gtk_label_new (" "));
+	header->priv->song = g_object_ref (gtk_label_new (NULL));
 	gtk_widget_show (header->priv->song);
 	gtk_label_set_use_markup (GTK_LABEL (header->priv->song), TRUE);
 	gtk_label_set_selectable (GTK_LABEL (header->priv->song), TRUE);
@@ -723,12 +723,6 @@ rb_header_sync (RBHeader *header)
 			  rhythmdb_entry_get_string (header->priv->entry, RHYTHMDB_PROP_LOCATION));
 		gboolean have_duration = (header->priv->duration > 0);
 
-		if (gtk_widget_get_parent (header->priv->song) == NULL) {
-			gtk_grid_remove (GTK_GRID (header->priv->songbox), header->priv->not_playing);
-			gtk_grid_attach (GTK_GRID (header->priv->songbox), header->priv->song, 0, 0, 1, 1);
-			gtk_grid_attach (GTK_GRID (header->priv->songbox), header->priv->details, 0, 1, 1, 1);
-		}
-
 		title = rhythmdb_entry_get_string (header->priv->entry, RHYTHMDB_PROP_TITLE);
 		album = rhythmdb_entry_get_string (header->priv->entry, RHYTHMDB_PROP_ALBUM);
 		artist = rhythmdb_entry_get_string (header->priv->entry, RHYTHMDB_PROP_ARTIST);
@@ -764,7 +758,7 @@ rb_header_sync (RBHeader *header)
 		widget_dir = (gtk_widget_get_direction (GTK_WIDGET (header->priv->song)) == GTK_TEXT_DIR_LTR) ?
 			     PANGO_DIRECTION_LTR : PANGO_DIRECTION_RTL;
 
-		t = rb_text_cat (widget_dir, title, TITLE_FORMAT, NULL);
+		t = g_markup_printf_escaped (TITLE_FORMAT, title);
 		gtk_label_set_markup (GTK_LABEL (header->priv->song), t);
 		g_free (t);
 
@@ -812,6 +806,14 @@ rb_header_sync (RBHeader *header)
 			}
 			gtk_label_set_markup (GTK_LABEL (header->priv->details), t);
 			g_free (t);
+		}
+
+		/* swap labels into songbox after setting markup, so that
+		 * GTK sees the markup content when the labels are first mapped */
+		if (gtk_widget_get_parent (header->priv->song) == NULL) {
+			gtk_grid_remove (GTK_GRID (header->priv->songbox), header->priv->not_playing);
+			gtk_grid_attach (GTK_GRID (header->priv->songbox), header->priv->song, 0, 0, 1, 1);
+			gtk_grid_attach (GTK_GRID (header->priv->songbox), header->priv->details, 0, 1, 1, 1);
 		}
 
 		if (header->priv->playing_source) {
