@@ -7,7 +7,7 @@
           <object class="GtkBox" id="magnatune_loading_vbox">            <property name="orientation">vertical</property>
             <property name="spacing">6</property>
             <child>
-              <object class="GtkImage" id="image1">                <property name="pixbuf">magnatune_logo_color_small.png</property>
+              <object class="GtkImage" id="image1">                <property name="file">magnatune_logo_color_small.png</property>
               </object>            </child>
             <child>
               <object class="GtkLabel" id="label1">                <property name="label" translatable="yes">Magnatune online music store</property>
@@ -17,13 +17,13 @@
                 </attributes>
               </object>            </child>
             <child>
-              <object class="GtkLabel" id="label2">                <property name="xalign">0</property>
+              <object class="GtkLabel" id="label2">                <property name="halign">start</property>
                 <property name="label" translatable="yes">Magnatune is an online record label that is not evil.
 </property>
               </object>            </child>
             <child>
               <object class="GtkGrid" id="table1">                <child>
-                  <object class="GtkLabel" id="label3">                    <property name="xalign">0</property>
+                  <object class="GtkLabel" id="label3">                    <property name="halign">start</property>
                     <property name="label" translatable="yes">    * Free listening of all songs</property>
                   </object>
                   <layout>
@@ -35,7 +35,7 @@
                   </layout>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="label4">                    <property name="xalign">0</property>
+                  <object class="GtkLabel" id="label4">                    <property name="halign">start</property>
                     <property name="label" translatable="yes">    * Paid members get totally unlimited downloading of the entire catalog (no other service allows that)</property>
                   </object>
                   <layout>
@@ -47,7 +47,7 @@
                   </layout>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="label5">                    <property name="xalign">0</property>
+                  <object class="GtkLabel" id="label5">                    <property name="halign">start</property>
                     <property name="label" translatable="yes">    * 10% of your Magnatune membership fees goes to Rhythmbox/GNOME - it's worth joining</property>
                   </object>
                   <layout>
@@ -59,7 +59,7 @@
                   </layout>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="label6">                    <property name="xalign">0</property>
+                  <object class="GtkLabel" id="label6">                    <property name="halign">start</property>
                     <property name="label" translatable="yes">    * Open-Source friendly file formats: MP3s and WAVs, but also OGG and FLAC files.</property>
                   </object>
                   <layout>
@@ -71,7 +71,7 @@
                   </layout>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="label7">                    <property name="xalign">0</property>
+                  <object class="GtkLabel" id="label7">                    <property name="halign">start</property>
                     <property name="label" translatable="yes">    * All albums and artists hand-picked</property>
                   </object>
                   <layout>
@@ -89,11 +89,10 @@
             <child>
               <object class="GtkLinkButton" id="linkbutton1">
                 <property name="label" translatable="yes">http://www.magnatune.com/</property>
-                <property name="use-action-appearance">False</property>                <property name="receives-default">True</property>
                 <property name="has-tooltip">True</property>
                 <property name="halign">center</property>
-                <property name="relief">none</property>
                 <property name="uri">http://www.magnatune.com/?ref=rhythmbox</property>
+                <style><class name="flat"/></style>
               </object>            </child>
           </object>
         </child>
