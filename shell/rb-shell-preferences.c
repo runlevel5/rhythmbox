@@ -379,6 +379,47 @@ plugin_switch_toggled_cb (GObject *object, GParamSpec *pspec, PeasEngine *engine
 	}
 }
 
+static void
+plugin_about_button_cb (GtkButton *button, gpointer user_data)
+{
+	PeasPluginInfo *info;
+	AdwDialog *about;
+	const char *name;
+	const char *description;
+	const char * const *authors;
+	const char *copyright;
+	const char *version;
+	const char *website;
+
+	info = g_object_get_data (G_OBJECT (button), "peas-plugin-info");
+	if (info == NULL)
+		return;
+
+	name = peas_plugin_info_get_name (info);
+	description = peas_plugin_info_get_description (info);
+	authors = peas_plugin_info_get_authors (info);
+	copyright = peas_plugin_info_get_copyright (info);
+	version = peas_plugin_info_get_version (info);
+	website = peas_plugin_info_get_website (info);
+
+	about = adw_about_dialog_new ();
+	adw_about_dialog_set_application_name (ADW_ABOUT_DIALOG (about),
+					       name ? name : "");
+	if (description != NULL)
+		adw_about_dialog_set_comments (ADW_ABOUT_DIALOG (about), description);
+	if (authors != NULL)
+		adw_about_dialog_set_developers (ADW_ABOUT_DIALOG (about),
+						 (const char **)authors);
+	if (copyright != NULL)
+		adw_about_dialog_set_copyright (ADW_ABOUT_DIALOG (about), copyright);
+	if (version != NULL)
+		adw_about_dialog_set_version (ADW_ABOUT_DIALOG (about), version);
+	if (website != NULL)
+		adw_about_dialog_set_website (ADW_ABOUT_DIALOG (about), website);
+
+	adw_dialog_present (about, GTK_WIDGET (button));
+}
+
 static GtkWidget *
 build_plugins_page (RBShellPreferences *prefs)
 {
@@ -398,11 +439,13 @@ build_plugins_page (RBShellPreferences *prefs)
 
 	for (guint i = 0; i < n_plugins; i++) {
 		PeasPluginInfo *info;
-		AdwSwitchRow *row;
+		AdwActionRow *row;
 		const char *plugin_name;
 		const char *plugin_desc;
 		const char *icon_name;
 		GtkWidget *icon;
+		GtkWidget *about_button;
+		gboolean builtin;
 
 		info = g_list_model_get_item (G_LIST_MODEL (engine), i);
 		if (peas_plugin_info_is_hidden (info)) {
@@ -413,26 +456,42 @@ build_plugins_page (RBShellPreferences *prefs)
 		plugin_name = peas_plugin_info_get_name (info);
 		plugin_desc = peas_plugin_info_get_description (info);
 		icon_name = peas_plugin_info_get_icon_name (info);
+		builtin = peas_plugin_info_is_builtin (info);
 
-		row = ADW_SWITCH_ROW (adw_switch_row_new ());
+		/* use AdwSwitchRow for togglable plugins, plain AdwActionRow for builtins */
+		if (builtin)
+			row = ADW_ACTION_ROW (adw_action_row_new ());
+		else
+			row = ADW_ACTION_ROW (adw_switch_row_new ());
+
 		adw_preferences_row_set_title (ADW_PREFERENCES_ROW (row),
 					       plugin_name ? plugin_name : "");
 		if (plugin_desc != NULL && plugin_desc[0] != '\0')
-			adw_action_row_set_subtitle (ADW_ACTION_ROW (row), plugin_desc);
+			adw_action_row_set_subtitle (row, plugin_desc);
 
 		/* icon as prefix */
 		icon = gtk_image_new_from_icon_name (
 			(icon_name != NULL) ? icon_name : "application-x-addon");
 		gtk_image_set_pixel_size (GTK_IMAGE (icon), 32);
-		adw_action_row_add_prefix (ADW_ACTION_ROW (row), icon);
+		adw_action_row_add_prefix (row, icon);
 
-		adw_switch_row_set_active (row, peas_plugin_info_is_loaded (info));
-		if (peas_plugin_info_is_builtin (info))
-			gtk_widget_set_sensitive (GTK_WIDGET (row), FALSE);
+		/* about button as suffix */
+		about_button = gtk_button_new_from_icon_name ("help-about-symbolic");
+		gtk_widget_add_css_class (about_button, "flat");
+		gtk_widget_set_valign (about_button, GTK_ALIGN_CENTER);
+		gtk_widget_set_tooltip_text (about_button, _("About this plugin"));
+		g_object_set_data (G_OBJECT (about_button), "peas-plugin-info", info);
+		g_signal_connect (about_button, "clicked",
+				  G_CALLBACK (plugin_about_button_cb), NULL);
+		adw_action_row_add_suffix (row, about_button);
 
-		g_object_set_data (G_OBJECT (row), "peas-plugin-info", info);
-		g_signal_connect (row, "notify::active",
-				  G_CALLBACK (plugin_switch_toggled_cb), engine);
+		if (!builtin) {
+			adw_switch_row_set_active (ADW_SWITCH_ROW (row),
+						   peas_plugin_info_is_loaded (info));
+			g_object_set_data (G_OBJECT (row), "peas-plugin-info", info);
+			g_signal_connect (row, "notify::active",
+					  G_CALLBACK (plugin_switch_toggled_cb), engine);
+		}
 
 		adw_preferences_group_add (group, GTK_WIDGET (row));
 		g_object_unref (info);
