@@ -1,4 +1,5 @@
 
+#include <adwaita.h>
 #include "rb-uri-dialog.h"
 #include "rb-file-helpers.h"
 
@@ -10,22 +11,34 @@ location_added (RBURIDialog *dialog,
 	g_message ("URI selected was: %s", uri);
 }
 
-int main (int argc, char **argv)
+static void
+activate (GtkApplication *app, gpointer user_data)
 {
-	GtkWidget *dialog;
+	GtkWidget *window;
+	AdwDialog *dialog;
 
-	gtk_init ();
-	rb_file_helpers_init ();
+	window = gtk_application_window_new (app);
+	gtk_window_set_default_size (GTK_WINDOW (window), 400, 300);
+	gtk_window_present (GTK_WINDOW (window));
 
 	dialog = rb_uri_dialog_new ("Dialog title", "dialog label");
 	g_signal_connect (G_OBJECT (dialog), "location-added",
 			  G_CALLBACK (location_added), NULL);
 
-	gtk_window_present (GTK_WINDOW (dialog));
+	adw_dialog_present (dialog, window);
+}
 
-	while (g_list_model_get_n_items (gtk_window_get_toplevels ()) > 0)
-		g_main_context_iteration (NULL, TRUE);
+int main (int argc, char **argv)
+{
+	GtkApplication *app;
+	int status;
 
+	rb_file_helpers_init ();
 
-	return 0;
+	app = gtk_application_new ("org.gnome.Rhythmbox.TestURIDialog", G_APPLICATION_DEFAULT_FLAGS);
+	g_signal_connect (app, "activate", G_CALLBACK (activate), NULL);
+	status = g_application_run (G_APPLICATION (app), argc, argv);
+	g_object_unref (app);
+
+	return status;
 }

@@ -29,50 +29,38 @@
 #include "config.h"
 
 #include <string.h>
-#include <time.h>
 
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
+#include <adwaita.h>
 #include <libsoup/soup.h>
 
 #include "rb-uri-dialog.h"
-#include "rb-builder-helpers.h"
-#include "rb-dialog.h"
 #include "rb-debug.h"
 
 /**
  * SECTION:rburidialog
- * @short_description: simple URI entry dialog
+ * @short_description: simple URI entry dialog using AdwAlertDialog
  * @include: rb-uri-dialog.h
  *
- * A simple dialog used to request a single URI from the user.
+ * A simple dialog used to request a single URI from the user,
+ * presented as an AdwAlertDialog with proper GNOME styling.
  */
 
 static void rb_uri_dialog_class_init (RBURIDialogClass *klass);
 static void rb_uri_dialog_init (RBURIDialog *dialog);
-static void rb_uri_dialog_response_cb (GtkDialog *gtkdialog,
-				       int response_id,
+static void rb_uri_dialog_response_cb (AdwAlertDialog *alert_dialog,
+				       const char *response,
 				       RBURIDialog *dialog);
 static void rb_uri_dialog_text_changed (GtkEditable *buffer,
 					RBURIDialog *dialog);
-static void rb_uri_dialog_set_property (GObject *object,
-					guint prop_id,
-					const GValue *value,
-					GParamSpec *pspec);
-static void rb_uri_dialog_get_property (GObject *object,
-					guint prop_id,
-					GValue *value,
-					GParamSpec *pspec);
 static void rb_uri_dialog_clipboard_yank_url (GObject *source_object,
 					      GAsyncResult *result,
 					      gpointer data);
 
 struct RBURIDialogPrivate
 {
-	GtkWidget   *label;
 	GtkWidget   *url;
-	GtkWidget   *okbutton;
-	GtkWidget   *cancelbutton;
 };
 
 #define RB_URI_DIALOG_GET_PRIVATE(o) (rb_uri_dialog_get_instance_private (o))
@@ -83,36 +71,14 @@ enum
 	LAST_SIGNAL
 };
 
-enum
-{
-	PROP_0,
-	PROP_LABEL
-};
-
 static guint rb_uri_dialog_signals [LAST_SIGNAL] = { 0 };
 
-G_DEFINE_TYPE_WITH_PRIVATE (RBURIDialog, rb_uri_dialog, GTK_TYPE_DIALOG)
+G_DEFINE_TYPE_WITH_PRIVATE (RBURIDialog, rb_uri_dialog, ADW_TYPE_ALERT_DIALOG)
 
 static void
 rb_uri_dialog_class_init (RBURIDialogClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
-	
-	object_class->set_property = rb_uri_dialog_set_property;
-	object_class->get_property = rb_uri_dialog_get_property;
-
-	/**
-	 * RBURIDialog:label:
-	 *
-	 * The label displayed in the dialog.
-	 */
-	g_object_class_install_property (object_class,
-					 PROP_LABEL,
-					 g_param_spec_string ("label",
-					                      "label",
-					                      "label",
-							      "",
-					                      G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
 	/**
 	 * RBURIDialog::location-added:
@@ -131,133 +97,75 @@ rb_uri_dialog_class_init (RBURIDialogClass *klass)
 			      G_TYPE_NONE,
 			      1,
 			      G_TYPE_STRING);
-
 }
 
 static void
 rb_uri_dialog_init (RBURIDialog *dialog)
 {
-	GtkWidget  *content_area;
-	GtkBuilder *builder;
-
-	/* create the dialog and some buttons forward - close */
 	dialog->priv = RB_URI_DIALOG_GET_PRIVATE (dialog);
 
-	g_signal_connect_object (G_OBJECT (dialog),
-				 "response",
-				 G_CALLBACK (rb_uri_dialog_response_cb),
-				 dialog, 0);
+	/* set up responses */
+	adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "cancel", _("_Cancel"));
+	adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "add", _("_Add"));
+	adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog),
+						  "add", ADW_RESPONSE_SUGGESTED);
+	adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "add");
+	adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
 
-	content_area = gtk_dialog_get_content_area (GTK_DIALOG (dialog));
+	/* start with Add disabled until text is entered */
+	adw_alert_dialog_set_response_enabled (ADW_ALERT_DIALOG (dialog), "add", FALSE);
 
-	gtk_box_set_spacing (GTK_BOX (content_area), 2);
-
-	dialog->priv->cancelbutton = gtk_dialog_add_button (GTK_DIALOG (dialog),
-							    _("_Cancel"),
-							    GTK_RESPONSE_CANCEL);
-	dialog->priv->okbutton = gtk_dialog_add_button (GTK_DIALOG (dialog),
-							_("_Add"),
-							GTK_RESPONSE_OK);
-	gtk_dialog_set_default_response (GTK_DIALOG (dialog), GTK_RESPONSE_OK);
-
-	builder = rb_builder_load ("uri-new.ui", dialog);
-
-	gtk_box_append (GTK_BOX (content_area),
-			GTK_WIDGET (gtk_builder_get_object (builder, "newuri")));
-
-	/* get the widgets from the GtkBuilder */
-	dialog->priv->label = GTK_WIDGET (gtk_builder_get_object (builder, "label"));
-	dialog->priv->url = GTK_WIDGET (gtk_builder_get_object (builder, "txt_url"));
+	/* create entry as extra child */
+	dialog->priv->url = gtk_entry_new ();
 	gtk_entry_set_activates_default (GTK_ENTRY (dialog->priv->url), TRUE);
+	adw_alert_dialog_set_extra_child (ADW_ALERT_DIALOG (dialog), dialog->priv->url);
 
 	g_signal_connect_object (G_OBJECT (dialog->priv->url),
 				 "changed",
 				 G_CALLBACK (rb_uri_dialog_text_changed),
 				 dialog, 0);
 
-	/* if we can get a url from the clipboard, populate the entry with that,
-	 * since there's a good chance that's what the user wants to do anyway.
-	 */
+	g_signal_connect (dialog, "response",
+			  G_CALLBACK (rb_uri_dialog_response_cb), dialog);
+
+	/* try to auto-fill from clipboard */
 	gdk_clipboard_read_text_async (gdk_display_get_clipboard (gdk_display_get_default ()),
 				       NULL,
 				       rb_uri_dialog_clipboard_yank_url,
 				       dialog);
-
-	/* default focus */
-	gtk_widget_grab_focus (dialog->priv->url);
-
-	/* FIXME */
-	gtk_widget_set_sensitive (dialog->priv->okbutton, FALSE);
-
-	g_object_unref (builder);
-}
-
-static void
-rb_uri_dialog_set_property (GObject *object,
-			    guint prop_id,
-			    const GValue *value,
-			    GParamSpec *pspec)
-{
-	RBURIDialog *dialog = RB_URI_DIALOG (object);
-
-	switch (prop_id) {
-	case PROP_LABEL:
-		gtk_label_set_text (GTK_LABEL (dialog->priv->label), g_value_get_string (value));
-		break;
-	default:
-		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-		break;
-	}
-}
-
-static void
-rb_uri_dialog_get_property (GObject *object,
-			    guint prop_id,
-			    GValue *value,
-			    GParamSpec *pspec)
-{
-	RBURIDialog *dialog = RB_URI_DIALOG (object);
-
-	switch (prop_id) {
-	case PROP_LABEL:
-		g_value_set_string (value, gtk_label_get_text (GTK_LABEL (dialog->priv->label)));
-		break;
-	default:
-		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-		break;
-	}
 }
 
 /**
  * rb_uri_dialog_new:
- * @title: Window title for the dialog
- * @label: Label to display in the dialog
+ * @title: Heading for the dialog
+ * @label: Body text displayed in the dialog
  *
- * Creates a URI entry dialog.
+ * Creates a URI entry dialog using AdwAlertDialog.
+ * Present with adw_dialog_present(ADW_DIALOG(dialog), parent).
  *
- * Returns: URI dialog instance.
+ * Returns: (transfer full): URI dialog instance.
  */
-GtkWidget *
+AdwDialog *
 rb_uri_dialog_new (const char *title, const char *label)
 {
 	RBURIDialog *dialog;
 
 	dialog = g_object_new (RB_TYPE_URI_DIALOG,
-			       "title", title,
-			       "label", label,
+			       "heading", title,
+			       "body", label,
 			       NULL);
-	return GTK_WIDGET (dialog);
+	return ADW_DIALOG (dialog);
 }
 
 static void
-rb_uri_dialog_response_cb (GtkDialog *gtkdialog,
-				   int response_id,
-				   RBURIDialog *dialog)
+rb_uri_dialog_response_cb (AdwAlertDialog *alert_dialog,
+			   const char *response,
+			   RBURIDialog *dialog)
 {
 	char *valid_url;
 	char *str;
 
-	if (response_id != GTK_RESPONSE_OK)
+	if (g_strcmp0 (response, "add") != 0)
 		return;
 
 	str = gtk_editable_get_chars (GTK_EDITABLE (dialog->priv->url), 0, -1);
@@ -266,20 +174,18 @@ rb_uri_dialog_response_cb (GtkDialog *gtkdialog,
 	g_signal_emit (dialog, rb_uri_dialog_signals [LOCATION_ADDED], 0, valid_url);
 
 	g_free (str);
-
-	gtk_widget_hide (GTK_WIDGET (gtkdialog));
 }
 
 static void
 rb_uri_dialog_text_changed (GtkEditable *buffer,
-				    RBURIDialog *dialog)
+			    RBURIDialog *dialog)
 {
 	char *text = gtk_editable_get_chars (buffer, 0, -1);
 	gboolean has_text = ((text != NULL) && (*text != 0));
 
 	g_free (text);
 
-	gtk_widget_set_sensitive (dialog->priv->okbutton, has_text);
+	adw_alert_dialog_set_response_enabled (ADW_ALERT_DIALOG (dialog), "add", has_text);
 }
 
 static void

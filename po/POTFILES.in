@@ -38,7 +38,6 @@ data/ui/song-info-multiple.ui
 data/ui/song-info.ui
 data/ui/sync-dialog.ui
 data/ui/sync-state.ui
-data/ui/uri-new.ui
 lib/rb-cut-and-paste-code.c
 lib/rb-file-helpers.c
 lib/rb-util.c
