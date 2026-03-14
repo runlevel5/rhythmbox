@@ -133,7 +133,7 @@ task_list_changed_cb (RBListModel *model, int position, int removed, int added, 
 		}
 		g_signal_connect_object (widget, "clicked", G_CALLBACK (stop_clicked_cb), task, 0);
 
-		gtk_grid_insert_column (GTK_GRID (list), position + i);
+		gtk_grid_insert_row (GTK_GRID (list), position + i);
 		gtk_grid_attach (GTK_GRID (list), entry, 0, position + i, 1, 1);
 		g_array_insert_val (list->priv->widgets, position + i, entry);
 	}
