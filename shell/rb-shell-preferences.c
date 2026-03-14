@@ -390,20 +390,11 @@ plugin_switch_toggled_cb (GObject *object, GParamSpec *pspec, PeasEngine *engine
 		peas_engine_unload_plugin (engine, info);
 	}
 
-	/* update configure button visibility and sensitivity */
+	/* update configure button sensitivity */
 	configure_button = g_object_get_data (G_OBJECT (object), "configure-button");
 	if (configure_button != NULL) {
-		if (active && plugin_is_configurable (engine, info)) {
-			gtk_widget_set_visible (configure_button, TRUE);
-			gtk_widget_set_sensitive (configure_button, TRUE);
-		} else if (active) {
-			/* loaded but not configurable */
-			gtk_widget_set_visible (configure_button, FALSE);
-		} else {
-			/* plugin disabled — keep visible if it was shown, but disable */
-			if (gtk_widget_get_visible (configure_button))
-				gtk_widget_set_sensitive (configure_button, FALSE);
-		}
+		gtk_widget_set_sensitive (configure_button,
+					 active && plugin_is_configurable (engine, info));
 	}
 }
 
@@ -579,17 +570,11 @@ build_plugins_page (RBShellPreferences *prefs)
 		adw_action_row_add_suffix (row, configure_button);
 
 		if (builtin) {
-			/* builtin plugins can't be configured */
-			gtk_widget_set_visible (configure_button, FALSE);
-		} else if (loaded && plugin_is_configurable (engine, info)) {
-			gtk_widget_set_visible (configure_button, TRUE);
-			gtk_widget_set_sensitive (configure_button, TRUE);
-		} else if (loaded) {
-			/* loaded but not configurable — hide entirely */
 			gtk_widget_set_visible (configure_button, FALSE);
 		} else {
-			/* not loaded — we can't check, hide for now */
-			gtk_widget_set_visible (configure_button, FALSE);
+			gtk_widget_set_visible (configure_button, TRUE);
+			gtk_widget_set_sensitive (configure_button,
+						 loaded && plugin_is_configurable (engine, info));
 		}
 
 		/* about button as suffix */
