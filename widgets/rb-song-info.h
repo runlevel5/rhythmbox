@@ -25,7 +25,7 @@
  *
  */
 
-#include <gtk/gtk.h>
+#include <adwaita.h>
 #include <widgets/rb-entry-view.h>
 #include <rhythmdb/rhythmdb.h>
 #include <sources/rb-source.h>
@@ -48,14 +48,14 @@ typedef struct RBSongInfoPrivate RBSongInfoPrivate;
 
 struct _RBSongInfo
 {
-	GtkDialog parent;
+	AdwDialog parent;
 
 	RBSongInfoPrivate *priv;
 };
 
 struct _RBSongInfoClass
 {
-	GtkDialogClass parent_class;
+	AdwDialogClass parent_class;
 
 	void (*pre_metadata_change) (RBSongInfo *info, RhythmDBEntry *entry);
 	void (*post_metadata_change) (RBSongInfo *info, RhythmDBEntry *entry);

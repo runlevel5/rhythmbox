@@ -41,12 +41,11 @@
 #define EPSILON 0.0001
 
 #include <glib/gi18n.h>
-#include <gtk/gtk.h>
+#include <adwaita.h>
 
 #include "rhythmdb.h"
 #include "rhythmdb-property-model.h"
 #include "rb-song-info.h"
-#include "rb-builder-helpers.h"
 #include "rb-dialog.h"
 #include "rb-rating.h"
 #include "rb-source.h"
@@ -58,7 +57,8 @@ static void rb_song_info_class_init (RBSongInfoClass *klass);
 static void rb_song_info_init (RBSongInfo *song_info);
 static void rb_song_info_constructed (GObject *object);
 
-static void rb_song_info_show (GtkWidget *widget);
+static void rb_song_info_closed_cb (AdwDialog *dialog,
+				    RBSongInfo *song_info);
 static void rb_song_info_dispose (GObject *object);
 static void rb_song_info_finalize (GObject *object);
 static void rb_song_info_set_property (GObject *object,
@@ -69,9 +69,6 @@ static void rb_song_info_get_property (GObject *object,
 				       guint prop_id,
 				       GValue *value,
 				       GParamSpec *pspec);
-static void rb_song_info_response_cb (GtkDialog *dialog,
-				      int response_id,
-				      RBSongInfo *song_info);
 static void rb_song_info_populate_dialog (RBSongInfo *song_info);
 static void rb_song_info_populate_dialog_multiple (RBSongInfo *song_info);
 static void rb_song_info_update_duration (RBSongInfo *song_info);
@@ -117,9 +114,12 @@ struct RBSongInfoPrivate
 	gboolean editable;
 
 	/* the dialog widgets */
+	GtkWidget   *toolbar_view;
+	GtkWidget   *header_bar;
 	GtkWidget   *backward;
 	GtkWidget   *forward;
-	GtkWidget   *notebook;
+	GtkStack    *stack;
+	GtkWidget   *switcher;
 
 	GtkWidget   *title;
 	GtkWidget   *artist;
@@ -169,13 +169,13 @@ struct RBSongInfoPrivate
  * allows the user to edit them.
  *
  * This class has two modes.  It can display and edit properties of a single
- * entry, in which case it uses a #GtkNotebook to split the properties across
- * 'basic' and 'details' pages, and it can display and edit properties of
- * multiple entries at a time, in which case a smaller set of properties is
- * displayed in a single set.
+ * entry, in which case it uses a #GtkStack to split the properties across
+ * 'basic', 'sorting', and 'details' pages, and it can display and edit
+ * properties of multiple entries at a time, in which case a smaller set of
+ * properties is displayed across 'basic' and 'sorting' pages.
  *
- * In single-entry mode, it is possible to add extra pages to the #GtkNotebook
- * widget in the dialog.  The 'create-song-info' signal is emitted by the #RBShell
+ * In single-entry mode, it is possible to add extra pages to the view stack
+ * in the dialog.  The 'create-song-info' signal is emitted by the #RBShell
  * object, allowing signal handlers to add pages by calling #rb_song_info_append_page.
  * The lyrics plugin is currently the only place where this ability is used.
  * In this mode, the dialog features 'back' and 'forward' buttons that move to the
@@ -208,19 +208,16 @@ enum
 
 static guint rb_song_info_signals[LAST_SIGNAL] = { 0 };
 
-G_DEFINE_TYPE_WITH_PRIVATE (RBSongInfo, rb_song_info, GTK_TYPE_DIALOG)
+G_DEFINE_TYPE_WITH_PRIVATE (RBSongInfo, rb_song_info, ADW_TYPE_DIALOG)
 
 static void
 rb_song_info_class_init (RBSongInfoClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
-	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
 	object_class->set_property = rb_song_info_set_property;
 	object_class->get_property = rb_song_info_get_property;
 	object_class->constructed = rb_song_info_constructed;
-
-	widget_class->show = rb_song_info_show;
 
 	/**
 	 * RBSongInfo:source:
@@ -325,122 +322,420 @@ rb_song_info_class_init (RBSongInfoClass *klass)
 static void
 rb_song_info_init (RBSongInfo *song_info)
 {
-	/* create the dialog and some buttons backward - forward - close */
 	song_info->priv = RB_SONG_INFO_GET_PRIVATE (song_info);
+}
 
-	g_signal_connect_object (G_OBJECT (song_info),
-				 "response",
-				 G_CALLBACK (rb_song_info_response_cb),
-				 song_info, 0);
+/* ---- Helper: create a bold label for grid rows ---- */
+static GtkWidget *
+create_bold_label (const char *markup_text)
+{
+	GtkWidget *label = gtk_label_new (NULL);
+	char *bold = g_strdup_printf ("<b>%s</b>", markup_text);
+	gtk_label_set_markup_with_mnemonic (GTK_LABEL (label), bold);
+	g_free (bold);
+	gtk_label_set_xalign (GTK_LABEL (label), 1.0f);
+	return label;
+}
 
-	gtk_window_set_resizable (GTK_WINDOW (song_info), TRUE);
-	gtk_box_set_spacing (GTK_BOX (gtk_dialog_get_content_area (GTK_DIALOG (song_info))), 2);
+/* ---- Helper: add a label + widget row to a grid ---- */
+static void
+add_grid_row (GtkGrid *grid, int row, const char *label_text,
+	      GtkWidget *widget, int col_span)
+{
+	GtkWidget *label = create_bold_label (label_text);
+	gtk_label_set_mnemonic_widget (GTK_LABEL (label), widget);
+	gtk_grid_attach (grid, label, 0, row, 1, 1);
+	gtk_grid_attach (grid, widget, 1, row, col_span, 1);
+}
+
+/* ---- Helper: create a read-only GtkLabel for info fields ---- */
+static GtkWidget *
+create_info_label (void)
+{
+	GtkWidget *label = gtk_label_new ("");
+	gtk_label_set_xalign (GTK_LABEL (label), 0.0f);
+	gtk_label_set_selectable (GTK_LABEL (label), FALSE);
+	gtk_widget_set_hexpand (label, TRUE);
+	return label;
+}
+
+/* ---- Helper: create a GtkEntry for editable fields ---- */
+static GtkWidget *
+create_entry (gboolean editable)
+{
+	GtkWidget *entry = gtk_entry_new ();
+	gtk_editable_set_editable (GTK_EDITABLE (entry), editable);
+	gtk_widget_set_hexpand (entry, TRUE);
+	gtk_entry_set_activates_default (GTK_ENTRY (entry), TRUE);
+	return entry;
+}
+
+/* ---- Helper: create a read-only GtkEntry (for name/location) ---- */
+static GtkWidget *
+create_readonly_entry (void)
+{
+	GtkWidget *entry = gtk_entry_new ();
+	gtk_editable_set_editable (GTK_EDITABLE (entry), FALSE);
+	gtk_widget_set_hexpand (entry, TRUE);
+	return entry;
+}
+
+/* ---- Helper: wrap a GtkGrid in an AdwPreferencesPage ---- */
+static GtkWidget *
+wrap_grid_in_page (GtkWidget *grid)
+{
+	AdwPreferencesPage *page;
+	AdwPreferencesGroup *group;
+
+	page = ADW_PREFERENCES_PAGE (adw_preferences_page_new ());
+	group = ADW_PREFERENCES_GROUP (adw_preferences_group_new ());
+	adw_preferences_group_add (group, grid);
+	adw_preferences_page_add (page, group);
+	return GTK_WIDGET (page);
 }
 
 static void
-rb_song_info_show (GtkWidget *widget)
+rb_song_info_construct_single (RBSongInfo *song_info, gboolean editable)
 {
-	if (GTK_WIDGET_CLASS (rb_song_info_parent_class)->show)
-		GTK_WIDGET_CLASS (rb_song_info_parent_class)->show (widget);
+	GtkWidget *grid;
+	GtkWidget *page;
+	GtkWidget *comment_scroll;
+	GtkWidget *hbox;
+	int row;
 
-	rb_song_info_update_playback_error (RB_SONG_INFO (widget));
-}
-
-static void
-rb_song_info_construct_single (RBSongInfo *song_info, GtkBuilder *builder, gboolean editable)
-{
-	song_info->priv->backward = gtk_dialog_add_button (GTK_DIALOG (song_info),
-							   _("_Back"),
-							   GTK_RESPONSE_NONE);
-
+	/* Back/Forward buttons in the header bar */
+	song_info->priv->backward = gtk_button_new_from_icon_name ("go-previous-symbolic");
+	gtk_widget_set_tooltip_text (song_info->priv->backward, _("Back"));
+	adw_header_bar_pack_start (ADW_HEADER_BAR (song_info->priv->header_bar),
+				   song_info->priv->backward);
 	g_signal_connect_object (G_OBJECT (song_info->priv->backward),
 				 "clicked",
 				 G_CALLBACK (rb_song_info_backward_clicked_cb),
 				 song_info, 0);
 
-	song_info->priv->forward = gtk_dialog_add_button (GTK_DIALOG (song_info),
-							   _("_Forward"),
-							   GTK_RESPONSE_NONE);
-
+	song_info->priv->forward = gtk_button_new_from_icon_name ("go-next-symbolic");
+	gtk_widget_set_tooltip_text (song_info->priv->forward, _("Forward"));
+	adw_header_bar_pack_start (ADW_HEADER_BAR (song_info->priv->header_bar),
+				   song_info->priv->forward);
 	g_signal_connect_object (G_OBJECT (song_info->priv->forward),
 				 "clicked",
 				 G_CALLBACK (rb_song_info_forward_clicked_cb),
 				 song_info, 0);
 
-	gtk_window_set_title (GTK_WINDOW (song_info), _("Song Properties"));
+	adw_dialog_set_title (ADW_DIALOG (song_info), _("Song Properties"));
 
-	/* get the widgets from the XML */
-	song_info->priv->notebook      = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_vbox"));
-	song_info->priv->title         = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_title"));
-	song_info->priv->track_cur     = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_track_cur"));
-	song_info->priv->bitrate       = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_bitrate"));
-	song_info->priv->duration      = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_duration"));
-	song_info->priv->bpm           = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_bpm"));
-	song_info->priv->location = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_location"));
-	song_info->priv->filesize = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_filesize"));
-	song_info->priv->date_added    = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_dateadded"));
-	song_info->priv->play_count    = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_playcount"));
-	song_info->priv->last_played   = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_lastplayed"));
-	song_info->priv->name = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_name"));
-	song_info->priv->comment = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_comment"));
-	song_info->priv->comment_buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (song_info->priv->comment));
+	/* ---- Basic page ---- */
+	grid = gtk_grid_new ();
+	gtk_grid_set_row_spacing (GTK_GRID (grid), 6);
+	gtk_grid_set_column_spacing (GTK_GRID (grid), 12);
+	row = 0;
 
-	rb_builder_boldify_label (builder, "title_label");
-	rb_builder_boldify_label (builder, "trackn_label");
-	rb_builder_boldify_label (builder, "name_label");
-	rb_builder_boldify_label (builder, "location_label");
-	rb_builder_boldify_label (builder, "filesize_label");
-	rb_builder_boldify_label (builder, "date_added_label");
-	rb_builder_boldify_label (builder, "last_played_label");
-	rb_builder_boldify_label (builder, "play_count_label");
-	rb_builder_boldify_label (builder, "duration_label");
-	rb_builder_boldify_label (builder, "bitrate_label");
-	rb_builder_boldify_label (builder, "bpm_label");
-	rb_builder_boldify_label (builder, "comment_label");
+	song_info->priv->title = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("_Title:"), song_info->priv->title, 3);
+	g_signal_connect_object (song_info->priv->title, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
 
-	/* whenever you press a mnemonic, the associated GtkEntry's text gets highlighted */
-	g_signal_connect_object (G_OBJECT (song_info->priv->title),
-				 "mnemonic-activate",
-				 G_CALLBACK (rb_song_info_mnemonic_cb),
-				 NULL, 0);
-	g_signal_connect_object (G_OBJECT (song_info->priv->track_cur),
-				 "mnemonic-activate",
-				 G_CALLBACK (rb_song_info_mnemonic_cb),
-				 NULL, 0);
-	g_signal_connect_object (G_OBJECT (song_info->priv->comment),
-				 "mnemonic-activate",
-				 G_CALLBACK (rb_song_info_mnemonic_cb),
-				 NULL, 0);
+	song_info->priv->artist = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("_Artist:"), song_info->priv->artist, 3);
+	g_signal_connect_object (song_info->priv->artist, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
 
-	gtk_editable_set_editable (GTK_EDITABLE (song_info->priv->title), editable);
-	gtk_editable_set_editable  (GTK_EDITABLE (song_info->priv->track_cur), editable);
+	song_info->priv->album = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("Albu_m:"), song_info->priv->album, 3);
+	g_signal_connect_object (song_info->priv->album, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->album_artist = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("Album A_rtist:"), song_info->priv->album_artist, 3);
+	g_signal_connect_object (song_info->priv->album_artist, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->composer = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("_Composer:"), song_info->priv->composer, 3);
+	g_signal_connect_object (song_info->priv->composer, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->genre = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("_Genre:"), song_info->priv->genre, 3);
+	g_signal_connect_object (song_info->priv->genre, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	/* Track number: cur / total in a horizontal box */
+	song_info->priv->track_cur = create_entry (editable);
+	gtk_widget_set_hexpand (song_info->priv->track_cur, TRUE);
+	gtk_entry_set_max_length (GTK_ENTRY (song_info->priv->track_cur), 7);
+	g_signal_connect_object (song_info->priv->track_cur, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->track_total = create_entry (editable);
+	gtk_widget_set_hexpand (song_info->priv->track_total, TRUE);
+	gtk_entry_set_max_length (GTK_ENTRY (song_info->priv->track_total), 7);
+	g_signal_connect_object (song_info->priv->track_total, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_box_append (GTK_BOX (hbox), song_info->priv->track_cur);
+	gtk_box_append (GTK_BOX (hbox), gtk_label_new (_("of")));
+	gtk_box_append (GTK_BOX (hbox), song_info->priv->track_total);
+	gtk_widget_set_hexpand (hbox, TRUE);
+	add_grid_row (GTK_GRID (grid), row++, _("Track _number:"), hbox, 3);
+
+	/* Disc number: cur / total in a horizontal box */
+	song_info->priv->disc_cur = create_entry (editable);
+	gtk_widget_set_hexpand (song_info->priv->disc_cur, TRUE);
+	gtk_entry_set_max_length (GTK_ENTRY (song_info->priv->disc_cur), 7);
+	g_signal_connect_object (song_info->priv->disc_cur, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->disc_total = create_entry (editable);
+	gtk_widget_set_hexpand (song_info->priv->disc_total, TRUE);
+	gtk_entry_set_max_length (GTK_ENTRY (song_info->priv->disc_total), 7);
+	g_signal_connect_object (song_info->priv->disc_total, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_box_append (GTK_BOX (hbox), song_info->priv->disc_cur);
+	gtk_box_append (GTK_BOX (hbox), gtk_label_new (_("of")));
+	gtk_box_append (GTK_BOX (hbox), song_info->priv->disc_total);
+	gtk_widget_set_hexpand (hbox, TRUE);
+	add_grid_row (GTK_GRID (grid), row++, _("_Disc number:"), hbox, 3);
+
+	song_info->priv->year = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("_Year:"), song_info->priv->year, 3);
+	g_signal_connect_object (song_info->priv->year, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->bpm = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("_BPM:"), song_info->priv->bpm, 3);
+
+	/* Comment (multiline) */
+	song_info->priv->comment = gtk_text_view_new ();
+	gtk_text_view_set_wrap_mode (GTK_TEXT_VIEW (song_info->priv->comment), GTK_WRAP_WORD);
 	gtk_text_view_set_editable (GTK_TEXT_VIEW (song_info->priv->comment), editable);
+	song_info->priv->comment_buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (song_info->priv->comment));
+	g_signal_connect_object (song_info->priv->comment, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	comment_scroll = gtk_scrolled_window_new ();
+	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (comment_scroll),
+					GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+	gtk_scrolled_window_set_min_content_height (GTK_SCROLLED_WINDOW (comment_scroll), 60);
+	gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (comment_scroll),
+				       song_info->priv->comment);
+	gtk_widget_set_vexpand (comment_scroll, TRUE);
+	add_grid_row (GTK_GRID (grid), row++, _("Co_mment:"), comment_scroll, 3);
+
+	/* Playback error box (hidden by default) */
+	song_info->priv->playback_error_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_widget_set_visible (song_info->priv->playback_error_box, FALSE);
+	song_info->priv->playback_error_label = gtk_label_new ("");
+	gtk_label_set_xalign (GTK_LABEL (song_info->priv->playback_error_label), 0.0f);
+	gtk_label_set_wrap (GTK_LABEL (song_info->priv->playback_error_label), TRUE);
+	gtk_box_append (GTK_BOX (song_info->priv->playback_error_box),
+			gtk_image_new_from_icon_name ("dialog-warning-symbolic"));
+	gtk_box_append (GTK_BOX (song_info->priv->playback_error_box),
+			song_info->priv->playback_error_label);
+	gtk_grid_attach (GTK_GRID (grid), song_info->priv->playback_error_box, 0, row++, 4, 1);
+
+	page = wrap_grid_in_page (grid);
+	gtk_stack_add_titled (song_info->priv->stack, page, "basic", _("Basic"));
+
+	/* ---- Sorting page ---- */
+	grid = gtk_grid_new ();
+	gtk_grid_set_row_spacing (GTK_GRID (grid), 6);
+	gtk_grid_set_column_spacing (GTK_GRID (grid), 12);
+	row = 0;
+
+	song_info->priv->title_sortname = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("Title sort _key:"), song_info->priv->title_sortname, 1);
+	g_signal_connect_object (song_info->priv->title_sortname, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->artist_sortname = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("Artist sort ke_y:"), song_info->priv->artist_sortname, 1);
+	g_signal_connect_object (song_info->priv->artist_sortname, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->album_sortname = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("Album sort k_ey:"), song_info->priv->album_sortname, 1);
+	g_signal_connect_object (song_info->priv->album_sortname, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->album_artist_sortname = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("Album artist sort key:"), song_info->priv->album_artist_sortname, 1);
+	g_signal_connect_object (song_info->priv->album_artist_sortname, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->composer_sortname = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("Composer sort key:"), song_info->priv->composer_sortname, 1);
+	g_signal_connect_object (song_info->priv->composer_sortname, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	page = wrap_grid_in_page (grid);
+	gtk_stack_add_titled (song_info->priv->stack, page, "sorting", _("Sorting"));
+
+	/* ---- Details page ---- */
+	grid = gtk_grid_new ();
+	gtk_grid_set_row_spacing (GTK_GRID (grid), 6);
+	gtk_grid_set_column_spacing (GTK_GRID (grid), 12);
+	row = 0;
+
+	song_info->priv->name = create_readonly_entry ();
+	add_grid_row (GTK_GRID (grid), row++, _("_File name:"), song_info->priv->name, 1);
+
+	song_info->priv->location = create_readonly_entry ();
+	add_grid_row (GTK_GRID (grid), row++, _("_Location:"), song_info->priv->location, 1);
+
+	song_info->priv->filesize = create_info_label ();
+	add_grid_row (GTK_GRID (grid), row++, _("File si_ze:"), song_info->priv->filesize, 1);
+
+	song_info->priv->duration = create_info_label ();
+	add_grid_row (GTK_GRID (grid), row++, _("Du_ration:"), song_info->priv->duration, 1);
+
+	song_info->priv->bitrate = create_info_label ();
+	add_grid_row (GTK_GRID (grid), row++, _("_Bitrate:"), song_info->priv->bitrate, 1);
+
+	song_info->priv->date_added = create_info_label ();
+	add_grid_row (GTK_GRID (grid), row++, _("Date _added:"), song_info->priv->date_added, 1);
+
+	song_info->priv->last_played = create_info_label ();
+	add_grid_row (GTK_GRID (grid), row++, _("Last _played:"), song_info->priv->last_played, 1);
+
+	song_info->priv->play_count = create_info_label ();
+	add_grid_row (GTK_GRID (grid), row++, _("Play _count:"), song_info->priv->play_count, 1);
+
+	/* Rating */
+	song_info->priv->rating = GTK_WIDGET (rb_rating_new ());
+	g_signal_connect_object (song_info->priv->rating, "rated",
+				 G_CALLBACK (rb_song_info_rated_cb),
+				 G_OBJECT (song_info), 0);
+	add_grid_row (GTK_GRID (grid), row++, _("_Rating:"), song_info->priv->rating, 1);
+
+	page = wrap_grid_in_page (grid);
+	gtk_stack_add_titled (song_info->priv->stack, page, "details", _("Details"));
 
 	/* default focus */
 	gtk_widget_grab_focus (song_info->priv->title);
 }
 
 static void
-rb_song_info_construct_multiple (RBSongInfo *song_info, GtkBuilder *builder, gboolean editable)
+rb_song_info_construct_multiple (RBSongInfo *song_info, gboolean editable)
 {
-	gtk_window_set_title (GTK_WINDOW (song_info),
+	GtkWidget *grid;
+	GtkWidget *page;
+	GtkWidget *hbox;
+	int row;
+
+	adw_dialog_set_title (ADW_DIALOG (song_info),
 			      _("Multiple Song Properties"));
+
+	/* ---- Basic page ---- */
+	grid = gtk_grid_new ();
+	gtk_grid_set_row_spacing (GTK_GRID (grid), 6);
+	gtk_grid_set_column_spacing (GTK_GRID (grid), 12);
+	row = 0;
+
+	song_info->priv->artist = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("_Artist:"), song_info->priv->artist, 3);
+	g_signal_connect_object (song_info->priv->artist, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->album = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("Albu_m:"), song_info->priv->album, 3);
+	g_signal_connect_object (song_info->priv->album, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->album_artist = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("Album A_rtist:"), song_info->priv->album_artist, 3);
+	g_signal_connect_object (song_info->priv->album_artist, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->composer = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("_Composer:"), song_info->priv->composer, 3);
+	g_signal_connect_object (song_info->priv->composer, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->genre = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("_Genre:"), song_info->priv->genre, 3);
+	g_signal_connect_object (song_info->priv->genre, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->year = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("_Year:"), song_info->priv->year, 3);
+	g_signal_connect_object (song_info->priv->year, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	/* Rating */
+	song_info->priv->rating = GTK_WIDGET (rb_rating_new ());
+	g_signal_connect_object (song_info->priv->rating, "rated",
+				 G_CALLBACK (rb_song_info_rated_cb),
+				 G_OBJECT (song_info), 0);
+	add_grid_row (GTK_GRID (grid), row++, _("_Rating:"), song_info->priv->rating, 3);
+
+	/* Track total */
+	song_info->priv->track_total = create_entry (editable);
+	gtk_widget_set_hexpand (song_info->priv->track_total, FALSE);
+	gtk_entry_set_max_length (GTK_ENTRY (song_info->priv->track_total), 4);
+	add_grid_row (GTK_GRID (grid), row++, _("Track _total:"), song_info->priv->track_total, 3);
+	g_signal_connect_object (song_info->priv->track_total, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	/* Disc number: cur / total */
+	song_info->priv->disc_cur = create_entry (editable);
+	gtk_widget_set_hexpand (song_info->priv->disc_cur, FALSE);
+	gtk_entry_set_max_length (GTK_ENTRY (song_info->priv->disc_cur), 4);
+	g_signal_connect_object (song_info->priv->disc_cur, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->disc_total = create_entry (editable);
+	gtk_widget_set_hexpand (song_info->priv->disc_total, FALSE);
+	gtk_entry_set_max_length (GTK_ENTRY (song_info->priv->disc_total), 4);
+	g_signal_connect_object (song_info->priv->disc_total, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_box_append (GTK_BOX (hbox), song_info->priv->disc_cur);
+	gtk_box_append (GTK_BOX (hbox), gtk_label_new (_("of")));
+	gtk_box_append (GTK_BOX (hbox), song_info->priv->disc_total);
+	gtk_widget_set_hexpand (hbox, TRUE);
+	add_grid_row (GTK_GRID (grid), row++, _("_Disc number:"), hbox, 3);
+
+	page = wrap_grid_in_page (grid);
+	gtk_stack_add_titled (song_info->priv->stack, page, "basic", _("Basic"));
+
+	/* ---- Sorting page ---- */
+	grid = gtk_grid_new ();
+	gtk_grid_set_row_spacing (GTK_GRID (grid), 6);
+	gtk_grid_set_column_spacing (GTK_GRID (grid), 12);
+	row = 0;
+
+	song_info->priv->artist_sortname = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("Artist sort ke_y:"), song_info->priv->artist_sortname, 1);
+	g_signal_connect_object (song_info->priv->artist_sortname, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->album_sortname = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("Album sort k_ey:"), song_info->priv->album_sortname, 1);
+	g_signal_connect_object (song_info->priv->album_sortname, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->album_artist_sortname = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("Album artist sort key:"), song_info->priv->album_artist_sortname, 1);
+	g_signal_connect_object (song_info->priv->album_artist_sortname, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	song_info->priv->composer_sortname = create_entry (editable);
+	add_grid_row (GTK_GRID (grid), row++, _("Composer sort key:"), song_info->priv->composer_sortname, 1);
+	g_signal_connect_object (song_info->priv->composer_sortname, "mnemonic-activate",
+				 G_CALLBACK (rb_song_info_mnemonic_cb), NULL, 0);
+
+	page = wrap_grid_in_page (grid);
+	gtk_stack_add_titled (song_info->priv->stack, page, "sorting", _("Sorting"));
+
+	/* default focus */
 	gtk_widget_grab_focus (song_info->priv->artist);
-
-	song_info->priv->notebook = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_notebook"));
 }
 
-static void
-rb_song_info_add_completion (GtkEntry *entry, RhythmDBPropertyModel *propmodel)
-{
-	GtkEntryCompletion* completion;
-
-	completion = gtk_entry_completion_new();
-	gtk_entry_completion_set_model (completion, GTK_TREE_MODEL (propmodel));
-	gtk_entry_completion_set_text_column (completion, RHYTHMDB_PROPERTY_MODEL_COLUMN_TITLE);
-	gtk_entry_set_completion (entry, completion);
-	g_object_unref (completion);
-}
 
 static void
 rb_song_info_constructed (GObject *object)
@@ -450,8 +745,6 @@ rb_song_info_constructed (GObject *object)
 	GList *tem;
 	gboolean editable = TRUE;
 	RBShell *shell;
-	GtkBuilder *builder;
-	GtkWidget *content_area;
 
 	RB_CHAIN_GOBJECT_METHOD (rb_song_info_parent_class, constructed, object);
 
@@ -481,155 +774,46 @@ rb_song_info_constructed (GObject *object)
 		song_info->priv->selected_entries = selected_entries;
 	}
 
-	content_area = gtk_dialog_get_content_area (GTK_DIALOG (song_info));
+	/* Build the AdwToolbarView + AdwHeaderBar + GtkStackSwitcher + GtkStack */
+	song_info->priv->stack = GTK_STACK (gtk_stack_new ());
+	gtk_stack_set_transition_type (song_info->priv->stack, GTK_STACK_TRANSITION_TYPE_CROSSFADE);
+
+	song_info->priv->switcher = gtk_stack_switcher_new ();
+	gtk_stack_switcher_set_stack (GTK_STACK_SWITCHER (song_info->priv->switcher),
+				     song_info->priv->stack);
+
+	song_info->priv->header_bar = adw_header_bar_new ();
+	adw_header_bar_set_title_widget (ADW_HEADER_BAR (song_info->priv->header_bar),
+					 song_info->priv->switcher);
+
+	song_info->priv->toolbar_view = adw_toolbar_view_new ();
+	adw_toolbar_view_add_top_bar (ADW_TOOLBAR_VIEW (song_info->priv->toolbar_view),
+				      song_info->priv->header_bar);
+	adw_toolbar_view_set_content (ADW_TOOLBAR_VIEW (song_info->priv->toolbar_view),
+				      GTK_WIDGET (song_info->priv->stack));
+
+	adw_dialog_set_child (ADW_DIALOG (song_info), song_info->priv->toolbar_view);
+	adw_dialog_set_content_width (ADW_DIALOG (song_info), 600);
+	adw_dialog_set_content_height (ADW_DIALOG (song_info), 620);
+
+	/* Build pages programmatically */
 	if (song_info->priv->current_entry) {
-		builder = rb_builder_load ("song-info.ui", song_info);
-		gtk_box_append (GTK_BOX (content_area),
-				GTK_WIDGET (gtk_builder_get_object (builder, "song_info_vbox")));
-	} else {
-		builder = rb_builder_load ("song-info-multiple.ui", song_info);
-		gtk_box_append (GTK_BOX (content_area),
-				GTK_WIDGET (gtk_builder_get_object (builder, "song_info_notebook")));
-	}
-
-	song_info->priv->artist = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_artist"));
-	song_info->priv->composer = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_composer"));
-	song_info->priv->album = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_album"));
-	song_info->priv->album_artist = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_album_artist"));
-	song_info->priv->composer = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_composer"));
-	song_info->priv->genre = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_genre"));
-	song_info->priv->year = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_year"));
-	song_info->priv->playback_error_box = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_error_box"));
-	song_info->priv->playback_error_label = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_error_label"));
-	song_info->priv->track_total   = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_track_total"));
-	song_info->priv->disc_cur = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_disc_cur"));
-	song_info->priv->disc_total = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_disc_total"));
-
-	song_info->priv->title_sortname = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_title_sortname"));
-	song_info->priv->artist_sortname = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_artist_sortname"));
-	song_info->priv->album_sortname = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_album_sortname"));
-	song_info->priv->album_artist_sortname = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_album_artist_sortname"));
-	song_info->priv->composer_sortname = GTK_WIDGET (gtk_builder_get_object (builder, "song_info_composer_sortname"));
-
-	rb_song_info_add_completion (GTK_ENTRY (song_info->priv->genre), song_info->priv->genres);
-	rb_song_info_add_completion (GTK_ENTRY (song_info->priv->artist), song_info->priv->artists);
-	rb_song_info_add_completion (GTK_ENTRY (song_info->priv->album), song_info->priv->albums);
-
-	rb_builder_boldify_label (builder, "album_label");
-	rb_builder_boldify_label (builder, "artist_label");
-	rb_builder_boldify_label (builder, "album_artist_label");
-	rb_builder_boldify_label (builder, "composer_label");
-	rb_builder_boldify_label (builder, "genre_label");
-	rb_builder_boldify_label (builder, "year_label");
-	rb_builder_boldify_label (builder, "rating_label");
-	rb_builder_boldify_label (builder, "track_total_label");
-	rb_builder_boldify_label (builder, "discn_label");
-	rb_builder_boldify_label (builder, "disc_total_label");
-	rb_builder_boldify_label (builder, "title_sortname_label");
-	rb_builder_boldify_label (builder, "artist_sortname_label");
-	rb_builder_boldify_label (builder, "album_sortname_label");
-	rb_builder_boldify_label (builder, "album_artist_sortname_label");
-	rb_builder_boldify_label (builder, "composer_sortname_label");
-
-	g_signal_connect_object (G_OBJECT (song_info->priv->artist),
-				 "mnemonic-activate",
-				 G_CALLBACK (rb_song_info_mnemonic_cb),
-				 NULL, 0);
-	g_signal_connect_object (G_OBJECT (song_info->priv->album),
-				 "mnemonic-activate",
-				 G_CALLBACK (rb_song_info_mnemonic_cb),
-				 NULL, 0);
-	g_signal_connect_object (G_OBJECT (song_info->priv->album_artist),
-				 "mnemonic-activate",
-				 G_CALLBACK (rb_song_info_mnemonic_cb),
-				 NULL, 0);
-	g_signal_connect_object (G_OBJECT (song_info->priv->composer),
-				 "mnemonic-activate",
-				 G_CALLBACK (rb_song_info_mnemonic_cb),
-				 NULL, 0);
-	g_signal_connect_object (G_OBJECT (song_info->priv->genre),
-				 "mnemonic-activate",
-				 G_CALLBACK (rb_song_info_mnemonic_cb),
-				 NULL, 0);
-	g_signal_connect_object (G_OBJECT (song_info->priv->year),
-				 "mnemonic-activate",
-				 G_CALLBACK (rb_song_info_mnemonic_cb),
-				 NULL, 0);
-	g_signal_connect_object (G_OBJECT (song_info->priv->track_total),
-				 "mnemonic-activate",
-				 G_CALLBACK (rb_song_info_mnemonic_cb),
-				 NULL, 0);
-	g_signal_connect_object (G_OBJECT (song_info->priv->disc_cur),
-				 "mnemonic-activate",
-				 G_CALLBACK (rb_song_info_mnemonic_cb),
-				 NULL, 0);
-	g_signal_connect_object (G_OBJECT (song_info->priv->disc_total),
-				 "mnemonic-activate",
-				 G_CALLBACK (rb_song_info_mnemonic_cb),
-				 NULL, 0);
-	g_signal_connect_object (G_OBJECT (song_info->priv->title_sortname),
-				 "mnemonic-activate",
-				 G_CALLBACK (rb_song_info_mnemonic_cb),
-				 NULL, 0);
-	g_signal_connect_object (G_OBJECT (song_info->priv->artist_sortname),
-				 "mnemonic-activate",
-				 G_CALLBACK (rb_song_info_mnemonic_cb),
-				 NULL, 0);
-	g_signal_connect_object (G_OBJECT (song_info->priv->album_sortname),
-				 "mnemonic-activate",
-				 G_CALLBACK (rb_song_info_mnemonic_cb),
-				 NULL, 0);
-	g_signal_connect_object (G_OBJECT (song_info->priv->album_artist_sortname),
-				 "mnemonic-activate",
-				 G_CALLBACK (rb_song_info_mnemonic_cb),
-				 NULL, 0);
-	g_signal_connect_object (G_OBJECT (song_info->priv->composer_sortname),
-				 "mnemonic-activate",
-				 G_CALLBACK (rb_song_info_mnemonic_cb),
-				 NULL, 0);
-
-	/* this widget has to be customly created */
-	song_info->priv->rating = GTK_WIDGET (rb_rating_new ());
-	g_signal_connect_object (song_info->priv->rating, "rated",
-				 G_CALLBACK (rb_song_info_rated_cb),
-				 G_OBJECT (song_info), 0);
-	gtk_box_append (GTK_BOX (gtk_builder_get_object (builder, "song_info_rating_container")),
-			song_info->priv->rating);
-	g_object_set (gtk_builder_get_object (builder, "rating_label"), "mnemonic-widget", song_info->priv->rating, NULL);
-
-	/* rating label is set via mnemonic-widget above */
-
-	gtk_editable_set_editable (GTK_EDITABLE (song_info->priv->artist), editable);
-	gtk_editable_set_editable (GTK_EDITABLE (song_info->priv->album), editable);
-	gtk_editable_set_editable (GTK_EDITABLE (song_info->priv->album_artist), editable);
-	gtk_editable_set_editable (GTK_EDITABLE (song_info->priv->composer), editable);
-	gtk_editable_set_editable (GTK_EDITABLE (song_info->priv->genre), editable);
-	gtk_editable_set_editable (GTK_EDITABLE (song_info->priv->year), editable);
-	gtk_editable_set_editable (GTK_EDITABLE (song_info->priv->track_total), editable);
-	gtk_editable_set_editable (GTK_EDITABLE (song_info->priv->disc_cur), editable);
-	gtk_editable_set_editable (GTK_EDITABLE (song_info->priv->disc_total), editable);
-
-	/* Finish construction */
-	if (song_info->priv->current_entry) {
-
-		rb_song_info_construct_single (song_info, builder, editable);
+		rb_song_info_construct_single (song_info, editable);
 		rb_song_info_populate_dialog (song_info);
 	} else {
-		rb_song_info_construct_multiple (song_info, builder, editable);
+		rb_song_info_construct_multiple (song_info, editable);
 		rb_song_info_populate_dialog_multiple (song_info);
 	}
+
+	/* Let plugins add extra pages (e.g. lyrics, album art) */
 	g_object_get (G_OBJECT (song_info->priv->source), "shell", &shell, NULL);
 	g_signal_emit_by_name (G_OBJECT (shell), "create_song_info", song_info, (song_info->priv->current_entry == NULL));
 	g_object_unref (G_OBJECT (shell));
 
-	gtk_dialog_add_button (GTK_DIALOG (song_info),
-			       _("_Close"),
-			       GTK_RESPONSE_CLOSE);
+	g_signal_connect (song_info, "closed",
+			  G_CALLBACK (rb_song_info_closed_cb), song_info);
 
-	gtk_dialog_set_default_response (GTK_DIALOG (song_info),
-					 GTK_RESPONSE_CLOSE);
-
-	g_object_unref (builder);
+	rb_song_info_update_playback_error (song_info);
 }
 
 static void
@@ -851,16 +1035,24 @@ rb_song_info_new (RBSource *source, RBEntryView *entry_view)
 guint
 rb_song_info_append_page (RBSongInfo *info, const char *title, GtkWidget *page)
 {
-	GtkWidget *label;
-	guint page_num;
+	AdwPreferencesPage *pref_page;
+	AdwPreferencesGroup *group;
+	GtkStackPage *stack_page;
 
-	label = gtk_label_new (title);
-	page_num = gtk_notebook_append_page (GTK_NOTEBOOK (info->priv->notebook),
-					     page,
-					     label);
-	gtk_notebook_set_show_tabs (GTK_NOTEBOOK (info->priv->notebook), TRUE);
+	/* Wrap the plugin widget in an AdwPreferencesPage for consistent styling */
+	pref_page = ADW_PREFERENCES_PAGE (adw_preferences_page_new ());
+	group = ADW_PREFERENCES_GROUP (adw_preferences_group_new ());
+	gtk_widget_set_vexpand (page, TRUE);
+	gtk_widget_set_hexpand (page, TRUE);
+	adw_preferences_group_add (group, page);
+	adw_preferences_page_add (pref_page, group);
 
-	return page_num;
+	stack_page = gtk_stack_add_titled (info->priv->stack,
+					   GTK_WIDGET (pref_page),
+					   NULL,
+					   title);
+	/* Return an arbitrary page index — plugins don't really use the return value */
+	return gtk_stack_page_get_name (stack_page) ? 1 : 0;
 }
 
 typedef void (*RBSongInfoSelectionFunc)(RBSongInfo *info,
@@ -881,14 +1073,10 @@ rb_song_info_selection_for_each (RBSongInfo *info, RBSongInfoSelectionFunc func,
 }
 
 static void
-rb_song_info_response_cb (GtkDialog *dialog,
-			  int response_id,
-			  RBSongInfo *song_info)
+rb_song_info_closed_cb (AdwDialog *dialog,
+			RBSongInfo *song_info)
 {
-	if (response_id == GTK_RESPONSE_CLOSE) {
-		rb_song_info_sync_entries (RB_SONG_INFO (dialog));
-		gtk_window_destroy (GTK_WINDOW (dialog));
-	}
+	rb_song_info_sync_entries (song_info);
 }
 
 static void
@@ -1148,7 +1336,7 @@ rb_song_info_populate_dialog (RBSongInfo *song_info)
 	gtk_editable_set_text (GTK_EDITABLE (song_info->priv->title), text);
 
 	tmp = g_strdup_printf (_("%s Properties"), text);
-	gtk_window_set_title (GTK_WINDOW (song_info), tmp);
+	adw_dialog_set_title (ADW_DIALOG (song_info), tmp);
 	g_free (tmp);
 
 	text = rhythmdb_entry_get_string (song_info->priv->current_entry, RHYTHMDB_PROP_ARTIST);
@@ -1211,11 +1399,11 @@ rb_song_info_update_playback_error (RBSongInfo *song_info)
 	if (message) {
 		gtk_label_set_text (GTK_LABEL (song_info->priv->playback_error_label),
 				    message);
-		gtk_widget_show (song_info->priv->playback_error_box);
+		gtk_widget_set_visible (song_info->priv->playback_error_box, TRUE);
 	} else {
 		gtk_label_set_text (GTK_LABEL (song_info->priv->playback_error_label),
 				    "No errors");
-		gtk_widget_hide (song_info->priv->playback_error_box);
+		gtk_widget_set_visible (song_info->priv->playback_error_box, FALSE);
 	}
 
 	g_free (message);
@@ -1468,21 +1656,6 @@ rb_song_info_base_query_model_changed_cb (GObject *source,
 	g_object_set (song_info->priv->albums,  "query-model", base_query_model, NULL);
 	g_object_set (song_info->priv->artists, "query-model", base_query_model, NULL);
 	g_object_set (song_info->priv->genres,  "query-model", base_query_model, NULL);
-
-	if (song_info->priv->album) {
-		GtkEntryCompletion *comp = gtk_entry_get_completion (GTK_ENTRY (song_info->priv->album));
-		gtk_entry_completion_set_model (comp, GTK_TREE_MODEL (song_info->priv->albums));
-	}
-
-	if (song_info->priv->artist) {
-		GtkEntryCompletion *comp = gtk_entry_get_completion (GTK_ENTRY (song_info->priv->artist));
-		gtk_entry_completion_set_model (comp, GTK_TREE_MODEL (song_info->priv->artist));
-	}
-
-	if (song_info->priv->genre) {
-		GtkEntryCompletion *comp = gtk_entry_get_completion (GTK_ENTRY (song_info->priv->genre));
-		gtk_entry_completion_set_model (comp, GTK_TREE_MODEL (song_info->priv->genre));
-	}
 
 	g_object_unref (base_query_model);
 }

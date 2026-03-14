@@ -597,7 +597,7 @@ queue_properties_action_cb (GSimpleAction *action, GVariant *parameters, gpointe
 
 	song_info = rb_song_info_new (RB_SOURCE (source), priv->sidebar);
 	if (song_info)
-		gtk_widget_show (song_info);
+		adw_dialog_present (ADW_DIALOG (song_info), GTK_WIDGET (source));
 	else
 		rb_debug ("failed to create dialog, or no selection!");
 }

@@ -34,8 +34,6 @@
 		<file preprocess="xml-stripblanks">ui/podcast-toolbar.ui</file>
 		<file preprocess="xml-stripblanks">ui/queue-popups.ui</file>
 		<file preprocess="xml-stripblanks">ui/queue-toolbar.ui</file>
-		<file preprocess="xml-stripblanks">ui/song-info-multiple.ui</file>
-		<file preprocess="xml-stripblanks">ui/song-info.ui</file>
 		<file preprocess="xml-stripblanks">ui/sync-dialog.ui</file>
 		<file preprocess="xml-stripblanks">ui/sync-state.ui</file>
 		<file preprocess="xml-stripblanks">ui/task-list-entry.ui</file>

@@ -632,7 +632,7 @@ impl_song_properties (RBSource *asource)
         g_return_if_fail (song_info != NULL);
 
  	if (song_info)
- 		gtk_widget_show (song_info);
+ 		adw_dialog_present (ADW_DIALOG (song_info), GTK_WIDGET (source));
  	else
 		rb_debug ("failed to create dialog, or no selection!");
 }
