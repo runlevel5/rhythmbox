@@ -27,7 +27,7 @@
 import gi
 
 gi.require_version("Soup", "3.0")
-from gi.repository import GLib, GObject, Gio, Soup, Gtk
+from gi.repository import GLib, GObject, Gio, Gdk, Soup, Gtk
 from gi.repository import RB
 import rb
 
@@ -468,14 +468,17 @@ class WebRemotePlugin(GObject.Object, RB.PeasActivatable):
         bits = path.split("/")
         iconname = bits[2]
         iconsize = int(bits[3])
-        icon = Gtk.IconTheme.get_default().lookup_icon(
-            iconname, iconsize, Gtk.IconLookupFlags.FORCE_SVG
-        )
+        theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
+        icon = theme.lookup_icon(iconname, None, iconsize, 1, Gtk.TextDirection.NONE, Gtk.IconLookupFlags.PRELOAD)
         if icon is None:
             msg.set_status(404)
             return
 
-        iconfile = icon.get_filename()
+        gfile = icon.get_file()
+        iconfile = gfile.get_path() if gfile else None
+        if iconfile is None:
+            msg.set_status(404)
+            return
         try:
             res = Gio.resources_lookup_data(iconfile, 0)
             data = res.get_data()
@@ -484,7 +487,7 @@ class WebRemotePlugin(GObject.Object, RB.PeasActivatable):
             msg.set_status(200)
         except gi.repository.GLib.GError as ge:
             # assume we couldn't find the resource, so try it as a filename
-            self.send_file_response(msg, icon.get_filename(), self.image_content_type)
+            self.send_file_response(msg, iconfile, self.image_content_type)
         except Exception as e:
             sys.excepthook(*sys.exc_info())
             msg.set_status(500)

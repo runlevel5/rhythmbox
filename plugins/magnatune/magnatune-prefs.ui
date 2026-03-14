@@ -1,240 +1,151 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.18.3 -->
 <interface>
   <requires lib="gtk" version="4.0"/>
-  <object class="GtkListStore" id="model1">
-    <columns>
-      <!-- column-name gchararray -->
-      <column type="gchararray"/>
-    </columns>
-    <data>
-      <row>
-        <col id="0" translatable="yes">January (01)</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">February (02)</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">March (03)</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">April (04)</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">May (05)</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">June (06)</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">July (07)</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">August (08)</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">September (09)</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">October (10)</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">November (11)</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">December (12)</col>
-      </row>
-    </data>
+  <object class="GtkStringList" id="audio_format_model">
+    <items>
+      <item translatable="yes">Ogg Vorbis</item>
+      <item translatable="yes">FLAC</item>
+      <item translatable="yes">WAV</item>
+      <item translatable="yes">VBR MP3</item>
+      <item translatable="yes">128K MP3</item>
+    </items>
   </object>
-  <object class="GtkListStore" id="model2">
-    <columns>
-      <!-- column-name gchararray -->
-      <column type="gchararray"/>
-    </columns>
-    <data>
-      <row>
-        <col id="0" translatable="yes">$5 US</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">$6 US</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">$7 US</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">$8 US (typical)</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">$9 US</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">$10 US (better than average)</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">$11 US</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">$12 US (generous)</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">$13 US</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">$14 US</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">$15 US (VERY generous!)</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">$16 US</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">$17 US</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">$18 US (We love you!)</col>
-      </row>
-    </data>
-  </object>
-  <object class="GtkListStore" id="model3">
-    <columns>
-      <!-- column-name gchararray -->
-      <column type="gchararray"/>
-    </columns>
-    <data>
-      <row>
-        <col id="0" translatable="yes">Ogg Vorbis</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">FLAC</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">WAV</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">VBR MP3</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">128K MP3</col>
-      </row>
-    </data>
-  </object>
-  <object class="GtkBox" id="magnatune_vbox">    <property name="orientation">vertical</property>
+  <object class="GtkBox" id="magnatune_vbox">
+    <property name="orientation">vertical</property>
     <property name="spacing">18</property>
     <child>
-      <object class="GtkImage" id="image1">        <property name="file">magnatune_logo_color_small.png</property>
-      </object>    </child>
-    <child>
-      <object class="GtkBox" id="account_details_box">        <property name="orientation">vertical</property>
+      <object class="GtkBox" id="account_details_box">
+        <property name="orientation">vertical</property>
         <property name="spacing">6</property>
         <child>
-          <object class="GtkLabel" id="magnatune_label">            <property name="label" translatable="yes">Magnatune Information</property>
+          <object class="GtkLabel" id="magnatune_label">
+            <property name="label" translatable="yes">Magnatune Information</property>
             <property name="halign">start</property>
-          </object>        </child>
+          </object>
+        </child>
         <child>
-          <object class="GtkBox" id="vbox1">            <property name="orientation">vertical</property>
+          <object class="GtkBox" id="vbox1">
+            <property name="orientation">vertical</property>
             <child>
               <object class="GtkCheckButton" id="no_account_radio">
                 <property name="label" translatable="yes">I don't have a Magnatune account</property>
                 <property name="active">True</property>
-                <signal name="toggled" handler="rb_magnatune_radio_account_toggled_cb" swapped="no"/>
-              </object>            </child>
+              </object>
+            </child>
             <child>
               <object class="GtkCheckButton" id="stream_account_radio">
                 <property name="label" translatable="yes">I have a streaming account</property>
                 <property name="group">no_account_radio</property>
-                <signal name="toggled" handler="rb_magnatune_radio_account_toggled_cb" swapped="no"/>
-              </object>            </child>
+              </object>
+            </child>
             <child>
               <object class="GtkCheckButton" id="download_account_radio">
                 <property name="label" translatable="yes">I have a download account</property>
                 <property name="group">no_account_radio</property>
-                <signal name="toggled" handler="rb_magnatune_radio_account_toggled_cb" swapped="no"/>
-              </object>            </child>
+              </object>
+            </child>
             <child>
-              <object class="GtkGrid" id="table1">                <child>
-                  <object class="GtkLabel" id="username_label">                    <property name="label" translatable="yes">Username:</property>
+              <object class="GtkGrid" id="table1">
+                <property name="row-spacing">6</property>
+                <property name="column-spacing">6</property>
+                <child>
+                  <object class="GtkLabel" id="username_label">
+                    <property name="label" translatable="yes">Username:</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="row">0</property>
+                    </layout>
                   </object>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="password_label">                    <property name="label" translatable="yes">Password:</property>
+                  <object class="GtkLabel" id="password_label">
+                    <property name="label" translatable="yes">Password:</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="row">1</property>
+                    </layout>
                   </object>
-                  <layout>
-
-                    <property name="column">0</property>
-
-                    <property name="row">1</property>
-
-                  </layout>
                 </child>
                 <child>
-                  <object class="GtkEntry" id="username_entry">                  </object>
-                  <layout>
-
-                    <property name="column">1</property>
-
-                    <property name="row">0</property>
-
-                  </layout>
+                  <object class="GtkEntry" id="username_entry">
+                    <layout>
+                      <property name="column">1</property>
+                      <property name="row">0</property>
+                    </layout>
+                  </object>
                 </child>
                 <child>
-                  <object class="GtkEntry" id="password_entry">                    <property name="visibility">False</property>                  </object>
-                  <layout>
-
-                    <property name="column">1</property>
-
-                    <property name="row">1</property>
-
-                  </layout>
+                  <object class="GtkEntry" id="password_entry">
+                    <property name="visibility">False</property>
+                    <layout>
+                      <property name="column">1</property>
+                      <property name="row">1</property>
+                    </layout>
+                  </object>
                 </child>
-              </object>            </child>
-          </object>        </child>
-      </object>    </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
     <child>
-      <object class="GtkBox" id="hbox21">        <child>
-          <object class="GtkLabel" id="audio_label">            <property name="margin-start">8</property>
+      <object class="GtkBox" id="hbox21">
+        <property name="spacing">6</property>
+        <child>
+          <object class="GtkLabel" id="audio_label">
+            <property name="margin-start">8</property>
             <property name="margin-end">8</property>
             <property name="label" translatable="yes">Preferred audio _format:</property>
             <property name="use-underline">True</property>
             <property name="mnemonic-widget">audio_combobox</property>
-          </object>        </child>
+          </object>
+        </child>
         <child>
-          <object class="GtkComboBox" id="audio_combobox">            <property name="model">model3</property>
-            <signal name="changed" handler="rb_magnatune_audio_combobox_changed_cb" swapped="no"/>
-            <child>
-              <object class="GtkCellRendererText" id="renderer3"/>
-              <attributes>
-                <attribute name="text">0</attribute>
-              </attributes>
-            </child>
-          </object>        </child>
-      </object>    </child>
+          <object class="GtkDropDown" id="audio_combobox">
+            <property name="model">audio_format_model</property>
+          </object>
+        </child>
+      </object>
+    </child>
     <child>
-      <object class="GtkBox" id="vbox14">        <property name="orientation">vertical</property>
+      <object class="GtkBox" id="vbox14">
+        <property name="orientation">vertical</property>
         <child>
-          <object class="GtkBox" id="hbox23">            <child>
-              <object class="GtkLabel" id="label57">                <property name="label" translatable="yes">Get an account at </property>
-              </object>            </child>
+          <object class="GtkBox" id="hbox23">
+            <child>
+              <object class="GtkLabel" id="label57">
+                <property name="label" translatable="yes">Get an account at </property>
+              </object>
+            </child>
             <child>
               <object class="GtkLinkButton" id="href1">
                 <property name="label" translatable="yes">http://magnatune.com/compare_plans</property>
                 <property name="uri">http://magnatune.com/compare_plans?referal_id=rhythmbox</property>
                 <style><class name="flat"/></style>
-              </object>            </child>
-          </object>        </child>
+              </object>
+            </child>
+          </object>
+        </child>
         <child>
-          <object class="GtkBox" id="hbox15">            <child>
-              <object class="GtkLabel" id="label21">                <property name="label" translatable="yes">Find out about Magnatune at </property>
+          <object class="GtkBox" id="hbox15">
+            <child>
+              <object class="GtkLabel" id="label21">
+                <property name="label" translatable="yes">Find out about Magnatune at </property>
                 <property name="use-underline">True</property>
                 <property name="mnemonic-widget">magnatune_link</property>
-              </object>            </child>
+              </object>
+            </child>
             <child>
               <object class="GtkLinkButton" id="magnatune_link">
                 <property name="label" translatable="yes">http://www.magnatune.com/info/</property>
                 <property name="uri">http://www.magnatune.com/info/</property>
                 <style><class name="flat"/></style>
-              </object>            </child>
-          </object>        </child>
-      </object>    </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
   </object>
 </interface>

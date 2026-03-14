@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.19.0 -->
 <interface>
   <requires lib="gtk" version="4.0"/>
+  <object class="GtkStringList" id="replaygainmodemodel">
+    <items>
+      <item translatable="yes">Radio (equal loudness for all tracks)</item>
+      <item translatable="yes">Album (ideal loudness for all tracks)</item>
+    </items>
+  </object>
   <object class="GtkAdjustment" id="preampadjustment">
     <property name="lower">-15</property>
     <property name="upper">25</property>
@@ -9,115 +14,87 @@
     <property name="page-increment">5</property>
     <property name="page-size">10</property>
   </object>
-  <object class="GtkListStore" id="replaygainmodemodel">
-    <columns>
-      <!-- column-name display -->
-      <column type="gchararray"/>
-      <!-- column-name setting -->
-      <column type="gchararray"/>
-    </columns>
-    <data>
-      <row>
-        <col id="0" translatable="yes">Radio (equal loudness for all tracks)</col>
-        <col id="1">radio</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">Album (ideal loudness for all tracks)</col>
-        <col id="1">album</col>
-      </row>
-    </data>
-  </object>
-  <object class="GtkBox" id="replaygain-prefs">    <property name="orientation">vertical</property>
+  <object class="GtkBox" id="replaygain-prefs">
+    <property name="orientation">vertical</property>
     <property name="spacing">18</property>
     <child>
-      <object class="GtkLabel" id="headerlabel">        <property name="label" translatable="yes">ReplayGain preferences</property>
+      <object class="GtkLabel" id="headerlabel">
+        <property name="label" translatable="yes">ReplayGain preferences</property>
         <property name="halign">start</property>
         <attributes>
           <attribute name="weight" value="bold"/>
         </attributes>
-      </object>    </child>
+      </object>
+    </child>
     <child>
-      <object class="GtkGrid" id="grid1">        <property name="margin-start">8</property>
+      <object class="GtkGrid" id="grid1">
+        <property name="margin-start">8</property>
         <property name="margin-end">8</property>
         <property name="row-spacing">6</property>
         <property name="column-spacing">6</property>
         <child>
-          <object class="GtkLabel" id="label3">            <property name="label" translatable="yes">ReplayGain _mode:</property>
+          <object class="GtkLabel" id="label3">
+            <property name="label" translatable="yes">ReplayGain _mode:</property>
             <property name="use-underline">True</property>
             <property name="halign">start</property>
+            <layout>
+              <property name="column">0</property>
+              <property name="row">0</property>
+            </layout>
           </object>
-          <layout>
-
-            <property name="column">0</property>
-
-            <property name="row">0</property>
-
-          </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="preamplabel">            <property name="label" translatable="yes">_Pre-amp:</property>
+          <object class="GtkDropDown" id="replaygainmode">
+            <property name="model">replaygainmodemodel</property>
+            <layout>
+              <property name="column">1</property>
+              <property name="row">0</property>
+            </layout>
+          </object>
+        </child>
+        <child>
+          <object class="GtkLabel" id="preamplabel">
+            <property name="label" translatable="yes">_Pre-amp:</property>
             <property name="use-underline">True</property>
             <property name="halign">start</property>
+            <layout>
+              <property name="column">0</property>
+              <property name="row">1</property>
+            </layout>
           </object>
-          <layout>
-
-            <property name="column">0</property>
-
-            <property name="row">1</property>
-
-          </layout>
+        </child>
+        <child>
+          <object class="GtkScale" id="preamp">
+            <property name="hexpand">True</property>
+            <property name="adjustment">preampadjustment</property>
+            <layout>
+              <property name="column">1</property>
+              <property name="row">1</property>
+            </layout>
+          </object>
         </child>
         <child>
           <object class="GtkCheckButton" id="limiter">
-            <property name="label" translatable="yes">_Apply compression to prevent clipping</property>            <property name="use-underline">True</property>
+            <property name="label" translatable="yes">_Apply compression to prevent clipping</property>
+            <property name="use-underline">True</property>
+            <layout>
+              <property name="column">0</property>
+              <property name="row">2</property>
+              <property name="column-span">2</property>
+            </layout>
           </object>
-          <layout>
-
-            <property name="column">0</property>
-
-            <property name="row">2</property>
-
-            <property name="column-span">2</property>
-
-          </layout>
         </child>
-        <child>
-          <object class="GtkComboBox" id="replaygainmode">            <property name="model">replaygainmodemodel</property>
-            <child>
-              <object class="GtkCellRendererText" id="cellrenderertext2"/>
-              <attributes>
-                <attribute name="text">0</attribute>
-              </attributes>
-            </child>
-          </object>
-          <layout>
-
-            <property name="column">1</property>
-
-            <property name="row">0</property>
-
-          </layout>
-        </child>
-        <child>
-          <object class="GtkScale" id="preamp">            <property name="hexpand">True</property>
-            <property name="adjustment">preampadjustment</property>
-          </object>
-          <layout>
-
-            <property name="column">1</property>
-
-            <property name="row">1</property>
-
-          </layout>
-        </child>
-      </object>    </child>
+      </object>
+    </child>
     <child>
       <object class="GtkLinkButton" id="linkbutton">
-        <property name="label" translatable="yes">Learn more about ReplayGain</property>        <property name="has-tooltip">True</property>
-	<property name="uri">http://wiki.hydrogenaud.io/index.php/ReplayGain</property>
+        <property name="label" translatable="yes">Learn more about ReplayGain</property>
+        <property name="has-tooltip">True</property>
+        <property name="uri">http://wiki.hydrogenaud.io/index.php/ReplayGain</property>
         <style>
           <class name="flat"/>
         </style>
-      </object>    </child>
+      </object>
+    </child>
   </object>
 </interface>

@@ -30,7 +30,7 @@ from LyricsSites import lyrics_sites
 from os import system, path
 
 import rb
-from gi.repository import RB, Gtk, Gio, GObject
+from gi.repository import RB, Gtk, Gio, GLib, GObject
 
 import gettext
 gettext.install('rhythmbox', RB.locale_dir())
@@ -88,23 +88,19 @@ class LyricsConfigureDialog (GObject.Object, RB.PeasGtkConfigurable):
 
 
 	def choose_callback(self, widget):
-		def response_handler(widget, response):
-			if response == Gtk.ResponseType.OK:
-				path = self.chooser.get_file().get_path()
-				self.chooser.close()
+		dialog = Gtk.FileDialog(title=_("Choose lyrics folder..."))
+		window = self.config.get_root()
+		dialog.select_folder(window, None, self._folder_selected_cb)
+
+	def _folder_selected_cb(self, dialog, result):
+		try:
+			folder = dialog.select_folder_finish(result)
+			if folder:
+				path = folder.get_path()
 				self.path_display.set_text(path)
 				self.settings['folder'] = path
-			else:
-				self.chooser.close()
-
-		self.chooser = Gtk.FileChooserDialog(title=_("Choose lyrics folder..."),
-					action=Gtk.FileChooserAction.SELECT_FOLDER)
-		self.chooser.add_button(_("_Cancel"), Gtk.ResponseType.CANCEL)
-		self.chooser.add_button(_("_OK"), Gtk.ResponseType.OK)
-		self.chooser.connect("response", response_handler)
-		self.chooser.set_modal(True)
-		self.chooser.set_transient_for(self.config.get_root())
-		self.chooser.present()
+		except Exception:
+			pass
 
 	def get_prefs (self):
 		try:

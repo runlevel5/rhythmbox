@@ -1,50 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.20.2 -->
 <interface>
   <requires lib="gtk" version="4.0"/>
-  <object class="GtkGrid" id="listenbrainz-settings">    <property name="margin-start">12</property>
+  <object class="GtkGrid" id="listenbrainz-settings">
+    <property name="margin-start">12</property>
     <property name="margin-end">12</property>
     <property name="margin-top">12</property>
     <property name="margin-bottom">12</property>
     <property name="row-spacing">6</property>
     <property name="column-spacing">6</property>
     <child>
-      <object class="GtkEntry" id="user-token">        <property name="width-chars">34</property>
-      </object>
-      <layout>
-
-        <property name="column">1</property>
-
-        <property name="row">1</property>
-
-      </layout>
-    </child>
-    <child>
-      <object class="GtkLabel" id="user-token-label">        <property name="label" translatable="yes">User token:</property>
-      </object>
-      <layout>
-
-        <property name="column">0</property>
-
-        <property name="row">1</property>
-
-      </layout>
-    </child>
-    <child>
-      <object class="GtkLabel">        <property name="label" translatable="yes">To submit your listens to ListenBrainz, enter your ListenBrainz user token below. You can see your user token in your &lt;a href="https://listenbrainz.org/profile/"&gt;user profile&lt;/a&gt;.</property>
+      <object class="GtkLabel">
+        <property name="label" translatable="yes">To submit your listens to ListenBrainz, enter your ListenBrainz user token below. You can see your user token in your &lt;a href="https://listenbrainz.org/profile/"&gt;user profile&lt;/a&gt;.</property>
         <property name="use-markup">True</property>
         <property name="wrap">True</property>
         <property name="max-width-chars">40</property>
+        <layout>
+          <property name="column">0</property>
+          <property name="row">0</property>
+          <property name="column-span">2</property>
+        </layout>
       </object>
-      <layout>
-
-        <property name="column">0</property>
-
-        <property name="row">0</property>
-
-        <property name="column-span">2</property>
-
-      </layout>
+    </child>
+    <child>
+      <object class="GtkLabel" id="user-token-label">
+        <property name="label" translatable="yes">User token:</property>
+        <layout>
+          <property name="column">0</property>
+          <property name="row">1</property>
+        </layout>
+      </object>
+    </child>
+    <child>
+      <object class="GtkEntry" id="user-token">
+        <property name="width-chars">34</property>
+        <layout>
+          <property name="column">1</property>
+          <property name="row">1</property>
+        </layout>
+      </object>
     </child>
   </object>
 </interface>

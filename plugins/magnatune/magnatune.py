@@ -212,7 +212,7 @@ class MagnatuneConfig(GObject.GObject, RB.PeasGtkConfigurable):
             MagnatuneAccount.instance().update(username, password)
 
         def format_selection_changed(button):
-            self.settings["format"] = self.format_list[button.get_active()]
+            self.settings["format"] = self.format_list[button.get_selected()]
 
         builder = Gtk.Builder()
         builder.add_from_file(rb.find_plugin_file(self, "magnatune-prefs.ui"))
@@ -227,7 +227,7 @@ class MagnatuneConfig(GObject.GObject, RB.PeasGtkConfigurable):
         ):
             builder.get_object(name).set_name(name)
 
-        builder.get_object("audio_combobox").set_active(
+        builder.get_object("audio_combobox").set_selected(
             self.format_list.index(self.settings["format"])
         )
 
@@ -239,7 +239,7 @@ class MagnatuneConfig(GObject.GObject, RB.PeasGtkConfigurable):
         ):
             builder.get_object(name).connect("toggled", account_type_toggled)
         builder.get_object("audio_combobox").connect(
-            "changed", format_selection_changed
+            "notify::selected", lambda w, p: format_selection_changed(w)
         )
 
         # use GtkEventControllerFocus instead of focus-out-event (removed in GTK4)
