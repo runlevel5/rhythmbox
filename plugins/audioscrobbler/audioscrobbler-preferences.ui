@@ -2,15 +2,11 @@
 <!-- Generated with glade 3.18.3 -->
 <interface>
   <requires lib="gtk" version="4.0"/>
-  <object class="GtkImage" id="lastfm_image">    <property name="pixbuf">Last.fm-icon.png</property>
-  </object>
-  <object class="GtkImage" id="librefm_image">    <property name="pixbuf">Libre.fm-icon.png</property>
-  </object>
   <object class="GtkBox" id="config">    <property name="orientation">vertical</property>
     <property name="spacing">4</property>
     <child>
       <object class="GtkLabel" id="label1">        <property name="label" translatable="yes">Which Audioscrobbler services do you wish to use?</property>
-        <property name="xalign">0</property>
+        <property name="halign">start</property>
       </object>    </child>
     <child>
       <object class="GtkBox" id="hbox2">        <child>
@@ -21,17 +17,11 @@
           <object class="GtkBox" id="vbox2">            <property name="orientation">vertical</property>
             <child>
               <object class="GtkCheckButton" id="lastfm_enabled_check">
-                <property name="label" translatable="yes">Last.fm</property>                <property name="receives-default">False</property>
-                <property name="image">lastfm_image</property>
-                <property name="xalign">0.5</property>
-                <property name="draw-indicator">True</property>
+                <property name="label" translatable="yes">Last.fm</property>
               </object>            </child>
             <child>
               <object class="GtkCheckButton" id="librefm_enabled_check">
-                <property name="label" translatable="yes">Libre.fm</property>                <property name="receives-default">False</property>
-                <property name="image">librefm_image</property>
-                <property name="xalign">0.5</property>
-                <property name="draw-indicator">True</property>
+                <property name="label" translatable="yes">Libre.fm</property>
               </object>            </child>
           </object>        </child>
       </object>    </child>

@@ -19,7 +19,7 @@
                     <property name="spacing">4</property>
                     <child>
                       <object class="GtkBox" id="hbox3">                        <child>
-                          <object class="GtkLabel" id="username_label">                            <property name="xalign">0</property>
+                          <object class="GtkLabel" id="username_label">                            <property name="halign">start</property>
                             <attributes>
                               <attribute name="weight" value="bold"/>
                               <attribute name="scale" value="2"/>
@@ -27,8 +27,8 @@
                           </object>                        </child>
                         <child>
                           <object class="GtkButton" id="logout_button">
-                            <property name="label" translatable="yes">Logout</property>                            <property name="receives-default">True</property>
-                            <property name="relief">half</property>
+                            <property name="label" translatable="yes">Logout</property>
+                            <style><class name="flat"/></style>
                           </object>                        </child>
                       </object>                    </child>
                     <child>
@@ -37,26 +37,24 @@
                       </object>                    </child>
                     <child>
                       <object class="GtkLinkButton" id="view_profile_link">
-                        <property name="label" translatable="yes">View your profile</property>                        <property name="receives-default">True</property>
-                        <property name="relief">none</property>
+                        <property name="label" translatable="yes">View your profile</property>
                         <property name="halign">start</property>
+                        <style><class name="flat"/></style>
                       </object>                    </child>
                     <child>
                       <object class="GtkCheckButton" id="scrobbling_enabled_check">
-                        <property name="label" translatable="yes">Submit listening data</property>                        <property name="receives-default">False</property>
-                        <property name="xalign">0.5</property>
-                        <property name="draw-indicator">True</property>
+                        <property name="label" translatable="yes">Submit listening data</property>
                         <property name="margin-start">4</property>
                         <property name="halign">start</property>
                       </object>                    </child>
                     <child>
-                      <object class="GtkExpander" id="expander1">                        <property name="spacing">5</property>
+                      <object class="GtkExpander" id="expander1">
                         <child>
                           <object class="GtkGrid" id="table2">                            <property name="column-spacing">12</property>
                             <property name="row-spacing">6</property>
                             <child>
                               <object class="GtkLabel" id="label41">                                <property name="label" translatable="yes">Status:</property>
-                                <property name="xalign">0</property>
+                                <property name="halign">start</property>
                               </object>
                               <layout>
 
@@ -68,7 +66,7 @@
                             </child>
                             <child>
                               <object class="GtkLabel" id="label42">                                <property name="label" translatable="yes">Queued tracks:</property>
-                                <property name="xalign">0</property>
+                                <property name="halign">start</property>
                               </object>
                               <layout>
 
@@ -80,7 +78,7 @@
                             </child>
                             <child>
                               <object class="GtkLabel" id="label43">                                <property name="label" translatable="yes">Tracks submitted:</property>
-                                <property name="xalign">0</property>
+                                <property name="halign">start</property>
                               </object>
                               <layout>
 
@@ -92,7 +90,7 @@
                             </child>
                             <child>
                               <object class="GtkLabel" id="label44">                                <property name="label" translatable="yes">Last submission time:</property>
-                                <property name="xalign">0</property>
+                                <property name="halign">start</property>
                               </object>
                               <layout>
 
@@ -104,7 +102,7 @@
                             </child>
                             <child>
                               <object class="GtkLabel" id="scrobbler_submit_time_label">                                <property name="label" translatable="yes">Never</property>
-                                <property name="xalign">0</property>
+                                <property name="halign">start</property>
                               </object>
                               <layout>
 
@@ -116,7 +114,7 @@
                             </child>
                             <child>
                               <object class="GtkLabel" id="scrobbler_status_msg_label">                                <property name="label" translatable="yes">Disabled</property>
-                                <property name="xalign">0</property>
+                                <property name="halign">start</property>
                               </object>
                               <layout>
 
@@ -128,7 +126,7 @@
                             </child>
                             <child>
                               <object class="GtkLabel" id="scrobbler_queue_count_label">                                <property name="label">0</property>
-                                <property name="xalign">0</property>
+                                <property name="halign">start</property>
                               </object>
                               <layout>
 
@@ -140,7 +138,7 @@
                             </child>
                             <child>
                               <object class="GtkLabel" id="scrobbler_submit_count_label">                                <property name="label">0</property>
-                                <property name="xalign">0</property>
+                                <property name="halign">start</property>
                               </object>
                               <layout>
 
@@ -173,7 +171,7 @@
                     <property name="margin-top">10</property>
                     <property name="margin-bottom">10</property>
                     <property name="label" translatable="yes">Create a Radio Station</property>
-                    <property name="xalign">0</property>
+                    <property name="halign">start</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>
                     </attributes>
@@ -193,7 +191,7 @@
                       </object>                    </child>
                     <child>
                       <object class="GtkButton" id="station_creator_button">
-                        <property name="label" translatable="yes">Create Station</property>                        <property name="receives-default">True</property>
+                        <property name="label" translatable="yes">Create Station</property>
                       </object>                    </child>
                   </object>                </child>
               </object>            </child>
@@ -208,7 +206,7 @@
                     <property name="margin-top">10</property>
                     <property name="margin-bottom">10</property>
                     <property name="label" translatable="yes">Recently Listened Tracks</property>
-                    <property name="xalign">0</property>
+                    <property name="halign">start</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>
                     </attributes>
@@ -225,7 +223,7 @@
                     <property name="margin-top">10</property>
                     <property name="margin-bottom">10</property>
                     <property name="label" translatable="yes">Top Artists</property>
-                    <property name="xalign">0</property>
+                    <property name="halign">start</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>
                     </attributes>
@@ -242,7 +240,7 @@
                     <property name="margin-top">10</property>
                     <property name="margin-bottom">10</property>
                     <property name="label" translatable="yes">Top Tracks</property>
-                    <property name="xalign">0</property>
+                    <property name="halign">start</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>
                     </attributes>
@@ -259,7 +257,7 @@
                     <property name="margin-top">10</property>
                     <property name="margin-bottom">10</property>
                     <property name="label" translatable="yes">Loved Tracks</property>
-                    <property name="xalign">0</property>
+                    <property name="halign">start</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>
                     </attributes>

@@ -139,7 +139,7 @@ static void login_status_change_cb (RBAudioscrobblerAccount *account,
                                     RBAudioscrobblerProfilePage *page);
 
 /* scrobbling enabled preference */
-void scrobbling_enabled_check_toggled_cb (GtkToggleButton *togglebutton,
+void scrobbling_enabled_check_toggled_cb (GtkCheckButton *togglebutton,
                                           RBAudioscrobblerProfilePage *page);
 static void scrobbler_settings_changed_cb (GSettings *settings,
 					   const char *key,
@@ -387,7 +387,7 @@ rb_audioscrobbler_profile_page_constructed (GObject *object)
 				 "changed",
 				 G_CALLBACK (scrobbler_settings_changed_cb),
 				 page, 0);
-	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (page->priv->scrobbling_enabled_check),
+	gtk_check_button_set_active (GTK_CHECK_BUTTON (page->priv->scrobbling_enabled_check),
 				      g_settings_get_boolean (page->priv->settings,
 							      AUDIOSCROBBLER_SCROBBLING_ENABLED_KEY));
 
@@ -802,12 +802,12 @@ login_status_change_cb (RBAudioscrobblerAccount *account,
 }
 
 void
-scrobbling_enabled_check_toggled_cb (GtkToggleButton *togglebutton,
+scrobbling_enabled_check_toggled_cb (GtkCheckButton *togglebutton,
                                      RBAudioscrobblerProfilePage *page)
 {
 	g_settings_set_boolean (page->priv->settings,
 				AUDIOSCROBBLER_SCROBBLING_ENABLED_KEY,
-				gtk_toggle_button_get_active (togglebutton));
+				gtk_check_button_get_active (togglebutton));
 }
 
 static void
@@ -821,7 +821,7 @@ scrobbler_settings_changed_cb (GSettings *settings,
 	}
 
 	enabled = g_settings_get_boolean (settings, key);
-	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (page->priv->scrobbling_enabled_check),
+	gtk_check_button_set_active (GTK_CHECK_BUTTON (page->priv->scrobbling_enabled_check),
 	                              enabled);
 
 	if (page->priv->audioscrobbler != NULL && enabled == FALSE) {
@@ -1374,7 +1374,9 @@ user_info_updated_cb (RBAudioscrobblerUser *user,
 		gtk_widget_show (page->priv->view_profile_link);
 
 		if (data->image != NULL) {
-			gtk_image_set_from_pixbuf (GTK_IMAGE (page->priv->profile_image), data->image);
+			GdkTexture *texture = gdk_texture_new_for_pixbuf (data->image);
+			gtk_image_set_from_paintable (GTK_IMAGE (page->priv->profile_image), GDK_PAINTABLE (texture));
+			g_object_unref (texture);
 			/* show the parent because the image is packed in a viewport so it has a shadow */
 			gtk_widget_show (gtk_widget_get_parent (page->priv->profile_image));
 		} else {
@@ -1515,8 +1517,7 @@ create_list_button (RBAudioscrobblerProfilePage *page,
 	GtkWidget *label_alignment;
 
 	button = gtk_button_new ();
-	gtk_widget_set_focus_on_click (button,
-		                       FALSE);
+	gtk_widget_set_focusable (button, FALSE);
 	gtk_widget_add_css_class (button, "flat");
 
 	button_contents = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);

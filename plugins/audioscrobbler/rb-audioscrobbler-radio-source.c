@@ -404,18 +404,17 @@ rb_audioscrobbler_radio_source_constructed (GObject *object)
 	source->priv->art_store = rb_ext_db_new ("album-art");
 
 	main_vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 4);
-	gtk_widget_show (main_vbox);
 	gtk_box_append (GTK_BOX (source), main_vbox);
 
 	/* toolbar */
 	toolbar = rb_source_toolbar_new (RB_DISPLAY_PAGE (source), accel_group);
 	gtk_box_append (GTK_BOX (main_vbox), GTK_WIDGET (toolbar));
-	gtk_widget_show (GTK_WIDGET (toolbar));
 
 	/* error info bar */
 	source->priv->error_info_bar = gtk_info_bar_new ();
 	source->priv->error_info_bar_label = gtk_label_new ("");
 	gtk_info_bar_add_child (GTK_INFO_BAR (source->priv->error_info_bar), source->priv->error_info_bar_label);
+	gtk_widget_set_visible (source->priv->error_info_bar, FALSE);
 	gtk_box_append (GTK_BOX (main_vbox), source->priv->error_info_bar);
 
 	/* entry view */
@@ -425,7 +424,6 @@ rb_audioscrobbler_radio_source_constructed (GObject *object)
 	rb_entry_view_append_column (source->priv->track_view, RB_ENTRY_VIEW_COL_ALBUM, FALSE);
 	rb_entry_view_append_column (source->priv->track_view, RB_ENTRY_VIEW_COL_DURATION, FALSE);
 	rb_entry_view_set_columns_clickable (source->priv->track_view, FALSE);
-	gtk_widget_show (GTK_WIDGET (source->priv->track_view));
 
 	gtk_box_append (GTK_BOX (main_vbox), GTK_WIDGET (source->priv->track_view));
 
