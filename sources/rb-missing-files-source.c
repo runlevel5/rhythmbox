@@ -285,7 +285,6 @@ rb_missing_files_source_songs_show_popup_cb (RBEntryView *view,
 					     gboolean over_entry,
 					     RBMissingFilesSource *source)
 {
-	GtkWidget *menu;
 	GtkBuilder *builder;
 
 	if (over_entry == FALSE)
@@ -298,9 +297,7 @@ rb_missing_files_source_songs_show_popup_cb (RBEntryView *view,
 		g_object_unref (builder);
 	}
 
-	menu = gtk_popover_menu_new_from_model (source->priv->popup);
-	gtk_widget_set_parent (menu, GTK_WIDGET (source));
-	gtk_popover_popup (GTK_POPOVER (menu));
+	rb_entry_view_popup_menu (view, source->priv->popup);
 }
 
 static void

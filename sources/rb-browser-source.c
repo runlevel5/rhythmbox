@@ -238,7 +238,6 @@ rb_browser_source_songs_show_popup_cb (RBEntryView *view,
 static void
 default_show_entry_popup (RBBrowserSource *source)
 {
-	GtkWidget *menu;
 	GMenuModel *playlist_menu;
 
 	/* update add to playlist menu links */
@@ -246,9 +245,7 @@ default_show_entry_popup (RBBrowserSource *source)
 	rb_menu_update_link (source->priv->popup, "rb-playlist-menu-link", playlist_menu);
 	g_clear_object (&playlist_menu);
 
-	menu = gtk_popover_menu_new_from_model (G_MENU_MODEL (source->priv->popup));
-	gtk_widget_set_parent (menu, GTK_WIDGET (source));
-	gtk_popover_popup (GTK_POPOVER (menu));
+	rb_entry_view_popup_menu (source->priv->songs, G_MENU_MODEL (source->priv->popup));
 }
 
 static void

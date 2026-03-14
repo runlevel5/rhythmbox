@@ -199,6 +199,9 @@ struct RBEntryViewPrivate
 
 	gboolean have_selection, have_complete_selection;
 
+	double last_click_x;
+	double last_click_y;
+
 	GHashTable *column_key_map;
 
 	GHashTable *propid_column_map;
@@ -2036,6 +2039,9 @@ rb_entry_view_button_press_cb (GtkGestureClick *gesture,
 		RhythmDBEntry *entry;
 		int bx, by;
 
+		view->priv->last_click_x = x;
+		view->priv->last_click_y = y;
+
 		gtk_tree_view_convert_widget_to_bin_window_coords (treeview, (int)x, (int)y, &bx, &by);
 		gtk_tree_view_get_path_at_pos (treeview, bx, by, &path, NULL, NULL, NULL);
 		if (path != NULL) {
@@ -2064,6 +2070,65 @@ rb_entry_view_popup_menu_cb (GtkTreeView *treeview,
 
 	g_signal_emit (G_OBJECT (view), rb_entry_view_signals[SHOW_POPUP], 0);
 	return TRUE;
+}
+
+/**
+ * rb_entry_view_popup_menu:
+ * @view: a #RBEntryView
+ * @menu_model: the menu model to display
+ *
+ * Creates a #GtkPopoverMenu from the menu model and displays it
+ * at the position of the last right-click in the entry view.
+ */
+static gboolean
+popup_menu_unparent_idle (gpointer data)
+{
+	GtkWidget *menu = GTK_WIDGET (data);
+	gtk_widget_unparent (menu);
+	return G_SOURCE_REMOVE;
+}
+
+static void
+popup_menu_closed_cb (GtkPopover *popover, gpointer user_data)
+{
+	g_idle_add (popup_menu_unparent_idle, popover);
+}
+
+void
+rb_entry_view_popup_menu (RBEntryView *view, GMenuModel *menu_model)
+{
+	GtkWidget *menu;
+	GdkRectangle rect;
+	double tx, ty;
+
+	menu = gtk_popover_menu_new_from_model (menu_model);
+
+	/* Parent the popover to the RBEntryView (GtkBox) rather than the
+	 * GtkTreeView directly.  GtkTreeView has an internal CSS node structure
+	 * that interferes with popover child CSS matching, which breaks hover
+	 * highlighting on menu items.  We translate the click coordinates from
+	 * treeview-relative to RBEntryView-relative so the popup still appears
+	 * at the right spot. */
+	if (gtk_widget_translate_coordinates (view->priv->treeview,
+	                                     GTK_WIDGET (view),
+	                                     view->priv->last_click_x,
+	                                     view->priv->last_click_y,
+	                                     &tx, &ty)) {
+		rect.x = (int) tx;
+		rect.y = (int) ty;
+	} else {
+		rect.x = (int) view->priv->last_click_x;
+		rect.y = (int) view->priv->last_click_y;
+	}
+	rect.width = 1;
+	rect.height = 1;
+
+	gtk_widget_set_parent (menu, GTK_WIDGET (view));
+	gtk_popover_set_has_arrow (GTK_POPOVER (menu), FALSE);
+	gtk_popover_set_pointing_to (GTK_POPOVER (menu), &rect);
+
+	g_signal_connect (menu, "closed", G_CALLBACK (popup_menu_closed_cb), NULL);
+	gtk_popover_popup (GTK_POPOVER (menu));
 }
 
 static gboolean

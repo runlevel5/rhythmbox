@@ -478,7 +478,6 @@ default_show_entry_view_popup (RBPlaylistSource *source,
 			       RBEntryView *view,
 			       gboolean over_entry)
 {
-	GtkWidget *menu;
 	GMenuModel *playlist_menu;
 
 	if (over_entry == FALSE)
@@ -489,9 +488,7 @@ default_show_entry_view_popup (RBPlaylistSource *source,
 	rb_menu_update_link (source->priv->popup, "rb-playlist-menu-link", playlist_menu);
 	g_object_unref (playlist_menu);
 
-	menu = gtk_popover_menu_new_from_model (G_MENU_MODEL (source->priv->popup));
-	gtk_widget_set_parent (menu, GTK_WIDGET (source));
-	gtk_popover_popup (GTK_POPOVER (menu));
+	rb_entry_view_popup_menu (view, G_MENU_MODEL (source->priv->popup));
 }
 
 static void

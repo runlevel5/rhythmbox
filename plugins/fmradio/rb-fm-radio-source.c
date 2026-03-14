@@ -310,8 +310,6 @@ rb_fm_radio_source_songs_view_show_popup (RBEntryView *view,
 					  gboolean over_entry,
 					  RBFMRadioSource *source)
 {
-	GtkWidget *popover;
-
 	if (over_entry == FALSE)
 		return;
 
@@ -327,9 +325,7 @@ rb_fm_radio_source_songs_view_show_popup (RBEntryView *view,
 		g_object_unref (builder);
 	}
 
-	popover = gtk_popover_menu_new_from_model (source->priv->popup);
-	gtk_widget_set_parent (popover, GTK_WIDGET (source));
-	gtk_popover_popup (GTK_POPOVER (popover));
+	rb_entry_view_popup_menu (view, source->priv->popup);
 }
 
 void

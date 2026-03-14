@@ -686,8 +686,6 @@ rb_iradio_source_songs_show_popup_cb (RBEntryView *view,
 				      gboolean over_entry,
 				      RBIRadioSource *source)
 {
-	GtkWidget *popover;
-
 	if (over_entry == FALSE)
 		return;
 
@@ -703,9 +701,7 @@ rb_iradio_source_songs_show_popup_cb (RBEntryView *view,
 		g_object_unref (builder);
 	}
 
-	popover = gtk_popover_menu_new_from_model (source->priv->popup);
-	gtk_widget_set_parent (popover, GTK_WIDGET (source));
-	gtk_popover_popup (GTK_POPOVER (popover));
+	rb_entry_view_popup_menu (view, source->priv->popup);
 }
 
 static void

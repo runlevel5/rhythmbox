@@ -438,7 +438,6 @@ impl_show_entry_view_popup (RBPlaylistSource *source,
 			    gboolean over_entry)
 {
 	RBPlayQueueSourcePrivate *priv = RB_PLAY_QUEUE_SOURCE_GET_PRIVATE (source);
-	GtkWidget *menu;
 	GMenu *popup;
 	RBApplication *app;
 
@@ -451,9 +450,7 @@ impl_show_entry_view_popup (RBPlaylistSource *source,
 	app = RB_APPLICATION (g_application_get_default ());
 	rb_menu_update_link (popup, "rb-playlist-menu-link", rb_application_get_shared_menu (app, "playlist-page-menu"));
 
-	menu = gtk_popover_menu_new_from_model (G_MENU_MODEL (popup));
-	gtk_widget_set_parent (menu, GTK_WIDGET (source));
-	gtk_popover_popup (GTK_POPOVER (menu));
+	rb_entry_view_popup_menu (view, G_MENU_MODEL (popup));
 }
 
 static void

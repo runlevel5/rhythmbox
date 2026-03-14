@@ -193,6 +193,8 @@ void		rb_entry_view_resort_model		(RBEntryView *view);
 
 void		rb_entry_view_set_status		(RBEntryView *view, const char *status, gboolean busy);
 
+void		rb_entry_view_popup_menu		(RBEntryView *view, GMenuModel *menu_model);
+
 G_END_DECLS
 
 #endif /* __RB_ENTRY_VIEW_H */

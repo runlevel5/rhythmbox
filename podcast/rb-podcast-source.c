@@ -141,7 +141,6 @@ podcast_posts_show_popup_cb (RBEntryView *view,
 	GList *lst;
 	gboolean downloadable = FALSE;
 	gboolean cancellable = FALSE;
-	GtkWidget *menu;
 	GActionMap *map;
 
 	lst = rb_entry_view_get_selected_entries (view);
@@ -169,9 +168,7 @@ podcast_posts_show_popup_cb (RBEntryView *view,
 	action = g_action_map_lookup_action (map, "podcast-cancel-download");
 	g_simple_action_set_enabled (G_SIMPLE_ACTION (action), cancellable);
 
-	menu = gtk_popover_menu_new_from_model (source->priv->episode_popup);
-	gtk_widget_set_parent (menu, GTK_WIDGET (source));
-	gtk_popover_popup (GTK_POPOVER (menu));
+	rb_entry_view_popup_menu (view, source->priv->episode_popup);
 }
 
 static void
