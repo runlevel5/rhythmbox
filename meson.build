@@ -60,7 +60,7 @@ gstreamer_plugins_base = dependency('gstreamer-plugins-base-1.0', version: '>= '
 gstreamer_pbutils = dependency('gstreamer-pbutils-1.0', version: '>= ' + gstreamer_required, required: true)
 gstreamer_tag = dependency('gstreamer-tag-1.0', version: '>= ' + gstreamer_required, required: true)
 gtk = dependency('gtk4', version: '>= 4.21.6', required: true)
-libadwaita = dependency('libadwaita-1', version: '>= 1.5.0', required: true)
+libadwaita = dependency('libadwaita-1', version: '>= 1.8.0', required: true)
 json_glib = dependency('json-glib-1.0', required: true)
 libpeas = dependency('libpeas-2', version: '>= 2.0.0', required: true)
 libsoup = dependency('libsoup-3.0', version: '>= 3.0.7', required: true)
