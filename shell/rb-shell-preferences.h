@@ -25,7 +25,7 @@
  *
  */
 
-#include <gtk/gtk.h>
+#include <adwaita.h>
 
 #ifndef __RB_SHELL_PREFERENCES_H
 #define __RB_SHELL_PREFERENCES_H
@@ -54,14 +54,14 @@ typedef struct RBShellPreferencesPrivate RBShellPreferencesPrivate;
 
 struct _RBShellPreferences
 {
-	GtkDialog parent;
+	AdwPreferencesDialog parent;
 
 	RBShellPreferencesPrivate *priv;
 };
 
 struct _RBShellPreferencesClass
 {
-	GtkDialogClass parent_class;
+	AdwPreferencesDialogClass parent_class;
 };
 
 GType		rb_shell_preferences_get_type		(void);

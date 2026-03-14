@@ -1558,16 +1558,9 @@ rb_shell_get_property (GObject *object,
 		g_value_set_object (value, shell->priv->window);
 		break;
 	case PROP_PREFS:
-		/* create the preferences window the first time we need it */
+		/* create the preferences dialog the first time we need it */
 		if (shell->priv->prefs == NULL) {
-			GtkWidget *content;
-
 			shell->priv->prefs = rb_shell_preferences_new (shell->priv->sources);
-
-			gtk_window_set_transient_for (GTK_WINDOW (shell->priv->prefs),
-						      GTK_WINDOW (shell->priv->window));
-			content = gtk_dialog_get_content_area (GTK_DIALOG (shell->priv->prefs));
-			gtk_widget_show (content);
 		}
 		g_value_set_object (value, shell->priv->prefs);
 		break;
@@ -1688,7 +1681,7 @@ rb_shell_finalize (GObject *object)
 
 	if (shell->priv->prefs != NULL) {
 		rb_debug ("destroying prefs");
-		gtk_window_destroy (GTK_WINDOW (shell->priv->prefs));
+		adw_dialog_force_close (ADW_DIALOG (shell->priv->prefs));
 	}
 
 	g_free (shell->priv->rhythmdb_file);

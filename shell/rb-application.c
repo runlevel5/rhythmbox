@@ -131,10 +131,14 @@ preferences_action_cb (GSimpleAction *action, GVariant *parameters, gpointer use
 {
 	RBApplication *app = RB_APPLICATION (user_data);
 	RBShellPreferences *prefs;
+	GtkWidget *window;
 
 	g_object_get (app->priv->shell, "prefs", &prefs, NULL);
+	g_object_get (app->priv->shell, "window", &window, NULL);
 
-	gtk_window_present (GTK_WINDOW (prefs));
+	adw_dialog_present (ADW_DIALOG (prefs), window);
+
+	g_object_unref (window);
 	g_object_unref (prefs);
 }
 

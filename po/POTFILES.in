@@ -15,7 +15,6 @@ data/ui/create-playlist.ui
 data/ui/display-page-add-menu.ui
 data/ui/edit-menu.ui
 data/ui/encoding-settings.ui
-data/ui/general-prefs.ui
 data/ui/import-dialog.ui
 data/ui/import-errors-popup.ui
 data/ui/library-prefs.ui
@@ -23,12 +22,10 @@ data/ui/library-toolbar.ui
 data/ui/main-toolbar.ui
 data/ui/media-player-properties.ui
 data/ui/missing-files-popup.ui
-data/ui/playback-prefs.ui
 data/ui/playlist-menu.ui
 data/ui/playlist-popup.ui
 data/ui/playlist-save.ui
 data/ui/playlist-toolbar.ui
-data/ui/plugin-prefs.ui
 data/ui/podcast-add-dialog.ui
 data/ui/podcast-feed-properties.ui
 data/ui/podcast-popups.ui
