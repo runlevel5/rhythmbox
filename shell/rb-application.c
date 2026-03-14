@@ -209,7 +209,7 @@ about_action_cb (GSimpleAction *action, GVariant *parameters, gpointer user_data
 	adw_about_dialog_set_application_name (ADW_ABOUT_DIALOG (dialog), "Rhythmbox");
 	adw_about_dialog_set_version (ADW_ABOUT_DIALOG (dialog), VERSION);
 	adw_about_dialog_set_copyright (ADW_ABOUT_DIALOG (dialog),
-		"Copyright \xc2\xa9 2005 - 2019 The Rhythmbox authors\n"
+		"Copyright \xc2\xa9 2005 - 2026 The Rhythmbox authors\n"
 		"Copyright \xc2\xa9 2003 - 2005 Colin Walters\n"
 		"Copyright \xc2\xa9 2002, 2003 Jorn Baayen");
 	adw_about_dialog_set_license (ADW_ABOUT_DIALOG (dialog), license_trans);
