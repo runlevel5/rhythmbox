@@ -1,80 +1,42 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk" version="4.0"/>
-  <object class="GtkGrid" id="task-list-entry">
+  <object class="GtkBox" id="task-list-entry">
+    <property name="orientation">horizontal</property>
+    <property name="spacing">12</property>
     <property name="margin-start">6</property>
     <property name="margin-end">6</property>
     <property name="margin-top">6</property>
     <property name="margin-bottom">6</property>
-    <property name="column-spacing">12</property>
     <child>
-      <object class="GtkGrid">
+      <object class="GtkLabel" id="task-label">
+        <property name="halign">start</property>
         <property name="valign">center</property>
         <property name="hexpand">True</property>
-        <property name="column-homogeneous">True</property>
-        <child>
-          <object class="GtkGrid">
-            <property name="valign">center</property>
-            <property name="hexpand">True</property>
-            <child>
-              <object class="GtkLabel" id="task-label">
-                <property name="halign">start</property>
-                <property name="valign">center</property>
-                <property name="hexpand">True</property>
-                <property name="ellipsize">end</property>
-              </object>
-              <layout>
-                <property name="column">0</property>
-                <property name="row">0</property>
-              </layout>
-            </child>
-            <child>
-              <object class="GtkLabel" id="task-detail">
-                <property name="valign">center</property>
-                <property name="hexpand">True</property>
-                <property name="ellipsize">end</property>
-                <style>
-                  <class name="dim-label"/>
-                </style>
-              </object>
-              <layout>
-                <property name="column">1</property>
-                <property name="row">0</property>
-              </layout>
-            </child>
-          </object>
-          <layout>
-            <property name="column">0</property>
-            <property name="row">0</property>
-            <property name="column-span">2</property>
-          </layout>
-        </child>
-        <child>
-          <object class="GtkProgressBar" id="task-progress">
-            <property name="valign">center</property>
-            <property name="hexpand">True</property>
-          </object>
-          <layout>
-            <property name="column">2</property>
-            <property name="row">0</property>
-          </layout>
-        </child>
+        <property name="ellipsize">end</property>
       </object>
-      <layout>
-        <property name="column">0</property>
-        <property name="row">0</property>
-        <property name="column-span">2</property>
-      </layout>
+    </child>
+    <child>
+      <object class="GtkLabel" id="task-detail">
+        <property name="valign">center</property>
+        <property name="hexpand">True</property>
+        <property name="ellipsize">end</property>
+        <style>
+          <class name="dim-label"/>
+        </style>
+      </object>
+    </child>
+    <child>
+      <object class="GtkProgressBar" id="task-progress">
+        <property name="valign">center</property>
+        <property name="hexpand">True</property>
+      </object>
     </child>
     <child>
       <object class="GtkButton" id="task-cancel">
         <property name="valign">center</property>
         <property name="icon-name">process-stop-symbolic</property>
       </object>
-      <layout>
-        <property name="column">2</property>
-        <property name="row">0</property>
-      </layout>
     </child>
   </object>
 </interface>
