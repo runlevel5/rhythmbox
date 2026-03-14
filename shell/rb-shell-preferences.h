@@ -54,14 +54,14 @@ typedef struct RBShellPreferencesPrivate RBShellPreferencesPrivate;
 
 struct _RBShellPreferences
 {
-	AdwPreferencesDialog parent;
+	AdwDialog parent;
 
 	RBShellPreferencesPrivate *priv;
 };
 
 struct _RBShellPreferencesClass
 {
-	AdwPreferencesDialogClass parent_class;
+	AdwDialogClass parent_class;
 };
 
 GType		rb_shell_preferences_get_type		(void);

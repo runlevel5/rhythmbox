@@ -31,8 +31,8 @@
  * SECTION:rbshellpreferences
  * @short_description: preferences dialog
  *
- * The preferences dialog uses #AdwPreferencesDialog with pages for General,
- * Playback, source-specific settings, and Plugins.
+ * The preferences dialog uses #AdwDialog with an #AdwViewStack and
+ * #AdwViewSwitcher in the header bar for top-positioned page tabs.
  */
 
 #include <config.h>
@@ -87,8 +87,7 @@ struct {
 
 struct RBShellPreferencesPrivate
 {
-	AdwPreferencesPage *general_page;
-	AdwPreferencesPage *playback_page;
+	AdwViewStack *stack;
 
 	/* General page */
 	AdwComboRow *browser_views_row;
@@ -108,7 +107,7 @@ struct RBShellPreferencesPrivate
 };
 
 
-G_DEFINE_TYPE_WITH_PRIVATE (RBShellPreferences, rb_shell_preferences, ADW_TYPE_PREFERENCES_DIALOG)
+G_DEFINE_TYPE_WITH_PRIVATE (RBShellPreferences, rb_shell_preferences, ADW_TYPE_DIALOG)
 
 static void
 rb_shell_preferences_class_init (RBShellPreferencesClass *klass)
@@ -233,9 +232,17 @@ xfade_row_changed_cb (GObject *object, GParamSpec *pspec, RBShellPreferences *pr
 	gtk_widget_set_sensitive (GTK_WIDGET (prefs->priv->transition_scale), active);
 }
 
+/* ---- Helper: wrap content in a scrollable AdwPreferencesPage ---- */
+
+static GtkWidget *
+wrap_in_preferences_page (void)
+{
+	return adw_preferences_page_new ();
+}
+
 /* ---- Build General page ---- */
 
-static void
+static GtkWidget *
 build_general_page (RBShellPreferences *prefs)
 {
 	AdwPreferencesPage *page;
@@ -249,9 +256,7 @@ build_general_page (RBShellPreferences *prefs)
 		NULL
 	};
 
-	page = ADW_PREFERENCES_PAGE (adw_preferences_page_new ());
-	adw_preferences_page_set_title (page, _("General"));
-	adw_preferences_page_set_icon_name (page, "preferences-other-symbolic");
+	page = ADW_PREFERENCES_PAGE (wrap_in_preferences_page ());
 
 	/* Browser Views group */
 	browser_group = ADW_PREFERENCES_GROUP (adw_preferences_group_new ());
@@ -304,13 +309,12 @@ build_general_page (RBShellPreferences *prefs)
 	gtk_widget_set_visible (GTK_WIDGET (prefs->priv->general_plugin_group), FALSE);
 	adw_preferences_page_add (page, prefs->priv->general_plugin_group);
 
-	prefs->priv->general_page = page;
-	adw_preferences_dialog_add (ADW_PREFERENCES_DIALOG (prefs), page);
+	return GTK_WIDGET (page);
 }
 
 /* ---- Build Playback page ---- */
 
-static void
+static GtkWidget *
 build_playback_page (RBShellPreferences *prefs)
 {
 	AdwPreferencesPage *page;
@@ -318,9 +322,7 @@ build_playback_page (RBShellPreferences *prefs)
 	AdwActionRow *duration_row;
 	GtkAdjustment *adj;
 
-	page = ADW_PREFERENCES_PAGE (adw_preferences_page_new ());
-	adw_preferences_page_set_title (page, _("Playback"));
-	adw_preferences_page_set_icon_name (page, "media-playback-start-symbolic");
+	page = ADW_PREFERENCES_PAGE (wrap_in_preferences_page ());
 
 	/* Crossfade group */
 	xfade_group = ADW_PREFERENCES_GROUP (adw_preferences_group_new ());
@@ -354,8 +356,7 @@ build_playback_page (RBShellPreferences *prefs)
 	gtk_widget_set_visible (GTK_WIDGET (prefs->priv->playback_plugin_group), FALSE);
 	adw_preferences_page_add (page, prefs->priv->playback_plugin_group);
 
-	prefs->priv->playback_page = page;
-	adw_preferences_dialog_add (ADW_PREFERENCES_DIALOG (prefs), page);
+	return GTK_WIDGET (page);
 }
 
 /* ---- Plugins page ---- */
@@ -378,7 +379,7 @@ plugin_switch_toggled_cb (GObject *object, GParamSpec *pspec, PeasEngine *engine
 	}
 }
 
-static void
+static GtkWidget *
 build_plugins_page (RBShellPreferences *prefs)
 {
 	AdwPreferencesPage *page;
@@ -386,9 +387,7 @@ build_plugins_page (RBShellPreferences *prefs)
 	PeasEngine *engine;
 	guint n_plugins;
 
-	page = ADW_PREFERENCES_PAGE (adw_preferences_page_new ());
-	adw_preferences_page_set_title (page, _("Plugins"));
-	adw_preferences_page_set_icon_name (page, "application-x-addon-symbolic");
+	page = ADW_PREFERENCES_PAGE (wrap_in_preferences_page ());
 
 	group = ADW_PREFERENCES_GROUP (adw_preferences_group_new ());
 	adw_preferences_group_set_title (group, _("Extensions"));
@@ -440,7 +439,7 @@ build_plugins_page (RBShellPreferences *prefs)
 	}
 
 	adw_preferences_page_add (page, group);
-	adw_preferences_dialog_add (ADW_PREFERENCES_DIALOG (prefs), page);
+	return GTK_WIDGET (page);
 }
 
 /* ---- Init / finalize ---- */
@@ -448,15 +447,53 @@ build_plugins_page (RBShellPreferences *prefs)
 static void
 rb_shell_preferences_init (RBShellPreferences *prefs)
 {
+	AdwViewSwitcher *switcher;
+	AdwToolbarView *toolbar_view;
+	AdwHeaderBar *header_bar;
+	GtkWidget *general_widget;
+	GtkWidget *playback_widget;
+
 	prefs->priv = rb_shell_preferences_get_instance_private (prefs);
 
 	prefs->priv->source_settings = g_settings_new ("org.gnome.rhythmbox.sources");
 	prefs->priv->player_settings = g_settings_new ("org.gnome.rhythmbox.player");
 	prefs->priv->main_settings = g_settings_new ("org.gnome.rhythmbox");
 
-	/* Build pages */
-	build_general_page (prefs);
-	build_playback_page (prefs);
+	/* Create view stack */
+	prefs->priv->stack = ADW_VIEW_STACK (adw_view_stack_new ());
+
+	/* Build pages and add to stack */
+	general_widget = build_general_page (prefs);
+	adw_view_stack_add_titled_with_icon (prefs->priv->stack,
+					     general_widget,
+					     "general",
+					     _("General"),
+					     "preferences-other-symbolic");
+
+	playback_widget = build_playback_page (prefs);
+	adw_view_stack_add_titled_with_icon (prefs->priv->stack,
+					     playback_widget,
+					     "playback",
+					     _("Playback"),
+					     "media-playback-start-symbolic");
+
+	/* Header bar with view switcher */
+	switcher = ADW_VIEW_SWITCHER (adw_view_switcher_new ());
+	adw_view_switcher_set_stack (switcher, prefs->priv->stack);
+	adw_view_switcher_set_policy (switcher, ADW_VIEW_SWITCHER_POLICY_WIDE);
+
+	header_bar = ADW_HEADER_BAR (adw_header_bar_new ());
+	adw_header_bar_set_title_widget (header_bar, GTK_WIDGET (switcher));
+
+	/* Toolbar view: header on top, stack as content */
+	toolbar_view = ADW_TOOLBAR_VIEW (adw_toolbar_view_new ());
+	adw_toolbar_view_add_top_bar (toolbar_view, GTK_WIDGET (header_bar));
+	adw_toolbar_view_set_content (toolbar_view, GTK_WIDGET (prefs->priv->stack));
+
+	adw_dialog_set_child (ADW_DIALOG (prefs), GTK_WIDGET (toolbar_view));
+	adw_dialog_set_title (ADW_DIALOG (prefs), _("Preferences"));
+	adw_dialog_set_content_width (ADW_DIALOG (prefs), 550);
+	adw_dialog_set_content_height (ADW_DIALOG (prefs), 580);
 
 	/* Connect GSettings signals */
 	g_signal_connect_object (prefs->priv->source_settings, "changed",
@@ -525,7 +562,7 @@ impl_finalize (GObject *object)
  * @icon_name: icon name for the page tab
  * @widget: the #GtkWidget to use as the contents of the page
  *
- * Wraps a widget in an AdwPreferencesPage and adds it to the dialog.
+ * Wraps a widget in an AdwPreferencesPage and adds it as a view stack page.
  */
 void
 rb_shell_preferences_append_page (RBShellPreferences *prefs,
@@ -536,15 +573,17 @@ rb_shell_preferences_append_page (RBShellPreferences *prefs,
 	AdwPreferencesPage *page;
 	AdwPreferencesGroup *group;
 
-	page = ADW_PREFERENCES_PAGE (adw_preferences_page_new ());
-	adw_preferences_page_set_title (page, name);
-	adw_preferences_page_set_icon_name (page, icon_name);
+	page = ADW_PREFERENCES_PAGE (wrap_in_preferences_page ());
 
 	group = ADW_PREFERENCES_GROUP (adw_preferences_group_new ());
 	adw_preferences_group_add (group, widget);
 	adw_preferences_page_add (page, group);
 
-	adw_preferences_dialog_add (ADW_PREFERENCES_DIALOG (prefs), page);
+	adw_view_stack_add_titled_with_icon (prefs->priv->stack,
+					     GTK_WIDGET (page),
+					     NULL,
+					     name,
+					     icon_name);
 }
 
 static void
@@ -588,6 +627,7 @@ GtkWidget *
 rb_shell_preferences_new (GList *views)
 {
 	RBShellPreferences *prefs;
+	GtkWidget *plugins_widget;
 
 	prefs = g_object_new (RB_TYPE_SHELL_PREFERENCES, NULL);
 
@@ -608,7 +648,12 @@ rb_shell_preferences_new (GList *views)
 	}
 
 	/* Plugins page goes last */
-	build_plugins_page (prefs);
+	plugins_widget = build_plugins_page (prefs);
+	adw_view_stack_add_titled_with_icon (prefs->priv->stack,
+					     plugins_widget,
+					     "plugins",
+					     _("Plugins"),
+					     "application-x-addon-symbolic");
 
 	return GTK_WIDGET (prefs);
 }
