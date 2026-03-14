@@ -66,8 +66,14 @@ struct _RBEncodingSettingsPrivate
 	GstEncodingTarget *target;
 	GstElement *encoder_element;
 
-	GtkTreeModel *profile_model;
-	GtkTreeModel *preset_model;
+	/* format dropdown: parallel arrays for media_type, profile */
+	GtkStringList *format_model;
+	GPtrArray *format_media_types;	/* char* */
+	GPtrArray *format_profiles;	/* GstEncodingProfile* (borrowed) */
+
+	/* preset dropdown: parallel arrays for preset name */
+	GtkStringList *preset_model;
+	GPtrArray *preset_names;	/* char* */
 
 	GtkWidget *preferred_format_menu;
 	GtkWidget *preset_menu;
@@ -81,6 +87,8 @@ struct _RBEncodingSettingsPrivate
 	gboolean profile_init;
 	char *preset_name;
 
+	gulong format_changed_id;
+	gulong preset_changed_id;
 	gulong profile_changed_id;
 };
 
@@ -177,7 +185,7 @@ update_property_editor_for_preset (RBEncodingSettings *settings, const char *med
 			gtk_grid_attach (GTK_GRID (settings->priv->encoder_property_holder),
 					 settings->priv->encoder_property_editor,
 					 0, 0, 1, 1);
-			gtk_widget_show (settings->priv->encoder_property_editor);
+			gtk_widget_set_visible (settings->priv->encoder_property_editor, TRUE);
 
 			settings->priv->preset_name = g_strdup (preset);
 		}
@@ -185,24 +193,22 @@ update_property_editor_for_preset (RBEncodingSettings *settings, const char *med
 }
 
 static void
-format_changed_cb (GtkWidget *widget, RBEncodingSettings *settings)
+format_changed_cb (GObject *object, [[maybe_unused]] GParamSpec *pspec, RBEncodingSettings *settings)
 {
-	GtkTreeIter iter;
-	char *media_type = NULL;
+	guint selected;
+	char *media_type;
 	GstEncodingProfile *profile;
 	RBEncoder *encoder;
 
 	if (settings->priv->profile_init)
 		return;
 
-	/* get selected media type */
-	if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (widget), &iter) == FALSE)
+	selected = gtk_drop_down_get_selected (GTK_DROP_DOWN (settings->priv->preferred_format_menu));
+	if (selected == GTK_INVALID_LIST_POSITION)
 		return;
-	gtk_tree_model_get (GTK_TREE_MODEL (settings->priv->profile_model),
-			    &iter,
-			    0, &media_type,
-			    2, &profile,
-			    -1);
+
+	media_type = g_strdup (g_ptr_array_index (settings->priv->format_media_types, selected));
+	profile = g_ptr_array_index (settings->priv->format_profiles, selected);
 
 	g_settings_set_string (settings->priv->gsettings, "media-type", media_type);
 
@@ -227,9 +233,10 @@ format_changed_cb (GtkWidget *widget, RBEncodingSettings *settings)
 }
 
 static void
-preset_changed_cb (GtkWidget *widget, RBEncodingSettings *settings)
+preset_changed_cb (GObject *object, [[maybe_unused]] GParamSpec *pspec, RBEncodingSettings *settings)
 {
-	GtkTreeIter iter;
+	guint format_selected;
+	guint preset_selected;
 	char *media_type = NULL;
 	char *preset = NULL;
 	char *stored;
@@ -240,21 +247,17 @@ preset_changed_cb (GtkWidget *widget, RBEncodingSettings *settings)
 		return;
 
 	/* get selected media type */
-	if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (settings->priv->preferred_format_menu), &iter) == FALSE) {
+	format_selected = gtk_drop_down_get_selected (GTK_DROP_DOWN (settings->priv->preferred_format_menu));
+	if (format_selected == GTK_INVALID_LIST_POSITION) {
 		rb_debug ("no media type selected?");
 		return;
 	}
-	gtk_tree_model_get (GTK_TREE_MODEL (settings->priv->profile_model),
-			    &iter,
-			    0, &media_type,
-			    -1);
+	media_type = g_strdup (g_ptr_array_index (settings->priv->format_media_types, format_selected));
 
 	/* get selected preset */
-	if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (settings->priv->preset_menu), &iter)) {
-		gtk_tree_model_get (GTK_TREE_MODEL (settings->priv->preset_model),
-				    &iter,
-				    1, &preset,
-				    -1);
+	preset_selected = gtk_drop_down_get_selected (GTK_DROP_DOWN (settings->priv->preset_menu));
+	if (preset_selected != GTK_INVALID_LIST_POSITION) {
+		preset = g_strdup (g_ptr_array_index (settings->priv->preset_names, preset_selected));
 		rb_debug ("preset %s now selected for media type %s", preset, media_type);
 	} else {
 		rb_debug ("no preset selected for media type %s?", media_type);
@@ -274,24 +277,24 @@ preset_changed_cb (GtkWidget *widget, RBEncodingSettings *settings)
 		GVariantIter i;
 		char *mt;
 		char *p;
-		gboolean stored;
+		gboolean already_stored;
 
 		g_variant_builder_init (&b, G_VARIANT_TYPE ("a{ss}"));
 		g_variant_iter_init (&i, presets);
-		stored = FALSE;
+		already_stored = FALSE;
 		while (g_variant_iter_loop (&i, "{ss}", &mt, &p)) {
 			if (g_strcmp0 (mt, media_type) == 0) {
 				if (have_preset) {
 					g_variant_builder_add (&b, "{ss}", mt, preset);
 				}
-				stored = TRUE;
+				already_stored = TRUE;
 			} else {
 				g_variant_builder_add (&b, "{ss}", mt, p);
 				rb_debug ("keeping %s => %s", mt, p);
 			}
 		}
 
-		if (have_preset && stored == FALSE) {
+		if (have_preset && already_stored == FALSE) {
 			g_variant_builder_add (&b, "{ss}", media_type, preset);
 		}
 
@@ -307,7 +310,7 @@ preset_changed_cb (GtkWidget *widget, RBEncodingSettings *settings)
 static void
 plugin_install_done_cb (gpointer inst, gboolean retry, RBEncodingSettings *settings)
 {
-	format_changed_cb (settings->priv->preferred_format_menu, settings);
+	format_changed_cb (G_OBJECT (settings->priv->preferred_format_menu), NULL, settings);
 }
 
 static void
@@ -353,17 +356,13 @@ install_plugins_cb (GtkWidget *widget, RBEncodingSettings *settings)
 static void
 insert_preset (RBEncodingSettings *settings, const char *display_name, const char *name, gboolean select)
 {
-	GtkTreeIter iter;
+	gtk_string_list_append (settings->priv->preset_model, display_name);
+	g_ptr_array_add (settings->priv->preset_names, g_strdup (name));
 
-	gtk_list_store_insert_with_values (GTK_LIST_STORE (settings->priv->preset_model),
-					   &iter,
-					   -1,
-					   0, display_name,
-					   1, name,
-					   -1);
 	if (select) {
+		guint idx = g_list_model_get_n_items (G_LIST_MODEL (settings->priv->preset_model)) - 1;
 		rb_debug ("preset %s is selected", display_name);
-		gtk_combo_box_set_active_iter (GTK_COMBO_BOX (settings->priv->preset_menu), &iter);
+		gtk_drop_down_set_selected (GTK_DROP_DOWN (settings->priv->preset_menu), idx);
 	}
 }
 
@@ -380,7 +379,11 @@ update_presets (RBEncodingSettings *settings, const char *media_type)
 
 	settings->priv->profile_init = TRUE;
 
-	gtk_list_store_clear (GTK_LIST_STORE (settings->priv->preset_model));
+	/* clear preset model and parallel array */
+	guint n_items = g_list_model_get_n_items (G_LIST_MODEL (settings->priv->preset_model));
+	for (guint j = 0; j < n_items; j++)
+		gtk_string_list_remove (settings->priv->preset_model, 0);
+	g_ptr_array_set_size (settings->priv->preset_names, 0);
 
 	if (settings->priv->encoder_element != NULL) {
 		gst_object_unref (settings->priv->encoder_element);
@@ -429,16 +432,16 @@ update_presets (RBEncodingSettings *settings, const char *media_type)
 	/* get list of actual presets for the media type */
 	profile_presets = rb_gst_encoding_profile_get_presets (profile);
 	if (profile_presets) {
-		int i;
-		for (i = 0; profile_presets[i] != NULL; i++) {
-			if (g_str_has_prefix (profile_presets[i], CUSTOM_SETTINGS_PREFIX))
+		int j;
+		for (j = 0; profile_presets[j] != NULL; j++) {
+			if (g_str_has_prefix (profile_presets[j], CUSTOM_SETTINGS_PREFIX))
 				continue;
 
-			rb_debug ("profile has preset %s", profile_presets[i]);
+			rb_debug ("profile has preset %s", profile_presets[j]);
 			insert_preset (settings,
-				       profile_presets[i],
-				       profile_presets[i],
-				       g_strcmp0 (profile_presets[i], active_preset) == 0);
+				       profile_presets[j],
+				       profile_presets[j],
+				       g_strcmp0 (profile_presets[j], active_preset) == 0);
 			gtk_widget_set_sensitive (settings->priv->preset_menu, TRUE);
 		}
 		g_strfreev (profile_presets);
@@ -453,30 +456,24 @@ update_presets (RBEncodingSettings *settings, const char *media_type)
 static void
 update_preferred_media_type (RBEncodingSettings *settings)
 {
-	GtkTreeIter iter;
 	gboolean done;
 	char *str;
 
 	done = FALSE;
 	str = g_settings_get_string (settings->priv->gsettings, "media-type");
-	if (gtk_tree_model_get_iter_first (settings->priv->profile_model, &iter)) {
-		do {
-			char *media_type;
 
-			gtk_tree_model_get (settings->priv->profile_model, &iter,
-					    0, &media_type,
-					    -1);
-			if (g_strcmp0 (media_type, str) == 0) {
-				gtk_combo_box_set_active_iter (GTK_COMBO_BOX (settings->priv->preferred_format_menu), &iter);
-				update_presets (settings, media_type);
-				done = TRUE;
-			}
-			g_free (media_type);
-		} while (done == FALSE && gtk_tree_model_iter_next (settings->priv->profile_model, &iter));
+	for (guint i = 0; i < settings->priv->format_media_types->len; i++) {
+		const char *media_type = g_ptr_array_index (settings->priv->format_media_types, i);
+		if (g_strcmp0 (media_type, str) == 0) {
+			gtk_drop_down_set_selected (GTK_DROP_DOWN (settings->priv->preferred_format_menu), i);
+			update_presets (settings, media_type);
+			done = TRUE;
+			break;
+		}
 	}
 
 	if (done == FALSE) {
-		gtk_combo_box_set_active_iter (GTK_COMBO_BOX (settings->priv->preferred_format_menu), NULL);
+		gtk_drop_down_set_selected (GTK_DROP_DOWN (settings->priv->preferred_format_menu), GTK_INVALID_LIST_POSITION);
 		update_presets (settings, NULL);
 	}
 
@@ -503,7 +500,6 @@ impl_constructed (GObject *object)
 	RBEncodingSettings *settings;
 	GtkBuilder *builder;
 	GtkWidget *grid;
-	GtkCellRenderer *renderer;
 	const GList *p;
 
 	RB_CHAIN_GOBJECT_METHOD (rb_encoding_settings_parent_class, constructed, object);
@@ -519,7 +515,11 @@ impl_constructed (GObject *object)
 	grid = GTK_WIDGET (gtk_builder_get_object (builder, "encoding-settings-grid"));
 	gtk_box_append (GTK_BOX (settings), grid);
 
-	settings->priv->profile_model = GTK_TREE_MODEL (gtk_tree_store_new (3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_POINTER));
+	/* build format dropdown model (GtkStringList showing descriptions) */
+	settings->priv->format_model = gtk_string_list_new (NULL);
+	settings->priv->format_media_types = g_ptr_array_new_with_free_func (g_free);
+	settings->priv->format_profiles = g_ptr_array_new ();
+
 	for (p = gst_encoding_target_get_profiles (settings->priv->target); p != NULL; p = p->next) {
 		GstEncodingProfile *profile = GST_ENCODING_PROFILE (p->data);
 		char *media_type;
@@ -528,43 +528,38 @@ impl_constructed (GObject *object)
 		if (media_type == NULL) {
 			continue;
 		}
-		gtk_tree_store_insert_with_values (GTK_TREE_STORE (settings->priv->profile_model),
-						   NULL,
-						   NULL,
-						   -1,
-						   0, media_type,
-						   1, gst_encoding_profile_get_description (profile),
-						   2, profile,
-						   -1);
-		g_free (media_type);
+
+		gtk_string_list_append (settings->priv->format_model,
+					gst_encoding_profile_get_description (profile));
+		g_ptr_array_add (settings->priv->format_media_types, media_type);
+		g_ptr_array_add (settings->priv->format_profiles, profile);  /* borrowed ref */
 	}
 
-	settings->priv->preset_model = GTK_TREE_MODEL (gtk_list_store_new (2, G_TYPE_STRING, G_TYPE_STRING));
-
 	settings->priv->preferred_format_menu = GTK_WIDGET (gtk_builder_get_object (builder, "format_select_combo"));
-	gtk_combo_box_set_model (GTK_COMBO_BOX (settings->priv->preferred_format_menu), settings->priv->profile_model);
-	renderer = gtk_cell_renderer_text_new ();
-	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (settings->priv->preferred_format_menu), renderer, TRUE);
-	gtk_cell_layout_set_attributes (GTK_CELL_LAYOUT (settings->priv->preferred_format_menu), renderer, "text", 1, NULL);
+	gtk_drop_down_set_model (GTK_DROP_DOWN (settings->priv->preferred_format_menu),
+				 G_LIST_MODEL (settings->priv->format_model));
 
-	g_signal_connect (G_OBJECT (settings->priv->preferred_format_menu),
-			  "changed",
-			  G_CALLBACK (format_changed_cb),
-			  settings);
+	settings->priv->format_changed_id =
+		g_signal_connect (settings->priv->preferred_format_menu,
+				  "notify::selected",
+				  G_CALLBACK (format_changed_cb),
+				  settings);
+
+	/* build preset dropdown model */
+	settings->priv->preset_model = gtk_string_list_new (NULL);
+	settings->priv->preset_names = g_ptr_array_new_with_free_func (g_free);
 
 	settings->priv->preset_menu = GTK_WIDGET (gtk_builder_get_object (builder, "preset_select_combo"));
-	gtk_combo_box_set_model (GTK_COMBO_BOX (settings->priv->preset_menu), settings->priv->preset_model);
-	renderer = gtk_cell_renderer_text_new ();
-	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (settings->priv->preset_menu), renderer, TRUE);
-	gtk_cell_layout_set_attributes (GTK_CELL_LAYOUT (settings->priv->preset_menu), renderer, "text", 0, NULL);
+	gtk_drop_down_set_model (GTK_DROP_DOWN (settings->priv->preset_menu),
+				 G_LIST_MODEL (settings->priv->preset_model));
 
-	g_signal_connect (G_OBJECT (settings->priv->preset_menu),
-			  "changed",
-			  G_CALLBACK (preset_changed_cb),
-			  settings);
+	settings->priv->preset_changed_id =
+		g_signal_connect (settings->priv->preset_menu,
+				  "notify::selected",
+				  G_CALLBACK (preset_changed_cb),
+				  settings);
 
 	settings->priv->install_plugins_button = GTK_WIDGET (gtk_builder_get_object (builder, "install_plugins_button"));
-	/* removed: no_show_all not needed in GTK4 */
 	g_signal_connect (G_OBJECT (settings->priv->install_plugins_button),
 			  "clicked",
 			  G_CALLBACK (install_plugins_cb),
@@ -573,16 +568,15 @@ impl_constructed (GObject *object)
 	settings->priv->encoder_property_holder = GTK_WIDGET (gtk_builder_get_object (builder, "encoder_property_holder"));
 
 	settings->priv->lossless_check = GTK_WIDGET (gtk_builder_get_object (builder, "transcode_lossless_check"));
-	/* removed: no_show_all not needed in GTK4 */
 	if (settings->priv->show_lossless) {
-		gtk_widget_show (settings->priv->lossless_check);
+		gtk_widget_set_visible (settings->priv->lossless_check, TRUE);
 		g_settings_bind (settings->priv->gsettings,
 				 "transcode-lossless",
 				 settings->priv->lossless_check,
 				 "active",
 				 G_SETTINGS_BIND_DEFAULT);
 	} else {
-		gtk_widget_hide (settings->priv->lossless_check);
+		gtk_widget_set_visible (settings->priv->lossless_check, FALSE);
 	}
 
 	update_preferred_media_type (settings);
@@ -649,7 +643,11 @@ impl_dispose (GObject *object)
 		settings->priv->target = NULL;
 	}
 
-	/* models and widgets and crap? */
+	g_clear_object (&settings->priv->format_model);
+	g_clear_object (&settings->priv->preset_model);
+	g_clear_pointer (&settings->priv->format_media_types, g_ptr_array_unref);
+	g_clear_pointer (&settings->priv->format_profiles, g_ptr_array_unref);
+	g_clear_pointer (&settings->priv->preset_names, g_ptr_array_unref);
 
 	G_OBJECT_CLASS (rb_encoding_settings_parent_class)->dispose (object);
 }
