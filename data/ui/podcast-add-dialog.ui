@@ -37,7 +37,6 @@ Subscribe to podcasts to download new episodes as they are published.</property>
         <child>
           <object class="GtkButton" id="close-button">
             <property name="label" translatable="yes">Close</property>
-            <property name="use-action-appearance">False</property>            <property name="receives-default">True</property>
           </object>
           <layout>
 
@@ -50,7 +49,6 @@ Subscribe to podcasts to download new episodes as they are published.</property>
         <child>
           <object class="GtkButton" id="subscribe-button">
             <property name="label" translatable="yes">Subscribe</property>
-            <property name="use-action-appearance">False</property>            <property name="receives-default">True</property>
           </object>
           <layout>
 
