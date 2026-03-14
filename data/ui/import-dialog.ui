@@ -16,7 +16,6 @@
         </child>
         <child>
           <object class="GtkMenuButton" id="folder-chooser-button">
-            <property name="width-request">300</property>
           </object>
         </child>
       </object>
