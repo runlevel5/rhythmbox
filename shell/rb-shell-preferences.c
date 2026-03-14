@@ -517,7 +517,7 @@ build_plugins_page (RBShellPreferences *prefs)
 	GPtrArray *plugins = g_ptr_array_new_with_free_func (g_object_unref);
 	for (guint i = 0; i < n_plugins; i++) {
 		PeasPluginInfo *info = g_list_model_get_item (G_LIST_MODEL (engine), i);
-		if (!peas_plugin_info_is_hidden (info))
+		if (!peas_plugin_info_is_hidden (info) && !peas_plugin_info_is_builtin (info))
 			g_ptr_array_add (plugins, info);
 		else
 			g_object_unref (info);
