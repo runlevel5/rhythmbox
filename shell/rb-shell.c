@@ -1558,10 +1558,8 @@ rb_shell_get_property (GObject *object,
 		g_value_set_object (value, shell->priv->window);
 		break;
 	case PROP_PREFS:
-		/* create the preferences dialog the first time we need it */
-		if (shell->priv->prefs == NULL) {
-			shell->priv->prefs = rb_shell_preferences_new (shell->priv->sources);
-		}
+		/* AdwDialog destroys itself on close, so create a fresh one each time */
+		shell->priv->prefs = rb_shell_preferences_new (shell->priv->sources);
 		g_value_set_object (value, shell->priv->prefs);
 		break;
 	case PROP_QUEUE_SOURCE:
@@ -1679,10 +1677,8 @@ rb_shell_finalize (GObject *object)
 		g_object_unref (shell->priv->clipboard_shell);
 	}
 
-	if (shell->priv->prefs != NULL) {
-		rb_debug ("destroying prefs");
-		adw_dialog_force_close (ADW_DIALOG (shell->priv->prefs));
-	}
+	/* prefs dialog is an AdwDialog that destroys itself on close,
+	 * so we don't own it and shouldn't try to close it here */
 
 	g_free (shell->priv->rhythmdb_file);
 
