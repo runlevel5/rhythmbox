@@ -522,6 +522,7 @@ impl_finalize (GObject *object)
  * rb_shell_preferences_append_page:
  * @prefs: the #RBShellPreferences instance
  * @name: name of the page to append
+ * @icon_name: icon name for the page tab
  * @widget: the #GtkWidget to use as the contents of the page
  *
  * Wraps a widget in an AdwPreferencesPage and adds it to the dialog.
@@ -529,6 +530,7 @@ impl_finalize (GObject *object)
 void
 rb_shell_preferences_append_page (RBShellPreferences *prefs,
 				  const char *name,
+				  const char *icon_name,
 				  GtkWidget *widget)
 {
 	AdwPreferencesPage *page;
@@ -536,7 +538,7 @@ rb_shell_preferences_append_page (RBShellPreferences *prefs,
 
 	page = ADW_PREFERENCES_PAGE (adw_preferences_page_new ());
 	adw_preferences_page_set_title (page, name);
-	adw_preferences_page_set_icon_name (page, "folder-music-symbolic");
+	adw_preferences_page_set_icon_name (page, icon_name);
 
 	group = ADW_PREFERENCES_GROUP (adw_preferences_group_new ());
 	adw_preferences_group_add (group, widget);
@@ -551,6 +553,8 @@ rb_shell_preferences_append_view_page (RBShellPreferences *prefs,
 				       RBDisplayPage *page)
 {
 	GtkWidget *widget;
+	GIcon *icon = NULL;
+	const char *icon_name = "folder-music-symbolic";
 
 	g_return_if_fail (RB_IS_SHELL_PREFERENCES (prefs));
 	g_return_if_fail (RB_IS_DISPLAY_PAGE (page));
@@ -559,7 +563,16 @@ rb_shell_preferences_append_view_page (RBShellPreferences *prefs,
 	if (!widget)
 		return;
 
-	rb_shell_preferences_append_page (prefs, name, widget);
+	g_object_get (page, "icon", &icon, NULL);
+	if (icon != NULL && G_IS_THEMED_ICON (icon)) {
+		const char * const *names = g_themed_icon_get_names (G_THEMED_ICON (icon));
+		if (names != NULL && names[0] != NULL)
+			icon_name = names[0];
+	}
+
+	rb_shell_preferences_append_page (prefs, name, icon_name, widget);
+
+	g_clear_object (&icon);
 }
 
 /**

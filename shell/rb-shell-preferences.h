@@ -69,6 +69,7 @@ GType		rb_shell_preferences_get_type		(void);
 GtkWidget	*rb_shell_preferences_new		(GList *views);
 void		rb_shell_preferences_append_page	(RBShellPreferences *prefs,
 							 const char *name,
+							 const char *icon_name,
 							 GtkWidget *widget);
 void		rb_shell_preferences_add_widget		(RBShellPreferences *prefs,
 							 GtkWidget *widget,
