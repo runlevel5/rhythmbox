@@ -492,7 +492,7 @@ rb_shell_preferences_init (RBShellPreferences *prefs)
 
 	adw_dialog_set_child (ADW_DIALOG (prefs), GTK_WIDGET (toolbar_view));
 	adw_dialog_set_title (ADW_DIALOG (prefs), _("Preferences"));
-	adw_dialog_set_content_width (ADW_DIALOG (prefs), 550);
+	adw_dialog_set_content_width (ADW_DIALOG (prefs), 700);
 	adw_dialog_set_content_height (ADW_DIALOG (prefs), 580);
 
 	/* Connect GSettings signals */
