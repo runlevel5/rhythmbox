@@ -30,7 +30,6 @@
                       <object class="GtkEntry" id="library_location_entry">                      </object>                    </child>
                     <child>
                       <object class="GtkButton" id="library_location_button">
-<property name="receives-default">True</property>
                         <child>
                           <object class="GtkBox" id="hbox16">                            <property name="spacing">2</property>
                             <property name="halign">center</property>
@@ -47,9 +46,8 @@
                       </object>                    </child>
                   </object>                </child>
                 <child>
-                  <object class="GtkCheckButton" id="watch_library_check">
+                    <object class="GtkCheckButton" id="watch_library_check">
                     <property name="label" translatable="yes">_Watch my library for new files</property>
-<property name="receives-default">False</property>
                     <property name="use-underline">True</property>
                   </object>                </child>
               </object>            </child>

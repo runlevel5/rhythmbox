@@ -105,9 +105,11 @@ static gboolean rb_library_source_library_location_cb (GtkEntry *entry,
 						       gpointer event,
 						       RBLibrarySource *source);
 static void rb_library_source_sync_child_sources (RBLibrarySource *source);
-static void rb_library_source_path_changed_cb (GtkComboBox *box,
-						RBLibrarySource *source);
-static void rb_library_source_filename_changed_cb (GtkComboBox *box,
+static void rb_library_source_path_changed_cb (GtkDropDown *dropdown,
+					       GParamSpec *pspec,
+					       RBLibrarySource *source);
+static void rb_library_source_filename_changed_cb (GtkDropDown *dropdown,
+						   GParamSpec *pspec,
 						   RBLibrarySource *source);
 static void update_layout_example_label (RBLibrarySource *source);
 static RhythmDBImportJob *maybe_create_import_job (RBLibrarySource *source);
@@ -141,8 +143,6 @@ static const int num_library_layout_filenames = G_N_ELEMENTS (library_layout_fil
 struct RBLibrarySourcePrivate
 {
 	RhythmDB *db;
-
-	RBShellPreferences *shell_prefs;
 
 	GtkWidget *notebook;
 	GtkWidget *config_widget;
@@ -205,11 +205,6 @@ rb_library_source_dispose (GObject *object)
 {
 	RBLibrarySource *source;
 	source = RB_LIBRARY_SOURCE (object);
-
-	if (source->priv->shell_prefs) {
-		g_object_unref (source->priv->shell_prefs);
-		source->priv->shell_prefs = NULL;
-	}
 
 	if (source->priv->db) {
 		g_object_unref (source->priv->db);
@@ -437,22 +432,15 @@ impl_pack_content (RBBrowserSource *bsource, GtkWidget *content)
 }
 
 static void
-location_select_folder_cb (GtkDialog *dialog,
-			  int response,
+location_select_folder_cb (GObject *source_object,
+			  GAsyncResult *result,
 			  gpointer data)
 {
 	RBLibrarySource *source = RB_LIBRARY_SOURCE (data);
+	GtkFileDialog *dialog = GTK_FILE_DIALOG (source_object);
 	GFile *file;
 
-	if (response != GTK_RESPONSE_ACCEPT) {
-		gtk_window_destroy (GTK_WINDOW (dialog));
-		return;
-	}
-
-G_GNUC_BEGIN_IGNORE_DEPRECATIONS
-	file = gtk_file_chooser_get_file (GTK_FILE_CHOOSER (dialog));
-G_GNUC_END_IGNORE_DEPRECATIONS
-
+	file = gtk_file_dialog_select_folder_finish (dialog, result, NULL);
 	if (file != NULL) {
 		char *uri = g_file_get_uri (file);
 		char *path = g_uri_unescape_string (uri, NULL);
@@ -464,35 +452,32 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 		g_free (uri);
 		g_object_unref (file);
 	}
-
-	gtk_window_destroy (GTK_WINDOW (dialog));
 }
 
 static void
 rb_library_source_location_button_clicked_cb (GtkButton *button, RBLibrarySource *source)
 {
-	GtkWidget *dialog;
+	GtkFileDialog *dialog;
+	GtkWidget *toplevel;
 	const char *path;
 
-G_GNUC_BEGIN_IGNORE_DEPRECATIONS
-	dialog = gtk_file_chooser_dialog_new (_("Choose Library Location"),
-					      GTK_WINDOW (source->priv->shell_prefs),
-					      GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
-					      _("_Cancel"), GTK_RESPONSE_CANCEL,
-					      _("_Select"), GTK_RESPONSE_ACCEPT,
-					      NULL);
+	dialog = gtk_file_dialog_new ();
+	gtk_file_dialog_set_title (dialog, _("Choose Library Location"));
 
 	path = gtk_editable_get_text (GTK_EDITABLE (source->priv->library_location_entry));
 	if (path != NULL && path[0] != '\0') {
 		GFile *folder = g_file_parse_name (path);
-		gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), folder, NULL);
+		gtk_file_dialog_set_initial_folder (dialog, folder);
 		g_object_unref (folder);
 	}
-G_GNUC_END_IGNORE_DEPRECATIONS
 
-	g_signal_connect (dialog, "response",
-			  G_CALLBACK (location_select_folder_cb), source);
-	gtk_window_present (GTK_WINDOW (dialog));
+	toplevel = GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (button)));
+	gtk_file_dialog_select_folder (dialog,
+				       GTK_WINDOW (toplevel),
+				       NULL,
+				       location_select_folder_cb,
+				       source);
+	g_object_unref (dialog);
 }
 
 static void
@@ -540,12 +525,12 @@ static void
 update_layout_path (RBLibrarySource *source)
 {
 	char *value;
-	int active;
+	guint active;
 	int i;
 
 	value = g_settings_get_string (source->priv->settings, "layout-path");
 
-	active = -1;
+	active = GTK_INVALID_LIST_POSITION;
 	for (i = 0; library_layout_paths[i].path != NULL; i++) {
 		if (g_strcmp0 (library_layout_paths[i].path, value) == 0) {
 			active = i;
@@ -555,7 +540,7 @@ update_layout_path (RBLibrarySource *source)
 
 	g_free (value);
 	if (source->priv->layout_path_menu != NULL) {
-		gtk_combo_box_set_active (GTK_COMBO_BOX (source->priv->layout_path_menu), active);
+		gtk_drop_down_set_selected (GTK_DROP_DOWN (source->priv->layout_path_menu), active);
 	}
 
 	update_layout_example_label (source);
@@ -565,12 +550,12 @@ static void
 update_layout_filename (RBLibrarySource *source)
 {
 	char *value;
-	int active;
+	guint active;
 	int i;
 
 	value = g_settings_get_string (source->priv->settings, "layout-filename");
 
-	active = -1;
+	active = GTK_INVALID_LIST_POSITION;
 	for (i = 0; library_layout_filenames[i].path != NULL; i++) {
 		if (strcmp (library_layout_filenames[i].path, value) == 0) {
 			active = i;
@@ -580,7 +565,7 @@ update_layout_filename (RBLibrarySource *source)
 	g_free (value);
 
 	if (source->priv->layout_filename_menu != NULL) {
-		gtk_combo_box_set_active (GTK_COMBO_BOX (source->priv->layout_filename_menu), active);
+		gtk_drop_down_set_selected (GTK_DROP_DOWN (source->priv->layout_filename_menu), active);
 	}
 
 	update_layout_example_label (source);
@@ -636,9 +621,6 @@ impl_get_config_widget (RBDisplayPage *asource, RBShellPreferences *prefs)
 	if (source->priv->config_widget)
 		return source->priv->config_widget;
 
-	g_object_ref (prefs);
-	source->priv->shell_prefs = prefs;
-
 	builder = rb_builder_load ("library-prefs.ui", source);
 	source->priv->config_widget =
 		GTK_WIDGET (gtk_builder_get_object (builder, "library_vbox"));
@@ -669,31 +651,35 @@ impl_get_config_widget (RBDisplayPage *asource, RBShellPreferences *prefs)
 
 	tmp = gtk_builder_get_object (builder, "layout_path_menu_box");
 	label = gtk_builder_get_object (builder, "layout_path_menu_label");
-	source->priv->layout_path_menu = gtk_combo_box_text_new ();
+	{
+		GtkStringList *path_model = gtk_string_list_new (NULL);
+		for (i = 0; i < num_library_layout_paths; i++) {
+			gtk_string_list_append (path_model, _(library_layout_paths[i].title));
+		}
+		source->priv->layout_path_menu = gtk_drop_down_new (G_LIST_MODEL (path_model), NULL);
+	}
 	gtk_box_append (GTK_BOX (tmp), source->priv->layout_path_menu);
 	gtk_label_set_mnemonic_widget (GTK_LABEL (label), source->priv->layout_path_menu);
 	g_signal_connect (source->priv->layout_path_menu,
-			  "changed",
+			  "notify::selected",
 			  G_CALLBACK (rb_library_source_path_changed_cb),
 			  asource);
-	for (i = 0; i < num_library_layout_paths; i++) {
-		gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (source->priv->layout_path_menu),
-						_(library_layout_paths[i].title));
-	}
 
 	tmp = gtk_builder_get_object (builder, "layout_filename_menu_box");
 	label = gtk_builder_get_object (builder, "layout_filename_menu_label");
-	source->priv->layout_filename_menu = gtk_combo_box_text_new ();
+	{
+		GtkStringList *filename_model = gtk_string_list_new (NULL);
+		for (i = 0; i < num_library_layout_filenames; i++) {
+			gtk_string_list_append (filename_model, _(library_layout_filenames[i].title));
+		}
+		source->priv->layout_filename_menu = gtk_drop_down_new (G_LIST_MODEL (filename_model), NULL);
+	}
 	gtk_box_append (GTK_BOX (tmp), source->priv->layout_filename_menu);
 	gtk_label_set_mnemonic_widget (GTK_LABEL (label), source->priv->layout_filename_menu);
 	g_signal_connect (source->priv->layout_filename_menu,
-			  "changed",
+			  "notify::selected",
 			  G_CALLBACK (rb_library_source_filename_changed_cb),
 			  asource);
-	for (i = 0; i < num_library_layout_filenames; i++) {
-		gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (source->priv->layout_filename_menu),
-						_(library_layout_filenames[i].title));
-	}
 
 	holder = GTK_WIDGET (gtk_builder_get_object (builder, "encoding_settings_holder"));
 	{
@@ -786,13 +772,13 @@ impl_receive_drag (RBDisplayPage *asource, gpointer data)
 }
 
 static void
-rb_library_source_path_changed_cb (GtkComboBox *box, RBLibrarySource *source)
+rb_library_source_path_changed_cb (GtkDropDown *dropdown, GParamSpec *pspec, RBLibrarySource *source)
 {
 	const char *path;
-	gint index;
+	guint index;
 
-	index = gtk_combo_box_get_active (box);
-	if (index >= 0) {
+	index = gtk_drop_down_get_selected (dropdown);
+	if (index != GTK_INVALID_LIST_POSITION) {
 		path = library_layout_paths[index].path;
 
 		g_settings_set_string (source->priv->settings, "layout-path", path);
@@ -800,13 +786,13 @@ rb_library_source_path_changed_cb (GtkComboBox *box, RBLibrarySource *source)
 }
 
 static void
-rb_library_source_filename_changed_cb (GtkComboBox *box, RBLibrarySource *source)
+rb_library_source_filename_changed_cb (GtkDropDown *dropdown, GParamSpec *pspec, RBLibrarySource *source)
 {
 	const char *filename;
-	gint index;
+	guint index;
 
-	index = gtk_combo_box_get_active (box);
-	if (index >= 0) {
+	index = gtk_drop_down_get_selected (dropdown);
+	if (index != GTK_INVALID_LIST_POSITION) {
 		filename = library_layout_filenames[index].path;
 		g_settings_set_string (source->priv->settings, "layout-filename", filename);
 	}
