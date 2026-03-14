@@ -1,124 +1,90 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.18.3 -->
 <interface>
   <requires lib="gtk" version="4.0"/>
-  <object class="GtkListStore" id="interval-values">
-    <columns>
-      <!-- column-name display -->
-      <column type="gchararray"/>
-      <!-- column-name setting -->
-      <column type="gchararray"/>
-    </columns>
-    <data>
-      <row>
-        <col id="0" translatable="yes">Every hour</col>
-        <col id="1">hourly</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">Every day</col>
-        <col id="1">daily</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">Every week</col>
-        <col id="1">weekly</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">Manually</col>
-        <col id="1">manual</col>
-      </row>
-    </data>
-  </object>
-  <object class="GtkBox" id="podcast_vbox">    <property name="valign">start</property>    <property name="orientation">vertical</property>
+  <object class="GtkBox" id="podcast_vbox">
+    <property name="valign">start</property>
+    <property name="orientation">vertical</property>
     <property name="spacing">18</property>
     <child>
-      <object class="GtkBox" id="vbox9">        <property name="orientation">vertical</property>
+      <object class="GtkBox" id="vbox9">
+        <property name="orientation">vertical</property>
         <property name="spacing">6</property>
         <child>
-          <object class="GtkLabel" id="download_manager_label">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="download_manager_label">
+            <property name="xalign">0</property>
             <property name="label" translatable="yes">Podcast Downloads</property>
             <attributes>
               <attribute name="weight" value="bold"/>
             </attributes>
-          </object>        </child>
+          </object>
+        </child>
         <child>
-          <object class="GtkBox" id="hbox12">            <child>
-              <object class="GtkLabel" id="label16">              </object>            </child>
+          <object class="GtkBox" id="hbox12">
             <child>
-              <object class="GtkBox" id="hbox13">                <child>
-                  <object class="GtkLabel" id="label17">                    <property name="margin-start">8</property>
-                    <property name="margin-end">8</property>
-                  </object>                </child>
+              <object class="GtkLabel" id="label16"/>
+            </child>
+            <child>
+              <object class="GtkBox" id="hbox13">
                 <child>
-                  <object class="GtkGrid" id="grid1">                    <property name="hexpand">True</property>
+                  <object class="GtkLabel" id="label17">
+                    <property name="margin-start">8</property>
+                    <property name="margin-end">8</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkGrid" id="grid1">
+                    <property name="hexpand">True</property>
                     <property name="row-spacing">6</property>
                     <property name="column-spacing">12</property>
                     <child>
-                      <object class="GtkLabel" id="label19">                        <property name="xalign">0</property>
+                      <object class="GtkLabel" id="label18">
+                        <property name="xalign">0</property>
+                        <property name="label" translatable="yes">_Download location:</property>
+                        <property name="use-underline">True</property>
+                        <property name="mnemonic-widget">location_button</property>
+                      </object>
+                      <layout>
+                        <property name="column">0</property>
+                        <property name="row">0</property>
+                      </layout>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="location_button">
+                        <property name="hexpand">True</property>
+                      </object>
+                      <layout>
+                        <property name="column">1</property>
+                        <property name="row">0</property>
+                      </layout>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label19">
+                        <property name="xalign">0</property>
                         <property name="label" translatable="yes">Check for _new episodes:</property>
                         <property name="use-underline">True</property>
                         <property name="mnemonic-widget">update_interval</property>
                       </object>
                       <layout>
-
                         <property name="column">0</property>
-
                         <property name="row">1</property>
-
                       </layout>
                     </child>
                     <child>
-                      <object class="GtkComboBox" id="update_interval">                        <property name="hexpand">True</property>
-                        <property name="model">interval-values</property>
-                        <child>
-                          <object class="GtkCellRendererText" id="renderer1"/>
-                          <attributes>
-                            <attribute name="text">0</attribute>
-                          </attributes>
-                        </child>
+                      <object class="GtkDropDown" id="update_interval">
+                        <property name="hexpand">True</property>
                       </object>
                       <layout>
-
                         <property name="column">1</property>
-
                         <property name="row">1</property>
-
                       </layout>
                     </child>
-                    <child>
-                      <object class="GtkLabel" id="label18">                        <property name="xalign">0</property>
-                        <property name="label" translatable="yes">_Download location:</property>
-                        <property name="use-underline">True</property>
-                        <property name="justify">right</property>
-                        <property name="mnemonic-widget">location_chooser</property>
-                      </object>
-                      <layout>
-
-                        <property name="column">0</property>
-
-                        <property name="row">0</property>
-
-                      </layout>
-                    </child>
-                    <child>
-                      <object class="GtkBox" id="vbox11">                        <property name="orientation">vertical</property>
-                        <child>
-                          <object class="GtkFileChooserButton" id="location_chooser">                            <property name="hexpand">True</property>
-                            <property name="action">select-folder</property>
-                            <property name="show-hidden">True</property>
-                            <property name="title" translatable="yes">Select Folder For Podcasts</property>
-                          </object>                        </child>
-                      </object>
-                      <layout>
-
-                        <property name="column">1</property>
-
-                        <property name="row">0</property>
-
-                      </layout>
-                    </child>
-                  </object>                </child>
-              </object>            </child>
-          </object>        </child>
-      </object>    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
   </object>
 </interface>
