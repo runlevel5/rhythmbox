@@ -390,6 +390,7 @@ plugin_about_button_cb (GtkButton *button, gpointer user_data)
 	const char *copyright;
 	const char *version;
 	const char *website;
+	const char *icon_name;
 
 	info = g_object_get_data (G_OBJECT (button), "peas-plugin-info");
 	if (info == NULL)
@@ -401,10 +402,13 @@ plugin_about_button_cb (GtkButton *button, gpointer user_data)
 	copyright = peas_plugin_info_get_copyright (info);
 	version = peas_plugin_info_get_version (info);
 	website = peas_plugin_info_get_website (info);
+	icon_name = peas_plugin_info_get_icon_name (info);
 
 	about = adw_about_dialog_new ();
 	adw_about_dialog_set_application_name (ADW_ABOUT_DIALOG (about),
 					       name ? name : "");
+	adw_about_dialog_set_application_icon (ADW_ABOUT_DIALOG (about),
+					       icon_name ? icon_name : "application-x-addon");
 	if (description != NULL)
 		adw_about_dialog_set_comments (ADW_ABOUT_DIALOG (about), description);
 	if (authors != NULL)
@@ -418,6 +422,16 @@ plugin_about_button_cb (GtkButton *button, gpointer user_data)
 		adw_about_dialog_set_website (ADW_ABOUT_DIALOG (about), website);
 
 	adw_dialog_present (about, GTK_WIDGET (button));
+}
+
+static int
+compare_plugin_info (gconstpointer a, gconstpointer b)
+{
+	PeasPluginInfo *info_a = *(PeasPluginInfo **)a;
+	PeasPluginInfo *info_b = *(PeasPluginInfo **)b;
+	const char *name_a = peas_plugin_info_get_name (info_a);
+	const char *name_b = peas_plugin_info_get_name (info_b);
+	return g_utf8_collate (name_a ? name_a : "", name_b ? name_b : "");
 }
 
 static GtkWidget *
@@ -437,8 +451,19 @@ build_plugins_page (RBShellPreferences *prefs)
 	engine = peas_engine_get_default ();
 	n_plugins = g_list_model_get_n_items (G_LIST_MODEL (engine));
 
+	/* collect non-hidden plugins and sort alphabetically */
+	GPtrArray *plugins = g_ptr_array_new_with_free_func (g_object_unref);
 	for (guint i = 0; i < n_plugins; i++) {
-		PeasPluginInfo *info;
+		PeasPluginInfo *info = g_list_model_get_item (G_LIST_MODEL (engine), i);
+		if (!peas_plugin_info_is_hidden (info))
+			g_ptr_array_add (plugins, info);
+		else
+			g_object_unref (info);
+	}
+	g_ptr_array_sort (plugins, (GCompareFunc) compare_plugin_info);
+
+	for (guint i = 0; i < plugins->len; i++) {
+		PeasPluginInfo *info = g_ptr_array_index (plugins, i);
 		AdwActionRow *row;
 		const char *plugin_name;
 		const char *plugin_desc;
@@ -446,12 +471,6 @@ build_plugins_page (RBShellPreferences *prefs)
 		GtkWidget *icon;
 		GtkWidget *about_button;
 		gboolean builtin;
-
-		info = g_list_model_get_item (G_LIST_MODEL (engine), i);
-		if (peas_plugin_info_is_hidden (info)) {
-			g_object_unref (info);
-			continue;
-		}
 
 		plugin_name = peas_plugin_info_get_name (info);
 		plugin_desc = peas_plugin_info_get_description (info);
@@ -494,9 +513,9 @@ build_plugins_page (RBShellPreferences *prefs)
 		}
 
 		adw_preferences_group_add (group, GTK_WIDGET (row));
-		g_object_unref (info);
 	}
 
+	g_ptr_array_unref (plugins);
 	adw_preferences_page_add (page, group);
 	return GTK_WIDGET (page);
 }
