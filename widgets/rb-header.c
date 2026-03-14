@@ -332,7 +332,10 @@ rb_header_constructed (GObject *object)
 	header->priv->song = g_object_ref (gtk_label_new (NULL));
 	gtk_widget_show (header->priv->song);
 	gtk_label_set_use_markup (GTK_LABEL (header->priv->song), TRUE);
-	gtk_label_set_selectable (GTK_LABEL (header->priv->song), TRUE);
+	/* TODO: restore selectable once GTK4 fixes markup corruption when
+	 * label text changes while selectable is enabled.
+	 * gtk_label_set_selectable (GTK_LABEL (header->priv->song), TRUE);
+	 */
 	gtk_label_set_ellipsize (GTK_LABEL (header->priv->song), PANGO_ELLIPSIZE_END);
 	gtk_widget_set_halign (header->priv->song, GTK_ALIGN_START);
 	gtk_widget_set_valign (header->priv->song, GTK_ALIGN_CENTER);
@@ -346,7 +349,10 @@ rb_header_constructed (GObject *object)
 	header->priv->details = g_object_ref (gtk_label_new (""));
 	gtk_widget_show (header->priv->details);
 	gtk_label_set_use_markup (GTK_LABEL (header->priv->details), TRUE);
-	gtk_label_set_selectable (GTK_LABEL (header->priv->details), TRUE);
+	/* TODO: restore selectable once GTK4 fixes markup corruption when
+	 * label text changes while selectable is enabled.
+	 * gtk_label_set_selectable (GTK_LABEL (header->priv->details), TRUE);
+	 */
 	gtk_label_set_ellipsize (GTK_LABEL (header->priv->details), PANGO_ELLIPSIZE_END);
 	gtk_widget_set_hexpand (header->priv->details, TRUE);
 	gtk_widget_set_halign (header->priv->details, GTK_ALIGN_START);
@@ -363,7 +369,10 @@ rb_header_constructed (GObject *object)
 	g_free (label);
 	gtk_widget_show (header->priv->not_playing);
 	gtk_label_set_use_markup (GTK_LABEL (header->priv->not_playing), TRUE);
-	gtk_label_set_selectable (GTK_LABEL (header->priv->not_playing), TRUE);
+	/* TODO: restore selectable once GTK4 fixes markup corruption when
+	 * label text changes while selectable is enabled.
+	 * gtk_label_set_selectable (GTK_LABEL (header->priv->not_playing), TRUE);
+	 */
 	gtk_label_set_ellipsize (GTK_LABEL (header->priv->not_playing), PANGO_ELLIPSIZE_END);
 	gtk_widget_set_hexpand (header->priv->not_playing, TRUE);
 	gtk_widget_set_halign (header->priv->not_playing, GTK_ALIGN_START);
