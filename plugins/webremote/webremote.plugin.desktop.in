@@ -1,5 +1,5 @@
 [Plugin]
-Loader=python3
+Loader=python
 Module=webremote
 IAge=2
 Name=Web remote control
