@@ -40,7 +40,7 @@ REPLAYGAIN_MODE_ALBUM = 1
 # to apply for tracks that aren't tagged
 AVERAGE_GAIN_SAMPLES = 10
 
-class ReplayGainConfig(GObject.Object):
+class ReplayGainConfig(GObject.Object, RB.PeasGtkConfigurable):
 	__gtype_name__ = 'ReplayGainConfig'
 	object = GObject.property(type=GObject.Object)
 

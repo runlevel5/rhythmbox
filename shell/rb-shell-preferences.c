@@ -51,6 +51,7 @@
 #include "rb-shell.h"
 #include "rb-util.h"
 #include <libpeas.h>
+#include "rb-peas-gtk-configurable.h"
 
 static void rb_shell_preferences_class_init (RBShellPreferencesClass *klass);
 static void rb_shell_preferences_init (RBShellPreferences *shell_preferences);
@@ -361,10 +362,21 @@ build_playback_page (RBShellPreferences *prefs)
 
 /* ---- Plugins page ---- */
 
+static gboolean
+plugin_is_configurable (PeasEngine *engine, PeasPluginInfo *info)
+{
+	if (info == NULL || !peas_plugin_info_is_loaded (info))
+		return FALSE;
+
+	return peas_engine_provides_extension (engine, info,
+					       PEAS_GTK_TYPE_CONFIGURABLE);
+}
+
 static void
 plugin_switch_toggled_cb (GObject *object, GParamSpec *pspec, PeasEngine *engine)
 {
 	PeasPluginInfo *info;
+	GtkWidget *configure_button;
 	gboolean active;
 
 	info = g_object_get_data (G_OBJECT (object), "peas-plugin-info");
@@ -377,6 +389,65 @@ plugin_switch_toggled_cb (GObject *object, GParamSpec *pspec, PeasEngine *engine
 	} else {
 		peas_engine_unload_plugin (engine, info);
 	}
+
+	/* update configure button visibility and sensitivity */
+	configure_button = g_object_get_data (G_OBJECT (object), "configure-button");
+	if (configure_button != NULL) {
+		if (active && plugin_is_configurable (engine, info)) {
+			gtk_widget_set_visible (configure_button, TRUE);
+			gtk_widget_set_sensitive (configure_button, TRUE);
+		} else if (active) {
+			/* loaded but not configurable */
+			gtk_widget_set_visible (configure_button, FALSE);
+		} else {
+			/* plugin disabled — keep visible if it was shown, but disable */
+			if (gtk_widget_get_visible (configure_button))
+				gtk_widget_set_sensitive (configure_button, FALSE);
+		}
+	}
+}
+
+static void
+plugin_configure_button_cb (GtkButton *button, gpointer user_data)
+{
+	PeasPluginInfo *info;
+	PeasEngine *engine;
+	GObject *exten;
+	GtkWidget *widget;
+	AdwDialog *dialog;
+	const char *name;
+
+	info = g_object_get_data (G_OBJECT (button), "peas-plugin-info");
+	if (info == NULL || !peas_plugin_info_is_loaded (info))
+		return;
+
+	engine = peas_engine_get_default ();
+	exten = peas_engine_create_extension (engine, info,
+					      PEAS_GTK_TYPE_CONFIGURABLE,
+					      NULL);
+	if (exten == NULL)
+		return;
+
+	widget = peas_gtk_configurable_create_configure_widget (
+			PEAS_GTK_CONFIGURABLE (exten));
+	g_object_unref (exten);
+
+	if (widget == NULL)
+		return;
+
+	name = peas_plugin_info_get_name (info);
+
+	dialog = adw_dialog_new ();
+	adw_dialog_set_title (dialog, name ? name : "");
+	adw_dialog_set_content_width (dialog, 400);
+	adw_dialog_set_content_height (dialog, 300);
+
+	AdwToolbarView *toolbar_view = ADW_TOOLBAR_VIEW (adw_toolbar_view_new ());
+	adw_toolbar_view_add_top_bar (toolbar_view, adw_header_bar_new ());
+	adw_toolbar_view_set_content (toolbar_view, widget);
+	adw_dialog_set_child (dialog, GTK_WIDGET (toolbar_view));
+
+	adw_dialog_present (dialog, GTK_WIDGET (button));
 }
 
 static void
@@ -469,13 +540,16 @@ build_plugins_page (RBShellPreferences *prefs)
 		const char *plugin_desc;
 		const char *icon_name;
 		GtkWidget *icon;
+		GtkWidget *configure_button;
 		GtkWidget *about_button;
 		gboolean builtin;
+		gboolean loaded;
 
 		plugin_name = peas_plugin_info_get_name (info);
 		plugin_desc = peas_plugin_info_get_description (info);
 		icon_name = peas_plugin_info_get_icon_name (info);
 		builtin = peas_plugin_info_is_builtin (info);
+		loaded = peas_plugin_info_is_loaded (info);
 
 		/* use AdwSwitchRow for togglable plugins, plain AdwActionRow for builtins */
 		if (builtin)
@@ -494,6 +568,30 @@ build_plugins_page (RBShellPreferences *prefs)
 		gtk_image_set_pixel_size (GTK_IMAGE (icon), 32);
 		adw_action_row_add_prefix (row, icon);
 
+		/* configure button as suffix (before about) */
+		configure_button = gtk_button_new_from_icon_name ("emblem-system-symbolic");
+		gtk_widget_add_css_class (configure_button, "flat");
+		gtk_widget_set_valign (configure_button, GTK_ALIGN_CENTER);
+		gtk_widget_set_tooltip_text (configure_button, _("Configure plugin"));
+		g_object_set_data (G_OBJECT (configure_button), "peas-plugin-info", info);
+		g_signal_connect (configure_button, "clicked",
+				  G_CALLBACK (plugin_configure_button_cb), NULL);
+		adw_action_row_add_suffix (row, configure_button);
+
+		if (builtin) {
+			/* builtin plugins can't be configured */
+			gtk_widget_set_visible (configure_button, FALSE);
+		} else if (loaded && plugin_is_configurable (engine, info)) {
+			gtk_widget_set_visible (configure_button, TRUE);
+			gtk_widget_set_sensitive (configure_button, TRUE);
+		} else if (loaded) {
+			/* loaded but not configurable — hide entirely */
+			gtk_widget_set_visible (configure_button, FALSE);
+		} else {
+			/* not loaded — we can't check, hide for now */
+			gtk_widget_set_visible (configure_button, FALSE);
+		}
+
 		/* about button as suffix */
 		about_button = gtk_button_new_from_icon_name ("help-about-symbolic");
 		gtk_widget_add_css_class (about_button, "flat");
@@ -506,8 +604,9 @@ build_plugins_page (RBShellPreferences *prefs)
 
 		if (!builtin) {
 			adw_switch_row_set_active (ADW_SWITCH_ROW (row),
-						   peas_plugin_info_is_loaded (info));
+						   loaded);
 			g_object_set_data (G_OBJECT (row), "peas-plugin-info", info);
+			g_object_set_data (G_OBJECT (row), "configure-button", configure_button);
 			g_signal_connect (row, "notify::active",
 					  G_CALLBACK (plugin_switch_toggled_cb), engine);
 		}

@@ -35,7 +35,7 @@ from gi.repository import RB, Gtk, Gio, GObject
 import gettext
 gettext.install('rhythmbox', RB.locale_dir())
 
-class LyricsConfigureDialog (GObject.Object):
+class LyricsConfigureDialog (GObject.Object, RB.PeasGtkConfigurable):
 	__gtype_name__ = 'LyricsConfigureDialog'
 	object = GObject.property(type=GObject.Object)
 

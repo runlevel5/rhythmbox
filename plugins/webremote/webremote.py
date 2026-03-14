@@ -589,7 +589,7 @@ class WebRemotePlugin(GObject.Object, RB.PeasActivatable):
         self.connections = {}
 
 
-class WebRemoteConfig(GObject.Object):
+class WebRemoteConfig(GObject.Object, RB.PeasGtkConfigurable):
     __gtype_name__ = "WebRemoteConfig"
     object = GObject.property(type=GObject.Object)
 

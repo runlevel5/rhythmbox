@@ -150,7 +150,7 @@ class Magnatune(GObject.GObject, RB.PeasActivatable):
         self.source.playing_entry_changed(entry)
 
 
-class MagnatuneConfig(GObject.GObject):
+class MagnatuneConfig(GObject.GObject, RB.PeasGtkConfigurable):
     __gtype_name__ = "MagnatuneConfig"
     object = GObject.property(type=GObject.GObject)
 
