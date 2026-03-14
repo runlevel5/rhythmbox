@@ -51,7 +51,7 @@
         <property name="spacing">6</property>
         <child>
           <object class="GtkLabel" id="createLabel">            <property name="label" translatable="yes">Create automatically updating playlist where:</property>
-            <property name="xalign">0</property>
+            <property name="halign">start</property>
           </object>        </child>
       </object>    </child>
     <child>
@@ -67,12 +67,11 @@
         <child>
           <object class="GtkBox" id="hbox200">            <child>
               <object class="GtkCheckButton" id="disjunctionCheck">
-                <property name="label" translatable="yes">A_dd if any criteria are matched</property>                <property name="receives-default">False</property>
-                <property name="use-underline">True</property>
+                <property name="label" translatable="yes">A_dd if any criteria are matched</property>                <property name="use-underline">True</property>
               </object>            </child>
             <child>
               <object class="GtkButton" id="addButton">
-                <property name="label" translatable="yes">_Add</property>                <property name="receives-default">True</property>
+                <property name="label" translatable="yes">_Add</property>
                 <property name="use-underline">True</property>
               </object>            </child>
           </object>        </child>
@@ -80,7 +79,7 @@
           <object class="GtkBox" id="hbox197">            <property name="spacing">12</property>
             <child>
               <object class="GtkCheckButton" id="limitCheck">
-                <property name="label" translatable="yes">_Limit to: </property>                <property name="receives-default">False</property>
+                <property name="label" translatable="yes">_Limit to: </property>
                 <property name="use-underline">True</property>
               </object>            </child>
             <child>
@@ -114,7 +113,7 @@
                 </child>
               </object>            </child>
             <child>
-              <object class="GtkCheckButton" id="sortDesc">                <property name="receives-default">False</property>
+              <object class="GtkCheckButton" id="sortDesc">
                 <property name="use-underline">True</property>
               </object>            </child>
           </object>        </child>

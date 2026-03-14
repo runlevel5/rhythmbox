@@ -6,7 +6,7 @@
     <property name="spacing">12</property>
     <child>
       <object class="GtkLabel" id="sync-before-label">        <property name="label" translatable="yes">Current contents</property>
-        <property name="xalign">0</property>
+        <property name="halign">start</property>
       </object>    </child>
     <child>
       <object class="GtkBox" id="sync-before-container">        <property name="orientation">vertical</property>
@@ -16,7 +16,7 @@
       </object>    </child>
     <child>
       <object class="GtkLabel" id="sync-after-label">        <property name="label" translatable="yes">Contents after sync</property>
-        <property name="xalign">0</property>
+        <property name="halign">start</property>
       </object>    </child>
     <child>
       <object class="GtkBox" id="sync-after-container">        <property name="orientation">vertical</property>
@@ -28,7 +28,7 @@
       <object class="GtkGrid" id="grid1">        <property name="column-homogeneous">True</property>
         <child>
           <object class="GtkLabel" id="label2">            <property name="label" translatable="yes">Added files:</property>
-            <property name="xalign">0</property>
+            <property name="halign">start</property>
           </object>
           <layout>
 
@@ -40,7 +40,7 @@
         </child>
         <child>
           <object class="GtkLabel" id="label3">            <property name="label" translatable="yes">Removed files:</property>
-            <property name="xalign">0</property>
+            <property name="halign">start</property>
           </object>
           <layout>
 
@@ -51,7 +51,7 @@
           </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="added-tracks">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="added-tracks">            <property name="halign">start</property>
           </object>
           <layout>
 
@@ -62,7 +62,7 @@
           </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="removed-tracks">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="removed-tracks">            <property name="halign">start</property>
           </object>
           <layout>
 

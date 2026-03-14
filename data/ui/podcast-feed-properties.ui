@@ -6,7 +6,7 @@
       <object class="GtkGrid" id="podcastpropertiesTable">        <property name="column-spacing">12</property>
         <property name="row-spacing">6</property>
         <child>
-          <object class="GtkLabel" id="titleDescLabel">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="titleDescLabel">            <property name="halign">start</property>
             <property name="label" translatable="yes">Title:</property>
             <property name="use-underline">True</property>
             <property name="mnemonic-widget">titleLabel</property>
@@ -20,7 +20,7 @@
           </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="authorDescLabel">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="authorDescLabel">            <property name="halign">start</property>
             <property name="label" translatable="yes">Author:</property>
             <property name="use-underline">True</property>
             <property name="mnemonic-widget">authorLabel</property>
@@ -34,7 +34,7 @@
           </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="titleLabel">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="titleLabel">            <property name="halign">start</property>
             <property name="label">-</property>
             <property name="selectable">True</property>
             <property name="ellipsize">end</property>
@@ -48,7 +48,7 @@
           </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="authorLabel">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="authorLabel">            <property name="halign">start</property>
             <property name="label">-</property>
             <property name="selectable">True</property>
             <property name="ellipsize">end</property>
@@ -62,7 +62,7 @@
           </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="lastupdateDescLabel">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="lastupdateDescLabel">            <property name="halign">start</property>
             <property name="label" translatable="yes">Last updated:</property>
             <property name="use-underline">True</property>
             <property name="mnemonic-widget">lastupdateLabel</property>
@@ -76,7 +76,7 @@
           </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="lastupdateLabel">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="lastupdateLabel">            <property name="halign">start</property>
             <property name="label">-</property>
             <property name="selectable">True</property>
           </object>
@@ -89,7 +89,7 @@
           </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="summaryDescLabel">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="summaryDescLabel">            <property name="halign">start</property>
             <property name="yalign">0</property>
             <property name="label" translatable="yes">Description:</property>
             <property name="mnemonic-widget">summaryLabel</property>
@@ -108,7 +108,7 @@
           <object class="GtkScrolledWindow" id="scrolledwindow1">            <property name="hscrollbar-policy">never</property>
             <child>
               <object class="GtkViewport" id="viewport1">                <child>
-                  <object class="GtkLabel" id="summaryLabel">                    <property name="xalign">0</property>
+                  <object class="GtkLabel" id="summaryLabel">                    <property name="halign">start</property>
                     <property name="yalign">0</property>
                     <property name="label">-</property>
                     <property name="wrap">True</property>
@@ -127,7 +127,7 @@
           </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="lastepisodeDescLabel">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="lastepisodeDescLabel">            <property name="halign">start</property>
             <property name="label" translatable="yes">Last episode:</property>
           </object>
           <layout>
@@ -139,7 +139,7 @@
           </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="lastepisodeLabel">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="lastepisodeLabel">            <property name="halign">start</property>
             <property name="label">-</property>
           </object>
           <layout>
@@ -159,7 +159,7 @@
       <object class="GtkGrid" id="table1">        <property name="column-spacing">12</property>
         <property name="row-spacing">6</property>
         <child>
-          <object class="GtkLabel" id="locationDescLabel">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="locationDescLabel">            <property name="halign">start</property>
             <property name="label" translatable="yes">Source:</property>
             <property name="mnemonic-widget">locationLabel</property>
           </object>
@@ -172,7 +172,7 @@
           </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="languageDescLabel">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="languageDescLabel">            <property name="halign">start</property>
             <property name="label" translatable="yes">Language:</property>
             <property name="use-underline">True</property>
             <property name="mnemonic-widget">languageLabel</property>
@@ -186,7 +186,7 @@
           </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="copyrightDescLabel">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="copyrightDescLabel">            <property name="halign">start</property>
             <property name="label" translatable="yes">Copyright:</property>
             <property name="mnemonic-widget">copyrightLabel</property>
           </object>
@@ -199,7 +199,7 @@
           </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="locationLabel">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="locationLabel">            <property name="halign">start</property>
             <property name="label">-</property>
             <property name="selectable">True</property>
             <property name="ellipsize">middle</property>
@@ -213,7 +213,7 @@
           </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="languageLabel">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="languageLabel">            <property name="halign">start</property>
             <property name="label">-</property>
             <property name="selectable">True</property>
           </object>
@@ -226,7 +226,7 @@
           </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="copyrightLabel">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="copyrightLabel">            <property name="halign">start</property>
             <property name="label">-</property>
             <property name="selectable">True</property>
             <property name="ellipsize">end</property>

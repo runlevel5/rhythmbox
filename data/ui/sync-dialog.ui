@@ -44,7 +44,7 @@
             <property name="pixel-size">64</property>
             <property name="icon-name">dialog-error</property>          </object>        </child>
         <child>
-          <object class="GtkLabel" id="sync-dialog-reason">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="sync-dialog-reason">            <property name="halign">start</property>
           </object>        </child>
       </object>    </child>
   </object>

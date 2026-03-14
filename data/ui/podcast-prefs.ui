@@ -11,7 +11,7 @@
         <property name="spacing">6</property>
         <child>
           <object class="GtkLabel" id="download_manager_label">
-            <property name="xalign">0</property>
+            <property name="halign">start</property>
             <property name="label" translatable="yes">Podcast Downloads</property>
             <attributes>
               <attribute name="weight" value="bold"/>
@@ -38,7 +38,7 @@
                     <property name="column-spacing">12</property>
                     <child>
                       <object class="GtkLabel" id="label18">
-                        <property name="xalign">0</property>
+                        <property name="halign">start</property>
                         <property name="label" translatable="yes">_Download location:</property>
                         <property name="use-underline">True</property>
                         <property name="mnemonic-widget">location_button</property>
@@ -59,7 +59,7 @@
                     </child>
                     <child>
                       <object class="GtkLabel" id="label19">
-                        <property name="xalign">0</property>
+                        <property name="halign">start</property>
                         <property name="label" translatable="yes">Check for _new episodes:</property>
                         <property name="use-underline">True</property>
                         <property name="mnemonic-widget">update_interval</property>

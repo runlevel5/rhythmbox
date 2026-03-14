@@ -87,7 +87,7 @@
               <object class="GtkLabel" id="name_label">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="xalign">0</property>
+                <property name="halign">start</property>
                 <property name="label" translatable="yes">_Name:</property>
                 <property name="use_underline">True</property>
                 <property name="mnemonic_widget">name_entry</property>
@@ -101,7 +101,7 @@
               <object class="GtkLabel" id="model_label">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="xalign">0</property>
+                <property name="halign">start</property>
                 <property name="label" translatable="yes">_Model:</property>
                 <property name="use_underline">True</property>
                 <property name="mnemonic_widget">model_combo</property>
@@ -116,7 +116,7 @@
                 <property name="width_request">250</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
-                <property name="xalign">0</property>
+                <property name="halign">start</property>
                 <property name="label" translatable="yes">Rhythmbox has detected a device that is probably an uninitialized or corrupted iPod. It must be initialized before Rhythmbox can use it, but this will destroy any song metadata already present. If you wish Rhythmbox to initialize the iPod, please fill in the information below. If the device is not an iPod, or you do not wish to initialize it, please click cancel.</property>
                 <property name="wrap">True</property>
                 <property name="selectable">True</property>
@@ -131,7 +131,7 @@
               <object class="GtkLabel" id="dialog_header">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="xalign">0</property>
+                <property name="halign">start</property>
                 <property name="label" translatable="yes">Do you want to initialize your iPod?</property>
                 <attributes>
                   <attribute name="weight" value="bold"/>

@@ -31,7 +31,7 @@
     <property name="spacing">18</property>
     <child>
       <object class="GtkLabel" id="headerlabel">        <property name="label" translatable="yes">ReplayGain preferences</property>
-        <property name="xalign">0</property>
+        <property name="halign">start</property>
         <attributes>
           <attribute name="weight" value="bold"/>
         </attributes>
@@ -44,7 +44,7 @@
         <child>
           <object class="GtkLabel" id="label3">            <property name="label" translatable="yes">ReplayGain _mode:</property>
             <property name="use-underline">True</property>
-            <property name="xalign">0</property>
+            <property name="halign">start</property>
           </object>
           <layout>
 
@@ -57,7 +57,7 @@
         <child>
           <object class="GtkLabel" id="preamplabel">            <property name="label" translatable="yes">_Pre-amp:</property>
             <property name="use-underline">True</property>
-            <property name="xalign">0</property>
+            <property name="halign">start</property>
           </object>
           <layout>
 
@@ -69,10 +69,7 @@
         </child>
         <child>
           <object class="GtkCheckButton" id="limiter">
-            <property name="label" translatable="yes">_Apply compression to prevent clipping</property>            <property name="receives-default">False</property>
-            <property name="use-underline">True</property>
-            <property name="xalign">0</property>
-            <property name="draw-indicator">True</property>
+            <property name="label" translatable="yes">_Apply compression to prevent clipping</property>            <property name="use-underline">True</property>
           </object>
           <layout>
 
@@ -116,10 +113,11 @@
       </object>    </child>
     <child>
       <object class="GtkLinkButton" id="linkbutton">
-        <property name="label" translatable="yes">Learn more about ReplayGain</property>        <property name="receives-default">True</property>
-        <property name="has-tooltip">True</property>
-        <property name="relief">none</property>
+        <property name="label" translatable="yes">Learn more about ReplayGain</property>        <property name="has-tooltip">True</property>
 	<property name="uri">http://wiki.hydrogenaud.io/index.php/ReplayGain</property>
+        <style>
+          <class name="flat"/>
+        </style>
       </object>    </child>
   </object>
 </interface>

@@ -6,7 +6,7 @@
     <property name="width-request">400</property>    <property name="orientation">vertical</property>
     <property name="spacing">6</property>
     <child>
-      <object class="GtkLabel" id="label">        <property name="xalign">0</property>
+      <object class="GtkLabel" id="label">        <property name="halign">start</property>
         <property name="use-underline">True</property>
         <property name="mnemonic-widget">txt_url</property>
       </object>    </child>

@@ -11,7 +11,7 @@
     <child>
       <object class="GtkLabel" id="label1">        <property name="label" translatable="yes">Web remote control preferences</property>
         <property name="ellipsize">end</property>
-        <property name="xalign">0</property>
+        <property name="halign">start</property>
         <attributes>
           <attribute name="weight" value="bold"/>
         </attributes>
@@ -73,7 +73,7 @@
     </child>
     <child>
       <object class="GtkLabel" id="portnumber">        <property name="label" translatable="yes">0</property>
-        <property name="xalign">0</property>
+        <property name="halign">start</property>
       </object>
       <layout>
 

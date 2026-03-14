@@ -16,7 +16,7 @@
         </child>
         <child type="label">
           <object class="GtkLabel" id="label58">            <property name="label" translatable="yes">Search engines</property>
-            <property name="xalign">0</property>
+            <property name="halign">start</property>
             <attributes>
               <attribute name="weight" value="bold"/>
             </attributes>
@@ -31,7 +31,7 @@
               <object class="GtkEntry" id="path_display">              </object>            </child>
             <child>
               <object class="GtkButton" id="choose_button">
-                <property name="use-action-appearance">False</property>                <property name="receives-default">True</property>
+                
                 <child>
                   <object class="GtkBox" id="hbox24">                    <property name="spacing">2</property>
                     <property name="halign">center</property>
@@ -50,7 +50,7 @@
         </child>
         <child type="label">
           <object class="GtkLabel" id="label59">            <property name="label" translatable="yes">Lyrics Folder</property>
-            <property name="xalign">0</property>
+            <property name="halign">start</property>
             <attributes>
               <attribute name="weight" value="bold"/>
             </attributes>

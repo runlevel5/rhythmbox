@@ -15,7 +15,7 @@
           <object class="GtkLabel" id="titleLabel">            <property name="label" translatable="yes">_Title:</property>
             <property name="use-underline">True</property>
             <property name="mnemonic-widget">titleEntry</property>
-            <property name="xalign">0</property>
+            <property name="halign">start</property>
           </object>
           <layout>
 
@@ -40,7 +40,7 @@
           <object class="GtkLabel" id="genreLabel">            <property name="label" translatable="yes">_Genre:</property>
             <property name="use-underline">True</property>
             <property name="mnemonic-widget">genreEntry</property>
-            <property name="xalign">0</property>
+            <property name="halign">start</property>
           </object>
           <layout>
 
@@ -93,7 +93,7 @@
           <object class="GtkLabel" id="locationLabel">            <property name="label" translatable="yes">L_ocation:</property>
             <property name="use-underline">True</property>
             <property name="mnemonic-widget">locationEntry</property>
-            <property name="xalign">0</property>
+            <property name="halign">start</property>
           </object>
           <layout>
 
@@ -117,7 +117,7 @@
         <child>
           <object class="GtkLabel" id="bitrateDescLabel">            <property name="label" translatable="yes">Bitrate:</property>
             <property name="mnemonic-widget">bitrateLabel</property>
-            <property name="xalign">0</property>
+            <property name="halign">start</property>
           </object>
           <layout>
 
@@ -128,7 +128,7 @@
           </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="bitrateLabel">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="bitrateLabel">            <property name="halign">start</property>
           </object>
           <layout>
 
@@ -142,7 +142,7 @@
           <object class="GtkLabel" id="lastplayedDescLabel">            <property name="label" translatable="yes">Last played:</property>
             <property name="use-underline">True</property>
             <property name="mnemonic-widget">lastplayedLabel</property>
-            <property name="xalign">0</property>
+            <property name="halign">start</property>
           </object>
           <layout>
 
@@ -153,7 +153,7 @@
           </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="lastplayedLabel">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="lastplayedLabel">            <property name="halign">start</property>
           </object>
           <layout>
 
@@ -166,7 +166,7 @@
         <child>
           <object class="GtkLabel" id="playcountDescLabel">            <property name="label" translatable="yes">Play count:</property>
             <property name="mnemonic-widget">playcountLabel</property>
-            <property name="xalign">0</property>
+            <property name="halign">start</property>
           </object>
           <layout>
 
@@ -177,7 +177,7 @@
           </layout>
         </child>
         <child>
-          <object class="GtkLabel" id="playcountLabel">            <property name="xalign">0</property>
+          <object class="GtkLabel" id="playcountLabel">            <property name="halign">start</property>
           </object>
           <layout>
 
@@ -190,7 +190,7 @@
         <child>
           <object class="GtkLabel" id="ratingLabel">            <property name="label" translatable="yes">_Rating:</property>
             <property name="use-underline">True</property>
-            <property name="xalign">0</property>
+            <property name="halign">start</property>
           </object>
           <layout>
 
