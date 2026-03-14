@@ -42,20 +42,20 @@
                         <property name="label" translatable="yes">_Download location:</property>
                         <property name="use-underline">True</property>
                         <property name="mnemonic-widget">location_button</property>
+                        <layout>
+                          <property name="column">0</property>
+                          <property name="row">0</property>
+                        </layout>
                       </object>
-                      <layout>
-                        <property name="column">0</property>
-                        <property name="row">0</property>
-                      </layout>
                     </child>
                     <child>
                       <object class="GtkButton" id="location_button">
                         <property name="hexpand">True</property>
+                        <layout>
+                          <property name="column">1</property>
+                          <property name="row">0</property>
+                        </layout>
                       </object>
-                      <layout>
-                        <property name="column">1</property>
-                        <property name="row">0</property>
-                      </layout>
                     </child>
                     <child>
                       <object class="GtkLabel" id="label19">
@@ -63,20 +63,20 @@
                         <property name="label" translatable="yes">Check for _new episodes:</property>
                         <property name="use-underline">True</property>
                         <property name="mnemonic-widget">update_interval</property>
+                        <layout>
+                          <property name="column">0</property>
+                          <property name="row">1</property>
+                        </layout>
                       </object>
-                      <layout>
-                        <property name="column">0</property>
-                        <property name="row">1</property>
-                      </layout>
                     </child>
                     <child>
                       <object class="GtkDropDown" id="update_interval">
                         <property name="hexpand">True</property>
+                        <layout>
+                          <property name="column">1</property>
+                          <property name="row">1</property>
+                        </layout>
                       </object>
-                      <layout>
-                        <property name="column">1</property>
-                        <property name="row">1</property>
-                      </layout>
                     </child>
                   </object>
                 </child>
