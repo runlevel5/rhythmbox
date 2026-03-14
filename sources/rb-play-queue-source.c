@@ -54,12 +54,12 @@
  * the usual horizontal space allowed for the side bar.
  */
 
-static const char *RB_PLAY_QUEUE_DBUS_PATH = "/org/gnome/Rhythmbox3/PlayQueue";
-static const char *RB_PLAY_QUEUE_IFACE_NAME = "org.gnome.Rhythmbox3.PlayQueue";
+static const char *RB_PLAY_QUEUE_DBUS_PATH = "/org/gnome/Rhythmbox/PlayQueue";
+static const char *RB_PLAY_QUEUE_IFACE_NAME = "org.gnome.Rhythmbox.PlayQueue";
 
 static const char *rb_play_queue_dbus_spec =
 "<node>"
-"  <interface name='org.gnome.Rhythmbox3.PlayQueue'>"
+"  <interface name='org.gnome.Rhythmbox.PlayQueue'>"
 "    <method name='AddToQueue'>"
 "      <arg type='s' name='uri'/>"
 "    </method>"

@@ -1,6 +1,6 @@
 po_dir = meson.project_source_root() / 'po'
 
-desktop_files = [ 'org.gnome.Rhythmbox3.desktop', 'org.gnome.Rhythmbox3.device.desktop' ]
+desktop_files = [ 'org.gnome.Rhythmbox.desktop', 'org.gnome.Rhythmbox.device.desktop' ]
 foreach desktop_file : desktop_files
   desktop_file = i18n.merge_file(
     input: desktop_file + '.in',
@@ -15,7 +15,7 @@ endforeach
 service_conf = configuration_data()
 service_conf.set('bindir', get_option('prefix') / get_option('bindir'))
 
-service = 'org.gnome.Rhythmbox3.service'
+service = 'org.gnome.Rhythmbox.service'
 
 configure_file(
   input: service + '.in',
@@ -53,7 +53,7 @@ mans = [
 
 install_man(mans)
 
-metainfo = 'org.gnome.Rhythmbox3.metainfo.xml'
+metainfo = 'org.gnome.Rhythmbox.metainfo.xml'
 
 metainfo_file = i18n.merge_file(
   input: metainfo + '.in',

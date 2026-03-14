@@ -67,12 +67,12 @@
 #define RB_PLAYLIST_MGR_VERSION (xmlChar *) "1.0"
 #define RB_PLAYLIST_MGR_PL (xmlChar *) "rhythmdb-playlists"
 
-#define RB_PLAYLIST_MANAGER_IFACE_NAME "org.gnome.Rhythmbox3.PlaylistManager"
-#define RB_PLAYLIST_MANAGER_DBUS_PATH "/org/gnome/Rhythmbox3/PlaylistManager"
+#define RB_PLAYLIST_MANAGER_IFACE_NAME "org.gnome.Rhythmbox.PlaylistManager"
+#define RB_PLAYLIST_MANAGER_DBUS_PATH "/org/gnome/Rhythmbox/PlaylistManager"
 
 static const char *rb_playlist_manager_dbus_spec =
 "<node>"
-"  <interface name='org.gnome.Rhythmbox3.PlaylistManager'>"
+"  <interface name='org.gnome.Rhythmbox.PlaylistManager'>"
 "    <method name='GetPlaylists'>"
 "      <arg type='as' direction='out'/>"
 "    </method>"

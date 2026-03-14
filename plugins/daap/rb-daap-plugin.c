@@ -64,12 +64,12 @@
 
 #include <libdmapsharing/dmap.h>
 
-#define DAAP_DBUS_PATH	"/org/gnome/Rhythmbox3/DAAP"
-#define DAAP_DBUS_IFACE "org.gnome.Rhythmbox3.DAAP"
+#define DAAP_DBUS_PATH	"/org/gnome/Rhythmbox/DAAP"
+#define DAAP_DBUS_IFACE "org.gnome.Rhythmbox.DAAP"
 
 static const char *rb_daap_dbus_iface =
 "<node>"
-"  <interface name='org.gnome.Rhythmbox3.DAAP'>"
+"  <interface name='org.gnome.Rhythmbox.DAAP'>"
 "    <method name='AddDAAPSource'>"
 "     <arg type='s' name='service_name'/>"
 "      <arg type='s' name='host'/>"

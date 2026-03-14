@@ -525,7 +525,7 @@ GApplication *
 rb_application_new (void)
 {
 	return G_APPLICATION (g_object_new (RB_TYPE_APPLICATION,
-					    "application-id", "org.gnome.Rhythmbox3",
+					    "application-id", "org.gnome.Rhythmbox",
 					    "flags", G_APPLICATION_HANDLES_OPEN,
 					    NULL));
 }

@@ -203,7 +203,7 @@ do_notify (RBNotificationPlugin *plugin,
         if (!plugin->is_flatpak && playback)
         	notify_notification_set_category (notification, "x-gnome.music");
         notify_notification_set_hint (notification, "desktop-entry",
-                                      g_variant_new_string ("org.gnome.Rhythmbox3"));
+                                      g_variant_new_string ("org.gnome.Rhythmbox"));
 
 	notify_notification_clear_actions (notification);
 	if (playback && plugin->notify_supports_actions) {

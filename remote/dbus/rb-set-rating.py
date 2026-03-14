@@ -9,10 +9,15 @@ from gi.repository import GLib, Gio
 bus_type = Gio.BusType.SESSION
 flags = 0
 iface_info = None
-proxy = Gio.DBusProxy.new_for_bus_sync(bus_type, flags, iface_info,
-                                       "org.gnome.Rhythmbox3",
-                                       "/org/gnome/Rhythmbox3/RhythmDB",
-                                       "org.gnome.Rhythmbox3.RhythmDB", None)
+proxy = Gio.DBusProxy.new_for_bus_sync(
+    bus_type,
+    flags,
+    iface_info,
+    "org.gnome.Rhythmbox",
+    "/org/gnome/Rhythmbox/RhythmDB",
+    "org.gnome.Rhythmbox.RhythmDB",
+    None,
+)
 
 entry_uri = sys.argv[1]
 rating = float(sys.argv[2])
