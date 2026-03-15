@@ -309,7 +309,8 @@ add_label_row (GtkGrid *grid, int row, const char *desc_text, const char *desc_i
 
 	*value_widget = gtk_label_new ("-");
 	gtk_label_set_xalign (GTK_LABEL (*value_widget), 0.0);
-	gtk_widget_set_halign (*value_widget, GTK_ALIGN_START);
+	gtk_widget_set_halign (*value_widget, GTK_ALIGN_FILL);
+	gtk_widget_set_hexpand (*value_widget, TRUE);
 	gtk_label_set_selectable (GTK_LABEL (*value_widget), selectable);
 	if (wrap)
 		gtk_label_set_wrap (GTK_LABEL (*value_widget), TRUE);
