@@ -30,6 +30,7 @@
 
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
+#include <adwaita.h>
 #include <json-glib/json-glib.h>
 #include <math.h>
 
@@ -68,9 +69,7 @@ struct _RBAudioscrobblerProfilePagePrivate {
 	RBSourceToolbar *toolbar;
 
 	/* Login related UI */
-	GtkWidget *login_bar;
-	GtkWidget *login_status_label;
-	GtkWidget *login_response_button;
+	AdwBanner *login_banner;
 
 	/* Profile UI */
 	GtkWidget *profile_window;
@@ -130,9 +129,8 @@ static void init_profile_ui (RBAudioscrobblerProfilePage *page);
 static void init_actions (RBAudioscrobblerProfilePage *page);
 
 /* login related callbacks */
-static void login_bar_response_cb (GtkInfoBar *info_bar,
-                                   gint response_id,
-                                   RBAudioscrobblerProfilePage *page);
+static void login_banner_button_clicked_cb (AdwBanner *banner,
+                                            RBAudioscrobblerProfilePage *page);
 static void logout_button_clicked_cb (GtkButton *button, RBAudioscrobblerProfilePage *page);
 static void login_status_change_cb (RBAudioscrobblerAccount *account,
                                     RBAudioscrobblerAccountLoginStatus status,
@@ -490,18 +488,13 @@ rb_audioscrobbler_profile_page_set_property (GObject *object,
 static void
 init_login_ui (RBAudioscrobblerProfilePage *page)
 {
-	page->priv->login_bar = gtk_info_bar_new ();
-	page->priv->login_status_label = gtk_label_new ("");
-	page->priv->login_response_button = gtk_button_new ();
-	gtk_info_bar_add_child (GTK_INFO_BAR (page->priv->login_bar), page->priv->login_status_label);
-	page->priv->login_response_button =
-		gtk_info_bar_add_button (GTK_INFO_BAR (page->priv->login_bar),
-		                         "", GTK_RESPONSE_OK);
-	g_signal_connect (page->priv->login_bar,
-	                  "response",
-	                  G_CALLBACK (login_bar_response_cb),
+	page->priv->login_banner = ADW_BANNER (adw_banner_new (""));
+	gtk_widget_set_hexpand (GTK_WIDGET (page->priv->login_banner), TRUE);
+	g_signal_connect (page->priv->login_banner,
+	                  "button-clicked",
+	                  G_CALLBACK (login_banner_button_clicked_cb),
 	                  page);
-	gtk_box_append (GTK_BOX (page->priv->main_vbox), page->priv->login_bar);
+	gtk_box_append (GTK_BOX (page->priv->main_vbox), GTK_WIDGET (page->priv->login_banner));
 }
 
 static void
@@ -659,9 +652,8 @@ init_actions (RBAudioscrobblerProfilePage *page)
 }
 
 static void
-login_bar_response_cb (GtkInfoBar *info_bar,
-                       gint response_id,
-                       RBAudioscrobblerProfilePage *page)
+login_banner_button_clicked_cb (AdwBanner *banner,
+                                RBAudioscrobblerProfilePage *page)
 {
 	switch (rb_audioscrobbler_account_get_login_status (page->priv->account)) {
 	case RB_AUDIOSCROBBLER_ACCOUNT_LOGIN_STATUS_LOGGED_OUT:
@@ -747,14 +739,12 @@ login_status_change_cb (RBAudioscrobblerAccount *account,
 		show_profile = FALSE;
 		label_text = g_strdup (_("You are not currently logged in."));
 		button_text = g_strdup (_("Log in"));
-		gtk_info_bar_set_message_type (GTK_INFO_BAR (page->priv->login_bar), GTK_MESSAGE_INFO);
 		break;
 	case RB_AUDIOSCROBBLER_ACCOUNT_LOGIN_STATUS_LOGGING_IN:
 		show_login_bar = TRUE;
 		show_profile = FALSE;
 		label_text = g_strdup (_("Waiting for authentication..."));
 		button_text = g_strdup (_("Cancel"));
-		gtk_info_bar_set_message_type (GTK_INFO_BAR (page->priv->login_bar), GTK_MESSAGE_INFO);
 		break;
 	case RB_AUDIOSCROBBLER_ACCOUNT_LOGIN_STATUS_LOGGED_IN:
 		show_login_bar = FALSE;
@@ -765,27 +755,21 @@ login_status_change_cb (RBAudioscrobblerAccount *account,
 		show_profile = FALSE;
 		label_text = g_strdup (_("Authentication error. Please try logging in again."));
 		button_text = g_strdup (_("Log in"));
-		gtk_info_bar_set_message_type (GTK_INFO_BAR (page->priv->login_bar), GTK_MESSAGE_WARNING);
 		break;
 	case RB_AUDIOSCROBBLER_ACCOUNT_LOGIN_STATUS_CONNECTION_ERROR:
 		show_login_bar = TRUE;
 		show_profile = FALSE;
 		label_text = g_strdup (_("Connection error. Please try logging in again."));
 		button_text = g_strdup (_("Log in"));
-		gtk_info_bar_set_message_type (GTK_INFO_BAR (page->priv->login_bar), GTK_MESSAGE_WARNING);
 		break;
 	default:
 		g_assert_not_reached ();
 		break;
 	}
 
-	gtk_label_set_label (GTK_LABEL (page->priv->login_status_label), label_text);
-	gtk_button_set_label (GTK_BUTTON (page->priv->login_response_button), button_text);
-	if (show_login_bar == TRUE) {
-		gtk_widget_show (page->priv->login_bar);
-	} else {
-		gtk_widget_hide (page->priv->login_bar);
-	}
+	adw_banner_set_title (page->priv->login_banner, label_text);
+	adw_banner_set_button_label (page->priv->login_banner, button_text);
+	adw_banner_set_revealed (page->priv->login_banner, show_login_bar);
 	if (show_profile == TRUE) {
 		gtk_widget_show (GTK_WIDGET (page->priv->toolbar));
 		gtk_label_set_label (GTK_LABEL (page->priv->username_label),
