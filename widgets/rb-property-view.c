@@ -87,6 +87,9 @@ struct RBPropertyViewPrivate
 	gboolean draggable;
 	gboolean handling_row_deletion;
 	guint update_selection_id;
+
+	double last_click_x;
+	double last_click_y;
 };
 
 #define RB_PROPERTY_VIEW_GET_PRIVATE(o) (rb_property_view_get_instance_private (o))
@@ -982,6 +985,9 @@ rb_property_view_button_press_cb (GtkGestureClick *gesture,
 	GtkTreeSelection *selection;
 	GtkTreePath *path;
 
+	view->priv->last_click_x = x;
+	view->priv->last_click_y = y;
+
 	selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (view->priv->treeview));
 
 	gtk_tree_view_get_path_at_pos (GTK_TREE_VIEW (view->priv->treeview), (int)x, (int)y, &path, NULL, NULL, NULL);
@@ -1003,6 +1009,59 @@ rb_property_view_button_press_cb (GtkGestureClick *gesture,
 		}
 	}
 	g_signal_emit (G_OBJECT (view), rb_property_view_signals[SHOW_POPUP], 0);
+}
+
+static gboolean
+property_popup_menu_unparent_idle (gpointer data)
+{
+	GtkWidget *menu = GTK_WIDGET (data);
+	gtk_widget_unparent (menu);
+	return G_SOURCE_REMOVE;
+}
+
+static void
+property_popup_menu_closed_cb (GtkPopover *popover, gpointer user_data)
+{
+	g_idle_add (property_popup_menu_unparent_idle, popover);
+}
+
+/**
+ * rb_property_view_popup_menu:
+ * @view: a #RBPropertyView
+ * @menu_model: the menu model to display
+ *
+ * Creates a #GtkPopoverMenu from the menu model and displays it
+ * at the position of the last right-click in the property view.
+ */
+void
+rb_property_view_popup_menu (RBPropertyView *view, GMenuModel *menu_model)
+{
+	GtkWidget *menu;
+	GdkRectangle rect;
+	double tx, ty;
+
+	menu = gtk_popover_menu_new_from_model (menu_model);
+
+	if (gtk_widget_translate_coordinates (view->priv->treeview,
+	                                     GTK_WIDGET (view),
+	                                     view->priv->last_click_x,
+	                                     view->priv->last_click_y,
+	                                     &tx, &ty)) {
+		rect.x = (int) tx;
+		rect.y = (int) ty;
+	} else {
+		rect.x = (int) view->priv->last_click_x;
+		rect.y = (int) view->priv->last_click_y;
+	}
+	rect.width = 1;
+	rect.height = 1;
+
+	gtk_widget_set_parent (menu, GTK_WIDGET (view));
+	gtk_popover_set_has_arrow (GTK_POPOVER (menu), FALSE);
+	gtk_popover_set_pointing_to (GTK_POPOVER (menu), &rect);
+
+	g_signal_connect (menu, "closed", G_CALLBACK (property_popup_menu_closed_cb), NULL);
+	gtk_popover_popup (GTK_POPOVER (menu));
 }
 
 /**

@@ -93,6 +93,9 @@ void		rb_property_view_set_model		(RBPropertyView *view,
 
 guint		rb_property_view_get_num_properties	(RBPropertyView *view);
 
+void		rb_property_view_popup_menu		(RBPropertyView *view,
+							 GMenuModel *menu_model);
+
 void		rb_property_view_set_search_func	(RBPropertyView *view,
 							 GtkTreeViewSearchEqualFunc func,
 							 gpointer func_data,
