@@ -56,6 +56,7 @@
 static void rb_song_info_class_init (RBSongInfoClass *klass);
 static void rb_song_info_init (RBSongInfo *song_info);
 static void rb_song_info_constructed (GObject *object);
+static void rb_song_info_setup (RBSongInfo *song_info);
 
 static void rb_song_info_closed_cb (AdwDialog *dialog,
 				    RBSongInfo *song_info);
@@ -744,7 +745,6 @@ rb_song_info_constructed (GObject *object)
 	GList *selected_entries;
 	GList *tem;
 	gboolean editable = TRUE;
-	RBShell *shell;
 
 	RB_CHAIN_GOBJECT_METHOD (rb_song_info_parent_class, constructed, object);
 
@@ -773,6 +773,21 @@ rb_song_info_constructed (GObject *object)
 		song_info->priv->current_entry = NULL;
 		song_info->priv->selected_entries = selected_entries;
 	}
+}
+
+/**
+ * rb_song_info_setup:
+ *
+ * Builds the dialog UI.  Called from rb_song_info_new() after g_object_new()
+ * returns, so that widget-property notifications dispatched by AdwDialog
+ * (content-width, content-height, child) are not trapped inside
+ * g_object_new_internal()'s freeze/thaw cycle.
+ */
+static void
+rb_song_info_setup (RBSongInfo *song_info)
+{
+	gboolean editable = song_info->priv->editable;
+	RBShell *shell;
 
 	/* Build the AdwToolbarView + AdwHeaderBar + GtkStackSwitcher + GtkStack */
 	song_info->priv->stack = GTK_STACK (gtk_stack_new ());
@@ -805,10 +820,28 @@ rb_song_info_constructed (GObject *object)
 		rb_song_info_populate_dialog_multiple (song_info);
 	}
 
-	/* Let plugins add extra pages (e.g. lyrics, album art) */
+	/* Let plugins add extra pages (e.g. lyrics, album art).
+	 *
+	 * RBSongInfo inherits from AdwDialog -> GtkWidget -> GInitiallyUnowned,
+	 * so at this point the object has a floating reference (refcount 1).
+	 * When the signal is marshalled to Python plugins via GObject
+	 * Introspection, PyGObject calls g_object_ref_sink() on the
+	 * parameter -- sinking the floating ref (refcount stays 1).  When the
+	 * Python wrapper is released, PyGObject unrefs, dropping refcount to
+	 * 0 and destroying the object.
+	 *
+	 * Fix: sink the floating ref ourselves before the emission (giving us
+	 * a real owning reference at refcount 1, non-floating), then restore
+	 * the floating state afterward so that adw_dialog_present() can sink
+	 * it as expected by the normal AdwDialog ownership convention. */
+	g_object_ref_sink (song_info);
+
 	g_object_get (G_OBJECT (song_info->priv->source), "shell", &shell, NULL);
 	g_signal_emit_by_name (G_OBJECT (shell), "create_song_info", song_info, (song_info->priv->current_entry == NULL));
 	g_object_unref (G_OBJECT (shell));
+
+	/* Restore floating state for adw_dialog_present() to sink. */
+	g_object_force_floating (G_OBJECT (song_info));
 
 	g_signal_connect (song_info, "closed",
 			  G_CALLBACK (rb_song_info_closed_cb), song_info);
@@ -1017,6 +1050,12 @@ rb_song_info_new (RBSource *source, RBEntryView *entry_view)
 				  NULL);
 
 	g_return_val_if_fail (song_info->priv != NULL, NULL);
+
+	/* Build the UI outside of g_object_new() so that AdwDialog property
+	 * notifications (child, content-width, content-height) and the
+	 * create_song_info plugin signal are not trapped inside
+	 * g_object_new_internal()'s freeze/thaw cycle. */
+	rb_song_info_setup (song_info);
 
 	return GTK_WIDGET (song_info);
 }

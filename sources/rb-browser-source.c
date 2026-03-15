@@ -629,8 +629,6 @@ impl_song_properties (RBSource *asource)
 
  	song_info = rb_song_info_new (asource, NULL);
 
-        g_return_if_fail (song_info != NULL);
-
  	if (song_info)
  		adw_dialog_present (ADW_DIALOG (song_info), GTK_WIDGET (source));
  	else
