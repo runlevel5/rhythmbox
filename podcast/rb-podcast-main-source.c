@@ -30,6 +30,7 @@
 
 #include <glib.h>
 #include <glib/gi18n.h>
+#include <adwaita.h>
 
 #include "rb-podcast-settings.h"
 #include "rb-podcast-main-source.h"
@@ -200,18 +201,16 @@ finish_download_cb (RBPodcastManager *pd,
 }
 
 static void
-error_dialog_response_cb (GtkDialog *dialog, int response, RBPodcastMainSource *source)
+error_dialog_response_cb (AdwAlertDialog *dialog, const char *response, RBPodcastMainSource *source)
 {
 	const char *url = g_object_get_data (G_OBJECT (dialog), "feed-url");
 
-	if (response == GTK_RESPONSE_YES) {
+	if (g_strcmp0 (response, "yes") == 0) {
 		RBPodcastManager *pd;
 		g_object_get (source, "podcast-manager", &pd, NULL);
 		rb_podcast_manager_insert_feed_url (pd, url);
 		g_object_unref (pd);
 	}
-
-	gtk_window_destroy (GTK_WINDOW (dialog));
 }
 
 static void
@@ -222,7 +221,7 @@ feed_update_status_cb (RBPodcastManager *mgr, const char *url, RBPodcastFeedUpda
 	RBShell *shell;
 	char *podcast_name;
 	char *nice_error;
-	GtkWidget *dialog;
+	AdwDialog *dialog;
 	RhythmDB *db;
 
 	source = data;
@@ -237,28 +236,30 @@ feed_update_status_cb (RBPodcastManager *mgr, const char *url, RBPodcastFeedUpda
 		 * ask if the user wants to add it anyway; if it already
 		 * exists, there's nothing to do besides reporting the error.
 		 */
-		dialog = gtk_message_dialog_new (GTK_WINDOW (gtk_widget_get_root (GTK_WIDGET (source))),
-						 GTK_DIALOG_DESTROY_WITH_PARENT,
-						 GTK_MESSAGE_ERROR,
-						 (entry != NULL) ? GTK_BUTTONS_OK : GTK_BUTTONS_YES_NO,
-						 _("Error in podcast"));
-
 		nice_error = g_strdup_printf (_("There was a problem adding this podcast: %s.  Please verify the URL: %s"), error, url);
 		if (entry != NULL) {
-			gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog),
-								  "%s", nice_error);
+			dialog = adw_alert_dialog_new (_("Error in podcast"), nice_error);
+			adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "ok", _("_OK"));
+			adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "ok");
+			adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "ok");
 		} else {
-			gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog),
-								  _("%s. Would you like to add the podcast feed anyway?"), nice_error);
+			char *body = g_strdup_printf (_("%s. Would you like to add the podcast feed anyway?"), nice_error);
+			dialog = adw_alert_dialog_new (_("Error in podcast"), body);
+			g_free (body);
+			adw_alert_dialog_add_responses (ADW_ALERT_DIALOG (dialog),
+							"no", _("_No"),
+							"yes", _("_Yes"),
+							NULL);
+			adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "yes", ADW_RESPONSE_SUGGESTED);
+			adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "yes");
+			adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "no");
 		}
 		g_free (nice_error);
-
-		gtk_window_set_title (GTK_WINDOW (dialog), "");
 
 		g_object_set_data_full (G_OBJECT (dialog), "feed-url", g_strdup (url), g_free);
 		g_signal_connect (dialog, "response", G_CALLBACK (error_dialog_response_cb), source);
 
-		gtk_widget_show (dialog);
+		adw_dialog_present (dialog, GTK_WIDGET (source));
 
 		break;
 

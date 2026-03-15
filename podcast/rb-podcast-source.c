@@ -40,6 +40,7 @@
 #include <glib.h>
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
+#include <adwaita.h>
 #include <libsoup/soup.h>
 
 #include "rb-podcast-source.h"
@@ -66,8 +67,6 @@
 #include "rb-source-toolbar.h"
 #include "rb-builder-helpers.h"
 #include "rb-application.h"
-
-#define RESPONSE_REMOVEFILEONLY 1
 
 static void podcast_add_action_cb (GSimpleAction *, GVariant *, gpointer);
 static void podcast_download_action_cb (GSimpleAction *, GVariant *, gpointer);
@@ -479,13 +478,11 @@ podcast_download_cancel_action_cb (GSimpleAction *action, GVariant *parameter, g
 }
 
 static void
-podcast_remove_response_cb (GtkDialog *dialog, int response, RBPodcastSource *source)
+podcast_remove_response_cb (AdwAlertDialog *dialog, const char *response, RBPodcastSource *source)
 {
 	GList *feeds, *l;
 
-	gtk_window_destroy (GTK_WINDOW (dialog));
-
-	if (response == GTK_RESPONSE_CANCEL || response == GTK_RESPONSE_DELETE_EVENT) {
+	if (g_strcmp0 (response, "cancel") == 0) {
 		return;
 	}
 
@@ -496,7 +493,7 @@ podcast_remove_response_cb (GtkDialog *dialog, int response, RBPodcastSource *so
 		rb_debug ("Removing podcast location: %s", location);
 		rb_podcast_manager_remove_feed (source->priv->podcast_mgr,
 						location,
-						(response == GTK_RESPONSE_YES));
+						(g_strcmp0 (response, "delete-all") == 0));
 	}
 
 	rb_list_deep_free (feeds);
@@ -506,8 +503,7 @@ static void
 podcast_feed_delete_action_cb (GSimpleAction *action, GVariant *parameter, gpointer data)
 {
 	RBPodcastSource *source = RB_PODCAST_SOURCE (data);
-	GtkWidget *dialog;
-	GtkWidget *button;
+	AdwDialog *dialog;
 	GtkWindow *window;
 	RBShell *shell;
 
@@ -517,36 +513,24 @@ podcast_feed_delete_action_cb (GSimpleAction *action, GVariant *parameter, gpoin
 	g_object_get (shell, "window", &window, NULL);
 	g_object_unref (shell);
 
-	dialog = gtk_message_dialog_new (window,
-			                 GTK_DIALOG_DESTROY_WITH_PARENT,
-					 GTK_MESSAGE_WARNING,
-					 GTK_BUTTONS_NONE,
-					 _("Delete the podcast feed and downloaded files?"));
+	dialog = adw_alert_dialog_new (_("Delete the podcast feed and downloaded files?"),
+				       _("If you choose to delete the feed and files, "
+					 "they will be permanently lost.  Please note that "
+					 "you can delete the feed but keep the downloaded "
+					 "files by choosing to delete the feed only."));
 
-	gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog),
-	                                          _("If you choose to delete the feed and files, "
-						    "they will be permanently lost.  Please note that "
-						    "you can delete the feed but keep the downloaded "
-						    "files by choosing to delete the feed only."));
+	adw_alert_dialog_add_responses (ADW_ALERT_DIALOG (dialog),
+					"cancel", _("_Cancel"),
+					"delete-feed", _("Delete _Feed Only"),
+					"delete-all", _("_Delete Feed And Files"),
+					NULL);
+	adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "delete-all", ADW_RESPONSE_DESTRUCTIVE);
+	adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "delete-feed", ADW_RESPONSE_DESTRUCTIVE);
+	adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "delete-all");
+	adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
 
-	gtk_window_set_title (GTK_WINDOW (dialog), "");
-
-	gtk_dialog_add_buttons (GTK_DIALOG (dialog),
-	                        _("Delete _Feed Only"),
-	                        GTK_RESPONSE_NO,
-	                        _("_Cancel"),
-	                        GTK_RESPONSE_CANCEL,
-	                        NULL);
-
-	button = gtk_dialog_add_button (GTK_DIALOG (dialog),
-	                                _("_Delete Feed And Files"),
-			                GTK_RESPONSE_YES);
-
-	gtk_window_set_focus (GTK_WINDOW (dialog), button);
-	gtk_dialog_set_default_response (GTK_DIALOG (dialog), GTK_RESPONSE_YES);
-
-	gtk_widget_show (dialog);
 	g_signal_connect (dialog, "response", G_CALLBACK (podcast_remove_response_cb), source);
+	adw_dialog_present (dialog, GTK_WIDGET (window));
 }
 
 static void
@@ -1005,14 +989,12 @@ impl_add_to_queue (RBSource *source, RBSource *queue)
 }
 
 static void
-delete_response_cb (GtkDialog *dialog, int response, RBPodcastSource *source)
+delete_response_cb (AdwAlertDialog *dialog, const char *response, RBPodcastSource *source)
 {
 	GList *entries;
 	GList *l;
 
-	gtk_window_destroy (GTK_WINDOW (dialog));
-
-	if (response == GTK_RESPONSE_CANCEL || response == GTK_RESPONSE_DELETE_EVENT) {
+	if (g_strcmp0 (response, "cancel") == 0) {
 		return;
 	}
 
@@ -1021,11 +1003,11 @@ delete_response_cb (GtkDialog *dialog, int response, RBPodcastSource *source)
 		RhythmDBEntry *entry = l->data;
 
 		rb_podcast_manager_cancel_download (source->priv->podcast_mgr, entry);
-		if (response == GTK_RESPONSE_YES || response == RESPONSE_REMOVEFILEONLY) {
+		if (g_strcmp0 (response, "delete-all") == 0 || g_strcmp0 (response, "delete-file") == 0) {
 			rb_podcast_manager_delete_download (source->priv->podcast_mgr, entry);
 		}
 
-		if (response == RESPONSE_REMOVEFILEONLY) {
+		if (g_strcmp0 (response, "delete-file") == 0) {
 			/* set podcast entries download status to paused so that
 			 * they no longer appear as Downloaded and can then be
 			 * redownloaded if desired
@@ -1058,8 +1040,7 @@ static void
 impl_delete_selected (RBSource *asource)
 {
 	RBPodcastSource *source = RB_PODCAST_SOURCE (asource);
-	GtkWidget *dialog;
-	GtkWidget *button;
+	AdwDialog *dialog;
 	GtkWindow *window;
 	RBShell *shell;
 
@@ -1069,38 +1050,28 @@ impl_delete_selected (RBSource *asource)
 	g_object_get (shell, "window", &window, NULL);
 	g_object_unref (shell);
 
-	dialog = gtk_message_dialog_new (window,
-			                 GTK_DIALOG_DESTROY_WITH_PARENT,
-					 GTK_MESSAGE_WARNING,
-					 GTK_BUTTONS_NONE,
-					 _("Delete the podcast episode and downloaded file?"));
+	dialog = adw_alert_dialog_new (_("Delete the podcast episode and downloaded file?"),
+				       _("If you choose to delete the episode and file, "
+					 "they will be permanently lost.  Please note that "
+					 "you can delete the episode but keep the downloaded "
+					 "file by choosing to delete the episode only, or "
+					 "delete the downloaded file but keep the episode "
+					 "by choosing to delete the file only."));
 
-	gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog),
-	                                          _("If you choose to delete the episode and file, "
-						    "they will be permanently lost.  Please note that "
-						    "you can delete the episode but keep the downloaded "
-						    "file by choosing to delete the episode only, or "
-						    "delete the downloaded file but keep the episode "
-						    "by choosing to delete the file only."));
+	adw_alert_dialog_add_responses (ADW_ALERT_DIALOG (dialog),
+					"cancel", _("_Cancel"),
+					"delete-episode", _("Delete _Episode Only"),
+					"delete-file", _("Delete _File Only"),
+					"delete-all", _("_Delete Episode And File"),
+					NULL);
+	adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "delete-all", ADW_RESPONSE_DESTRUCTIVE);
+	adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "delete-episode", ADW_RESPONSE_DESTRUCTIVE);
+	adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "delete-file", ADW_RESPONSE_DESTRUCTIVE);
+	adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "delete-all");
+	adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
 
-	gtk_window_set_title (GTK_WINDOW (dialog), "");
-
-	gtk_dialog_add_buttons (GTK_DIALOG (dialog),
-	                        _("_Cancel"),
-	                        GTK_RESPONSE_CANCEL,
-	                        _("Delete _Episode Only"),
-	                        GTK_RESPONSE_NO,
-				_("Delete _File Only"),
-	                        RESPONSE_REMOVEFILEONLY,
-	                        NULL);
-	button = gtk_dialog_add_button (GTK_DIALOG (dialog),
-	                                _("_Delete Episode And File"),
-			                GTK_RESPONSE_YES);
-
-	gtk_window_set_focus (GTK_WINDOW (dialog), button);
-	gtk_dialog_set_default_response (GTK_DIALOG (dialog), GTK_RESPONSE_YES);
 	g_signal_connect (dialog, "response", G_CALLBACK (delete_response_cb), source);
-	gtk_widget_show (dialog);
+	adw_dialog_present (dialog, GTK_WIDGET (window));
 }
 
 static RBEntryView *

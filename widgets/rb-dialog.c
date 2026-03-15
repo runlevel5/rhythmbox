@@ -32,6 +32,7 @@
 #include <glib/gi18n.h>
 
 #include <gtk/gtk.h>
+#include <adwaita.h>
 #include <glib.h>
 #include <glib/gprintf.h>
 #include <stdio.h>
@@ -73,26 +74,24 @@ rb_error_dialog (GtkWindow *parent,
 {
 	char *text = "";
 	va_list args;
-	GtkWidget *dialog;
+	AdwDialog *dialog;
+	GtkWidget *parent_widget;
 
 	va_start (args, secondary);
 	g_vasprintf (&text, secondary, args);
 	va_end (args);
 
-	dialog = gtk_message_dialog_new (parent,
-					 GTK_DIALOG_DESTROY_WITH_PARENT,
-					 GTK_MESSAGE_ERROR,
-					 GTK_BUTTONS_CLOSE,
-					 "%s", primary);
+	dialog = adw_alert_dialog_new (primary, text);
+	adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "close", _("_Close"));
+	adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "close");
+	adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "close");
 
-	gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog),
-						  "%s", text);
+	if (parent != NULL)
+		parent_widget = GTK_WIDGET (parent);
+	else
+		parent_widget = GTK_WIDGET (gtk_application_get_active_window (GTK_APPLICATION (g_application_get_default ())));
 
-	gtk_window_set_title (GTK_WINDOW (dialog), "");
-
-	g_signal_connect (dialog, "response", G_CALLBACK (gtk_window_destroy), NULL);
-
-	gtk_widget_show (dialog);
+	adw_dialog_present (dialog, parent_widget);
 
 	g_free (text);
 }

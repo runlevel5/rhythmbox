@@ -61,6 +61,7 @@
 #include <glib.h>
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
+#include <adwaita.h>
 
 #include "rb-application.h"
 #include "rb-property-view.h"
@@ -3308,13 +3309,20 @@ rb_shell_player_init (RBShellPlayer *player)
 	player->priv->mmplayer = rb_player_new (g_settings_get_boolean (player->priv->settings, "use-xfade-backend"),
 					        &error);
 	if (error != NULL) {
-		GtkWidget *dialog;
-		dialog = gtk_message_dialog_new (NULL, GTK_DIALOG_MODAL,
-						 GTK_MESSAGE_ERROR,
-						 GTK_BUTTONS_CLOSE,
-						 _("Failed to create the player: %s"),
-						 error->message);
-		gtk_window_present (GTK_WINDOW (dialog));
+		AdwDialog *dialog;
+		char *body;
+		GtkWidget *parent_widget;
+
+		body = g_strdup_printf (_("Failed to create the player: %s"), error->message);
+		dialog = adw_alert_dialog_new (_("Player Error"), body);
+		g_free (body);
+		adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "close", _("_Close"));
+		adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "close");
+		adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "close");
+
+		parent_widget = GTK_WIDGET (gtk_application_get_active_window (GTK_APPLICATION (g_application_get_default ())));
+		if (parent_widget != NULL)
+			adw_dialog_present (dialog, parent_widget);
 		exit (1);
 	}
 
