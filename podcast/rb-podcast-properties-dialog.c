@@ -448,7 +448,8 @@ rb_podcast_properties_dialog_setup (RBPodcastPropertiesDialog *dialog)
 		gtk_accessible_update_relation (GTK_ACCESSIBLE (dialog->priv->rating),
 						GTK_ACCESSIBLE_RELATION_LABELLED_BY,
 						rating_desc,
-						NULL);
+						NULL,
+						-1);
 	}
 
 	gtk_stack_add_titled (GTK_STACK (stack), grid, "details", _("Details"));
