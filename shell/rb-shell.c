@@ -113,6 +113,7 @@
 static void rb_shell_class_init (RBShellClass *klass);
 static void rb_shell_init (RBShell *shell);
 static void rb_shell_constructed (GObject *object);
+static void rb_shell_dispose (GObject *object);
 static void rb_shell_finalize (GObject *object);
 static void rb_shell_set_property (GObject *object,
 				   guint prop_id,
@@ -1042,7 +1043,8 @@ rb_shell_class_init (RBShellClass *klass)
 
 	object_class->set_property = rb_shell_set_property;
 	object_class->get_property = rb_shell_get_property;
-        object_class->finalize = rb_shell_finalize;
+	object_class->dispose = rb_shell_dispose;
+	object_class->finalize = rb_shell_finalize;
 	object_class->constructed = rb_shell_constructed;
 
 	klass->visibility_changing = rb_shell_visibility_changing;
@@ -1629,81 +1631,78 @@ idle_save_playlist_manager (RBShell *shell)
 }
 
 static void
-rb_shell_finalize (GObject *object)
+rb_shell_dispose (GObject *object)
 {
-        RBShell *shell = RB_SHELL (object);
+	RBShell *shell = RB_SHELL (object);
 
-	rb_debug ("Finalizing shell");
-
-	rb_shell_player_stop (shell->priv->player_shell);
-
-	if (shell->priv->settings != NULL) {
-		rb_settings_delayed_sync (shell->priv->settings, NULL, NULL, NULL);
-		g_object_unref (shell->priv->settings);
-	}
-
-	g_free (shell->priv->cached_title);
+	rb_debug ("Disposing shell");
 
 	if (shell->priv->save_playlist_id > 0) {
 		g_source_remove (shell->priv->save_playlist_id);
 		shell->priv->save_playlist_id = 0;
 	}
 
-	if (shell->priv->queue_sidebar != NULL) {
-		g_object_unref (shell->priv->queue_sidebar);
+	/* disconnect signals connected with g_signal_connect (not _object) */
+	if (shell->priv->art_store != NULL) {
+		g_signal_handlers_disconnect_by_data (shell->priv->art_store, shell);
+	}
+	if (shell->priv->activatable != NULL) {
+		g_signal_handlers_disconnect_by_data (shell->priv->activatable, shell);
+	}
+	if (shell->priv->settings != NULL) {
+		g_signal_handlers_disconnect_by_data (shell->priv->settings, shell);
+		rb_settings_delayed_sync (shell->priv->settings, NULL, NULL, NULL);
+	}
+
+	if (shell->priv->player_shell != NULL) {
+		rb_shell_player_stop (shell->priv->player_shell);
 	}
 
 	if (shell->priv->playlist_manager != NULL) {
 		rb_debug ("shutting down playlist manager");
 		rb_playlist_manager_shutdown (shell->priv->playlist_manager);
-
-		rb_debug ("unreffing playlist manager");
-		g_object_unref (shell->priv->playlist_manager);
 	}
 
-	if (shell->priv->removable_media_manager != NULL) {
-		rb_debug ("unreffing removable media manager");
-		g_object_unref (shell->priv->removable_media_manager);
-		g_object_unref (shell->priv->track_transfer_queue);
+	g_clear_object (&shell->priv->queue_sidebar);
+	g_clear_object (&shell->priv->playlist_manager);
+	g_clear_object (&shell->priv->removable_media_manager);
+	g_clear_object (&shell->priv->track_transfer_queue);
+	g_clear_object (&shell->priv->podcast_manager);
+	g_clear_object (&shell->priv->clipboard_shell);
+	g_clear_object (&shell->priv->settings);
+	g_clear_object (&shell->priv->art_store);
+
+	if (shell->priv->db != NULL) {
+		rb_debug ("shutting down DB");
+		rhythmdb_shutdown (shell->priv->db);
+	}
+	g_clear_object (&shell->priv->db);
+
+	if (shell->priv->window != NULL) {
+		rb_debug ("destroying window");
+		gtk_window_destroy (GTK_WINDOW (shell->priv->window));
+		shell->priv->window = NULL;
 	}
 
-	if (shell->priv->podcast_manager != NULL) {
-		rb_debug ("unreffing podcast manager");
-		g_object_unref (shell->priv->podcast_manager);
-	}
+	G_OBJECT_CLASS (rb_shell_parent_class)->dispose (object);
+}
 
-	if (shell->priv->clipboard_shell != NULL) {
-		rb_debug ("unreffing clipboard shell");
-		g_object_unref (shell->priv->clipboard_shell);
-	}
+static void
+rb_shell_finalize (GObject *object)
+{
+        RBShell *shell = RB_SHELL (object);
 
-	/* prefs dialog is an AdwDialog that destroys itself on close,
-	 * so we don't own it and shouldn't try to close it here */
+	rb_debug ("Finalizing shell");
 
+	g_free (shell->priv->cached_title);
 	g_free (shell->priv->rhythmdb_file);
-
 	g_free (shell->priv->playlists_file);
-
-	rb_debug ("destroying window");
-	gtk_window_destroy (GTK_WINDOW (shell->priv->window));
 
 	g_list_free (shell->priv->sources);
 	shell->priv->sources = NULL;
 
 	if (shell->priv->sources_hash != NULL) {
 		g_hash_table_destroy (shell->priv->sources_hash);
-	}
-
-	if (shell->priv->db != NULL) {
-		rb_debug ("shutting down DB");
-		rhythmdb_shutdown (shell->priv->db);
-
-		rb_debug ("unreffing DB");
-		g_object_unref (shell->priv->db);
-	}
-	if (shell->priv->art_store != NULL) {
-		g_object_unref (shell->priv->art_store);
-		shell->priv->art_store = NULL;
 	}
 
         G_OBJECT_CLASS (rb_shell_parent_class)->finalize (object);
@@ -2460,7 +2459,7 @@ rb_shell_quit (RBShell *shell,
 
 	rb_debug ("Quitting");
 	display = gtk_widget_get_display (shell->priv->window);
-	gtk_widget_hide (shell->priv->window);
+	gtk_widget_set_visible (shell->priv->window, FALSE);
 	gdk_display_sync (display);
 
 	rb_shell_player_stop (shell->priv->player_shell);
@@ -2469,26 +2468,30 @@ rb_shell_quit (RBShell *shell,
 
 	rb_shell_sync_state (shell);
 
+	if (shell->priv->activatable != NULL) {
+		g_signal_handlers_disconnect_by_data (shell->priv->activatable, shell);
+		g_clear_object (&shell->priv->activatable);
+	}
 	if (shell->priv->plugin_engine != NULL) {
 		g_object_unref (shell->priv->plugin_engine);
 		shell->priv->plugin_engine = NULL;
-	}
-	if (shell->priv->activatable != NULL) {
-		g_object_unref (shell->priv->activatable);
-		shell->priv->activatable = NULL;
 	}
 	if (shell->priv->plugin_settings != NULL) {
 		g_object_unref (shell->priv->plugin_settings);
 		shell->priv->plugin_settings = NULL;
 	}
-	/* or maybe just _quit */
-	/* g_application_release (G_APPLICATION (shell->priv->application)); */
 
 	/* deselect the current page so it drops mnemonics etc. */
 	rb_display_page_deselected (shell->priv->selected_page);
 
 	rb_settings_delayed_sync (shell->priv->settings, NULL, NULL, NULL);
-	gtk_window_destroy (GTK_WINDOW (shell->priv->window));
+
+	/* destroy the window so GApplication sees no windows and begins
+	 * shutdown, which will eventually unref the shell and run dispose */
+	if (shell->priv->window != NULL) {
+		gtk_window_destroy (GTK_WINDOW (shell->priv->window));
+		shell->priv->window = NULL;
+	}
 
 	g_timeout_add_seconds (10, quit_timeout, NULL);
 	return TRUE;
