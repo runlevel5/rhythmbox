@@ -45,6 +45,7 @@
 #include <libxml/tree.h>
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
+#include "rb-gtk4-compat.h"
 
 #include "rb-playlist-manager.h"
 #include "rb-playlist-source.h"
@@ -66,12 +67,12 @@
 #define RB_PLAYLIST_MGR_VERSION (xmlChar *) "1.0"
 #define RB_PLAYLIST_MGR_PL (xmlChar *) "rhythmdb-playlists"
 
-#define RB_PLAYLIST_MANAGER_IFACE_NAME "org.gnome.Rhythmbox3.PlaylistManager"
-#define RB_PLAYLIST_MANAGER_DBUS_PATH "/org/gnome/Rhythmbox3/PlaylistManager"
+#define RB_PLAYLIST_MANAGER_IFACE_NAME "org.gnome.Rhythmbox.PlaylistManager"
+#define RB_PLAYLIST_MANAGER_DBUS_PATH "/org/gnome/Rhythmbox/PlaylistManager"
 
 static const char *rb_playlist_manager_dbus_spec =
 "<node>"
-"  <interface name='org.gnome.Rhythmbox3.PlaylistManager'>"
+"  <interface name='org.gnome.Rhythmbox.PlaylistManager'>"
 "    <method name='GetPlaylists'>"
 "      <arg type='as' direction='out'/>"
 "    </method>"
@@ -170,7 +171,7 @@ static RBPlaylistExportFilter playlist_formats[] = {
 };
 
 
-G_DEFINE_TYPE (RBPlaylistManager, rb_playlist_manager, G_TYPE_OBJECT)
+G_DEFINE_TYPE_WITH_PRIVATE (RBPlaylistManager, rb_playlist_manager, G_TYPE_OBJECT)
 
 
 /**
@@ -670,108 +671,16 @@ rb_playlist_manager_new_playlist (RBPlaylistManager *mgr,
 
 static char *
 create_name_from_selection_data (RBPlaylistManager *mgr,
-				 GtkSelectionData *data)
+				 gpointer data)
 {
-	GdkAtom       type;
-	char         *name = NULL;
-	const guchar *selection_data_data;
-	GList        *list;
-
-	type = gtk_selection_data_get_data_type (data);
-	selection_data_data = gtk_selection_data_get_data (data);
-
-        if (type == gdk_atom_intern ("text/uri-list", TRUE) ||
-	    type == gdk_atom_intern ("application/x-rhythmbox-entry", TRUE)) {
-		gboolean is_id;
-		list = rb_uri_list_parse ((const char *) selection_data_data);
-		is_id = (type == gdk_atom_intern ("application/x-rhythmbox-entry", TRUE));
-
-		if (list != NULL) {
-			GList   *l;
-			char    *artist;
-			char    *album;
-			gboolean mixed_artists;
-			gboolean mixed_albums;
-
-			artist = NULL;
-			album  = NULL;
-			mixed_artists = FALSE;
-			mixed_albums  = FALSE;
-			for (l = list; l != NULL; l = g_list_next (l)) {
-				RhythmDBEntry *entry;
-				const char    *e_artist;
-				const char    *e_album;
-
-				entry = rhythmdb_entry_lookup_from_string (mgr->priv->db,
-									   (const char *)l->data,
-									   is_id);
-				if (entry == NULL) {
-					continue;
-				}
-
-				e_artist = rhythmdb_entry_get_string (entry, RHYTHMDB_PROP_ARTIST);
-				e_album = rhythmdb_entry_get_string (entry, RHYTHMDB_PROP_ALBUM);
-
-				/* get value of first non-NULL artist */
-				if (e_artist != NULL && artist == NULL) {
-					artist = g_strdup (e_artist);
-				}
-
-				/* get value of first non-NULL album */
-				if (e_album != NULL && album == NULL) {
-					album = g_strdup (e_album);
-				}
-
-				/* pretend that NULL fields always match */
-				if (artist != NULL && e_artist != NULL
-				    && strcmp (artist, e_artist) != 0) {
-					mixed_artists = TRUE;
-				}
-
-				/* pretend that NULL fields always match */
-				if (album != NULL && e_album != NULL
-				    && strcmp (album, e_album) != 0) {
-					mixed_albums = TRUE;
-				}
-
-				/* if there is a mix of both then stop */
-				if (mixed_artists && mixed_albums) {
-					break;
-				}
-			}
-
-			if (! mixed_artists && ! mixed_albums) {
-				name = g_strdup_printf ("%s - %s", artist, album);
-			} else if (! mixed_artists) {
-				name = g_strdup_printf ("%s", artist);
-			} else if (! mixed_albums) {
-				name = g_strdup_printf ("%s", album);
-			}
-
-			g_free (artist);
-			g_free (album);
-			rb_list_deep_free (list);
-		}
-
-	} else {
-		char **names;
-
-		names = g_strsplit ((char *) selection_data_data, "\r\n", 0);
-		name = g_strjoinv (", ", names);
-		g_strfreev (names);
-	}
-
-	if (name == NULL) {
-		name = g_strdup (_("Untitled Playlist"));
-	}
-
-	return name;
+	/* TODO: reimplement with GTK4 DnD */
+	return NULL;
 }
 
 /**
  * rb_playlist_manager_new_playlist_from_selection_data:
  * @mgr: the #RBPlaylistManager
- * @data: the #GtkSelectionData from which to create a playlist
+ * @data: the #gpointer from which to create a playlist
  *
  * Creates a new playlist based on selection data from gtk.
  * Used to implement playlist creation through drag and drop
@@ -781,17 +690,17 @@ create_name_from_selection_data (RBPlaylistManager *mgr,
  **/
 RBSource *
 rb_playlist_manager_new_playlist_from_selection_data (RBPlaylistManager *mgr,
-						      GtkSelectionData *data)
+						      gpointer data)
 {
 	RBSource *playlist;
 	GdkAtom   type;
 	gboolean  automatic = TRUE;
 	char     *suggested_name;
 
-	type = gtk_selection_data_get_data_type (data);
+	type = (gpointer)0 /* GTK4: DnD stub */;
 
-	if (type == gdk_atom_intern ("text/uri-list", TRUE) ||
-	    type == gdk_atom_intern ("application/x-rhythmbox-entry", TRUE))
+	if ((type != NULL && strcmp (type, "text/uri-list") == 0) ||
+	    (type != NULL && strcmp (type, "application/x-rhythmbox-entry") == 0))
 		automatic = FALSE;
 	suggested_name = create_name_from_selection_data (mgr, data);
 
@@ -858,7 +767,7 @@ new_automatic_playlist_response_cb (GtkDialog *dialog, int response, RBPlaylistM
 		break;
 	}
 
-	gtk_widget_destroy (GTK_WIDGET (dialog));
+	gtk_window_destroy (GTK_WINDOW (dialog));
 }
 
 static void
@@ -868,7 +777,7 @@ new_auto_playlist_action_cb (GSimpleAction *action, GVariant *parameter, gpointe
 	GtkWidget *creator;
 
 	creator = rb_query_creator_new (mgr->priv->db);
-	gtk_widget_show_all (creator);
+	gtk_widget_show (creator);
 
 	g_signal_connect (creator,
 			  "response",
@@ -889,7 +798,7 @@ cleanup_edit_data (EditAutoPlaylistData *data)
 {
 	g_signal_handler_disconnect (data->playlist, data->playlist_deleted_id);
 	g_signal_handler_disconnect (data->creator, data->creator_response_id);
-	gtk_widget_destroy (GTK_WIDGET (data->creator));
+	gtk_window_destroy (GTK_WINDOW (data->creator));
 	g_free (data);
 }
 
@@ -1030,32 +939,34 @@ rename_playlist_action_cb (GSimpleAction *action, GVariant *parameter, gpointer 
 
 
 static void
-load_playlist_response_cb (GtkDialog *dialog,
-			   int response_id,
-			   RBPlaylistManager *mgr)
+load_playlist_open_cb (GObject *source,
+		       GAsyncResult *result,
+		       gpointer data)
 {
-	char *escaped_file = NULL;
+	RBPlaylistManager *mgr = RB_PLAYLIST_MANAGER (data);
+	GtkFileDialog *dialog = GTK_FILE_DIALOG (source);
+	GFile *file;
 	GError *error = NULL;
+	char *uri;
 
-	if (response_id != GTK_RESPONSE_ACCEPT) {
-		gtk_widget_destroy (GTK_WIDGET (dialog));
+	file = gtk_file_dialog_open_finish (dialog, result, &error);
+	if (file == NULL) {
+		if (!g_error_matches (error, GTK_DIALOG_ERROR, GTK_DIALOG_ERROR_DISMISSED))
+			g_warning ("file dialog error: %s", error->message);
+		g_clear_error (&error);
 		return;
 	}
 
-	escaped_file = gtk_file_chooser_get_uri (GTK_FILE_CHOOSER (dialog));
+	uri = g_file_get_uri (file);
+	g_object_unref (file);
 
-	gtk_widget_destroy (GTK_WIDGET (dialog));
-
-	if (escaped_file == NULL)
-		return;
-
-	if (!rb_playlist_manager_parse_file (mgr, escaped_file, &error)) {
+	if (!rb_playlist_manager_parse_file (mgr, uri, &error)) {
 		rb_error_dialog (NULL, _("Couldn't read playlist"),
 				 "%s", error->message);
 		g_error_free (error);
 	}
 
-	g_free (escaped_file);
+	g_free (uri);
 	rb_playlist_manager_set_dirty (mgr, TRUE);
 }
 
@@ -1064,9 +975,10 @@ load_playlist_action_cb (GSimpleAction *action, GVariant *parameter, gpointer da
 {
 	RBPlaylistManager *mgr = RB_PLAYLIST_MANAGER (data);
 	GtkWindow *window;
-	GtkWidget *dialog;
+	GtkFileDialog *dialog;
 	GtkFileFilter *filter;
 	GtkFileFilter *filter_all;
+	GListStore *filters;
 	int i;
 
 	filter = gtk_file_filter_new ();
@@ -1079,20 +991,24 @@ load_playlist_action_cb (GSimpleAction *action, GVariant *parameter, gpointer da
 	gtk_file_filter_set_name (filter_all, _("All Files"));
 	gtk_file_filter_add_pattern (filter_all, "*");
 
+	filters = g_list_store_new (GTK_TYPE_FILE_FILTER);
+	g_list_store_append (filters, filter);
+	g_list_store_append (filters, filter_all);
+
+	dialog = gtk_file_dialog_new ();
+	gtk_file_dialog_set_title (dialog, _("Load Playlist"));
+	gtk_file_dialog_set_filters (dialog, G_LIST_MODEL (filters));
+	gtk_file_dialog_set_default_filter (dialog, filter);
+
 	g_object_get (mgr->priv->shell, "window", &window, NULL);
 
-	dialog = rb_file_chooser_new (_("Load Playlist"),
-				      window,
-				      GTK_FILE_CHOOSER_ACTION_OPEN,
-				      FALSE);
-	gtk_file_chooser_add_filter (GTK_FILE_CHOOSER (dialog), filter);
-	gtk_file_chooser_add_filter (GTK_FILE_CHOOSER (dialog), filter_all);
-	gtk_file_chooser_set_filter (GTK_FILE_CHOOSER (dialog), filter);
-
-	g_signal_connect_object (dialog, "response",
-				 G_CALLBACK (load_playlist_response_cb), mgr, 0);
+	gtk_file_dialog_open (dialog, window, NULL,
+			      load_playlist_open_cb, mgr);
 
 	g_object_unref (window);
+	g_object_unref (filter);
+	g_object_unref (filter_all);
+	g_object_unref (filters);
 }
 
 static void
@@ -1101,30 +1017,38 @@ save_playlist_response_cb (GtkDialog *dialog,
 			   RBSource *source)
 {
 	char *file = NULL;
-	GtkWidget *menu;
-	gint index;
+	const char *choice;
 	RBPlaylistExportType export_type = RB_PLAYLIST_EXPORT_TYPE_UNKNOWN;
+	GFile *gfile;
+	int i, j;
 
 	if (response_id != GTK_RESPONSE_OK) {
-		gtk_widget_destroy (GTK_WIDGET (dialog));
+		gtk_window_destroy (GTK_WINDOW (dialog));
 		return;
 	}
 
-	file = gtk_file_chooser_get_uri (GTK_FILE_CHOOSER (dialog));
-	if (file == NULL || file[0] == '\0')
+	gfile = gtk_file_chooser_get_file (GTK_FILE_CHOOSER (dialog));
+	file = gfile ? g_file_get_uri (gfile) : NULL;
+	g_clear_object (&gfile);
+
+	if (file == NULL || file[0] == '\0') {
+		g_free (file);
 		return;
+	}
 
-	menu = g_object_get_data (G_OBJECT(dialog), "export-menu");
-	index = gtk_combo_box_get_active (GTK_COMBO_BOX (menu));
+	choice = gtk_file_chooser_get_choice (GTK_FILE_CHOOSER (dialog), "format");
+	if (choice != NULL && strcmp (choice, "by-extension") != 0) {
+		for (i = 0; i < (int) G_N_ELEMENTS (playlist_formats); i++) {
+			if (strcmp (choice, playlist_formats[i].extensions[0]) == 0) {
+				export_type = playlist_formats[i].type;
+				break;
+			}
+		}
+	}
 
-	/* by extension selected */
-	if (index <= 0) {
-		int i;
-
-		for (i = 0; i < G_N_ELEMENTS (playlist_formats); i++) {
-			int j;
-
-			/* determine the playlist type from the extension */
+	/* fall back to detecting format from file extension */
+	if (export_type == RB_PLAYLIST_EXPORT_TYPE_UNKNOWN) {
+		for (i = 0; i < (int) G_N_ELEMENTS (playlist_formats); i++) {
 			for (j = 0; playlist_formats[i].extensions[j] != NULL; j++) {
 				if (g_str_has_suffix (file, playlist_formats[i].extensions[j])) {
 					export_type = playlist_formats[i].type;
@@ -1132,121 +1056,55 @@ save_playlist_response_cb (GtkDialog *dialog,
 				}
 			}
 		}
-	} else {
-		export_type = playlist_formats[index-1].type;
 	}
 
 	if (export_type == RB_PLAYLIST_EXPORT_TYPE_UNKNOWN) {
 		rb_error_dialog (NULL, _("Couldn't save playlist"), _("Unsupported file extension given."));
 	} else {
 		rb_playlist_source_save_playlist (RB_PLAYLIST_SOURCE (source), file, export_type);
-		gtk_widget_destroy (GTK_WIDGET (dialog));
+		gtk_window_destroy (GTK_WINDOW (dialog));
 	}
 
 	g_free (file);
 }
 
-static void
-export_set_extension_cb (GtkWidget* widget, GtkDialog *dialog)
-{
-	gint index;
-	gchar *text;
-	gchar *last_dot;
-	const char *extension;
-	gchar *basename;
-	GString *basename_str;
-
-	index = gtk_combo_box_get_active (GTK_COMBO_BOX (widget));
-	if (index <= 0)
-		return;
-
-	extension = playlist_formats[index-1].extensions[0];
-	if (extension == NULL)
-		return;
-
-	text = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
-	if (text == NULL || text[0] == '\0') {
-		g_free (text);
-		return;
-	}
-
-	basename = g_path_get_basename (text);
-	basename_str = g_string_new (basename);
-	last_dot = g_utf8_strrchr (basename, -1, '.');
-	if (last_dot)
-		g_string_truncate (basename_str, (last_dot-basename));
-	g_free (basename);
-	g_free (text);
-
-	g_string_append_printf (basename_str, ".%s", extension);
-	gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), basename_str->str);
-	g_string_free (basename_str, TRUE);
-}
-
-static gchar *
-filter_get_export_filter_label (RBPlaylistExportFilter *efilter)
-{
-	GString *str;
-	gint ext;
-
-	str = g_string_new (_(efilter->description));
-	for (ext = 0; efilter->extensions[ext] != NULL; ext++) {
-		if (ext == 0)
-			g_string_append (str, " (*.");
-		else
-			g_string_append (str, ", *.");
-		g_string_append (str, efilter->extensions[ext]);
-	}
-
-	if (ext > 0)
-		g_string_append (str, ")");
-
-	return g_string_free (str, FALSE);
-}
-
-static void
-setup_format_menu (GtkWidget* menu, GtkWidget *dialog)
-{
-	GtkTreeModel *model;
-	int i;
-
-	model = gtk_combo_box_get_model (GTK_COMBO_BOX (menu));
-	gtk_combo_box_set_row_separator_func (GTK_COMBO_BOX (menu), rb_combo_box_hyphen_separator_func,
-					      NULL, NULL);
-
-	for (i = 0; i < G_N_ELEMENTS (playlist_formats); i++) {
-		gchar *filter_label;
-		GtkTreeIter iter;
-
-		filter_label = filter_get_export_filter_label (&playlist_formats[i]);
-		gtk_list_store_insert_with_values (GTK_LIST_STORE (model), &iter, -1,
-						   0, filter_label, -1);
-
-		g_free (filter_label);
-	}
-
-	g_signal_connect_object (menu,
-				 "changed", G_CALLBACK (export_set_extension_cb),
-				 dialog, 0);
-}
-
 void
 rb_playlist_manager_save_playlist_file (RBPlaylistManager *mgr, RBSource *source)
 {
-	GtkBuilder *builder;
 	GtkWidget *dialog;
-	GtkWidget *menu;
+	GtkWindow *window;
 	char *name;
 	char *tmp;
+	/* 1 "by extension" + 3 formats + NULL terminator */
+	const char *option_ids[5];
+	const char *option_labels[5];
+	int i;
 
 	g_return_if_fail (RB_IS_PLAYLIST_SOURCE (source));
 
-	builder = rb_builder_load ("playlist-save.ui", mgr);
-	dialog = GTK_WIDGET (gtk_builder_get_object (builder, "playlist_save_dialog"));
+	g_object_get (mgr->priv->shell, "window", &window, NULL);
+	dialog = gtk_file_chooser_dialog_new (_("Save Playlist"),
+					      window,
+					      GTK_FILE_CHOOSER_ACTION_SAVE,
+					      _("_Cancel"), GTK_RESPONSE_CANCEL,
+					      _("_Save"), GTK_RESPONSE_OK,
+					      NULL);
+	g_object_unref (window);
+	gtk_window_set_modal (GTK_WINDOW (dialog), TRUE);
 
-	menu = GTK_WIDGET (gtk_builder_get_object (builder, "playlist_format_menu"));
-	setup_format_menu (menu, dialog);
-	g_object_set_data (G_OBJECT (dialog), "export-menu", menu);
+	/* add format choice dropdown */
+	option_ids[0] = "by-extension";
+	option_labels[0] = _("By extension");
+	for (i = 0; i < (int) G_N_ELEMENTS (playlist_formats); i++) {
+		option_ids[i + 1] = playlist_formats[i].extensions[0];
+		option_labels[i + 1] = _(playlist_formats[i].description);
+	}
+	option_ids[i + 1] = NULL;
+	option_labels[i + 1] = NULL;
+	gtk_file_chooser_add_choice (GTK_FILE_CHOOSER (dialog),
+				     "format", _("Playlist format"),
+				     option_ids, option_labels);
+	gtk_file_chooser_set_choice (GTK_FILE_CHOOSER (dialog), "format", "by-extension");
 
 	g_object_get (source, "name", &name, NULL);
 	tmp = g_strconcat (name, ".pls", NULL);
@@ -1254,13 +1112,11 @@ rb_playlist_manager_save_playlist_file (RBPlaylistManager *mgr, RBSource *source
 	g_free (tmp);
 	g_free (name);
 
-	/* FIXME: always has "by extension" as default (it should probably remember the last selection) */
-	gtk_combo_box_set_active (GTK_COMBO_BOX (menu), 0);
 	g_signal_connect_object (dialog, "response",
 				 G_CALLBACK (save_playlist_response_cb),
 				 source, 0);
 
-	g_object_unref (builder);
+	gtk_window_present (GTK_WINDOW (dialog));
 }
 
 static void
@@ -1894,9 +1750,7 @@ rb_playlist_manager_constructed (GObject *object)
 static void
 rb_playlist_manager_init (RBPlaylistManager *mgr)
 {
-	mgr->priv = G_TYPE_INSTANCE_GET_PRIVATE (mgr,
-						 RB_TYPE_PLAYLIST_MANAGER,
-						 RBPlaylistManagerPrivate);
+	mgr->priv = rb_playlist_manager_get_instance_private (mgr);
 
 	mgr->priv->dirty = 0;
 	mgr->priv->saving = 0;
@@ -2046,5 +1900,4 @@ rb_playlist_manager_class_init (RBPlaylistManagerClass *klass)
 			      G_TYPE_NONE,
 			      0, G_TYPE_NONE);
 
-	g_type_class_add_private (klass, sizeof (RBPlaylistManagerPrivate));
 }

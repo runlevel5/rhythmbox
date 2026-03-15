@@ -53,7 +53,44 @@ static void rhythmdb_query_model_tree_model_init (GtkTreeModelIface *iface);
 static void rhythmdb_query_model_drag_source_init (RbTreeDragSourceIface *iface);
 static void rhythmdb_query_model_drag_dest_init (RbTreeDragDestIface *iface);
 
+struct _RhythmDBQueryModelPrivate
+{
+	RhythmDB *db;
+
+	RhythmDBQueryModel *base_model;
+
+	GCompareDataFunc sort_func;
+	gpointer sort_data;
+	GDestroyNotify sort_data_destroy;
+	gboolean sort_reverse;
+
+	GPtrArray *query;
+	GPtrArray *original_query;
+
+	guint stamp;
+
+	RhythmDBQueryModelLimitType limit_type;
+	GVariant *limit_value;
+
+	glong total_duration;
+	guint64 total_size;
+
+	GSequence *entries;
+	GHashTable *reverse_map;
+	GSequence *limited_entries;
+	GHashTable *limited_reverse_map;
+	GHashTable *hidden_entry_map;
+
+	gint pending_update_count;
+
+	gboolean reorder_drag_and_drop;
+	gboolean show_hidden;
+
+	gint query_reapply_timeout_id;
+};
+
 G_DEFINE_TYPE_WITH_CODE(RhythmDBQueryModel, rhythmdb_query_model, G_TYPE_OBJECT,
+			G_ADD_PRIVATE (RhythmDBQueryModel)
 			G_IMPLEMENT_INTERFACE(RHYTHMDB_TYPE_QUERY_RESULTS,
 					      rhythmdb_query_model_query_results_init)
 			G_IMPLEMENT_INTERFACE(GTK_TYPE_TREE_MODEL,
@@ -91,7 +128,7 @@ static gboolean rhythmdb_query_model_do_reorder (RhythmDBQueryModel *model, Rhyt
 static gboolean rhythmdb_query_model_emit_reorder (RhythmDBQueryModel *model, gint old_pos, gint new_pos);
 static gboolean rhythmdb_query_model_drag_data_get (RbTreeDragSource *dragsource,
 							  GList *paths,
-							  GtkSelectionData *selection_data);
+							  gpointer selection_data);
 static gboolean rhythmdb_query_model_drag_data_delete (RbTreeDragSource *dragsource,
 							     GList *paths);
 static gboolean rhythmdb_query_model_row_draggable (RbTreeDragSource *dragsource,
@@ -99,11 +136,11 @@ static gboolean rhythmdb_query_model_row_draggable (RbTreeDragSource *dragsource
 static gboolean rhythmdb_query_model_drag_data_received (RbTreeDragDest *drag_dest,
 							 GtkTreePath *dest,
 							 GtkTreeViewDropPosition pos,
-							 GtkSelectionData  *selection_data);
+							 gpointer selection_data);
 static gboolean rhythmdb_query_model_row_drop_possible (RbTreeDragDest *drag_dest,
 							GtkTreePath *dest,
 							GtkTreeViewDropPosition pos,
-							GtkSelectionData  *selection_data);
+							gpointer selection_data);
 static gboolean rhythmdb_query_model_row_drop_position (RbTreeDragDest   *drag_dest,
 							GtkTreePath       *dest_path,
 							GList *targets,
@@ -199,50 +236,10 @@ enum {
 	TARGET_URIS
 };
 
-static const GtkTargetEntry rhythmdb_query_model_drag_types[] = {
-	{ "application/x-rhythmbox-entry", 0, TARGET_ENTRIES },
-	{ "text/uri-list", 0, TARGET_URIS },
-};
+/* TODO: GTK4 DnD content types */
 
-static GtkTargetList *rhythmdb_query_model_drag_target_list = NULL;
 
-struct _RhythmDBQueryModelPrivate
-{
-	RhythmDB *db;
-
-	RhythmDBQueryModel *base_model;
-
-	GCompareDataFunc sort_func;
-	gpointer sort_data;
-	GDestroyNotify sort_data_destroy;
-	gboolean sort_reverse;
-
-	GPtrArray *query;
-	GPtrArray *original_query;
-
-	guint stamp;
-
-	RhythmDBQueryModelLimitType limit_type;
-	GVariant *limit_value;
-
-	glong total_duration;
-	guint64 total_size;
-
-	GSequence *entries;
-	GHashTable *reverse_map;
-	GSequence *limited_entries;
-	GHashTable *limited_reverse_map;
-	GHashTable *hidden_entry_map;
-
-	gint pending_update_count;
-
-	gboolean reorder_drag_and_drop;
-	gboolean show_hidden;
-
-	gint query_reapply_timeout_id;
-};
-
-#define RHYTHMDB_QUERY_MODEL_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RHYTHMDB_TYPE_QUERY_MODEL, RhythmDBQueryModelPrivate))
+#define RHYTHMDB_QUERY_MODEL_GET_PRIVATE(o) (rhythmdb_query_model_get_instance_private (o))
 
 enum
 {
@@ -494,7 +491,6 @@ rhythmdb_query_model_class_init (RhythmDBQueryModelClass *klass)
 			      G_TYPE_BOOLEAN,
 			      1, RHYTHMDB_TYPE_ENTRY);
 
-	g_type_class_add_private (klass, sizeof (RhythmDBQueryModelPrivate));
 }
 
 static void
@@ -664,10 +660,7 @@ rhythmdb_query_model_get_property (GObject *object,
 static void
 rhythmdb_query_model_init (RhythmDBQueryModel *model)
 {
-	if (!rhythmdb_query_model_drag_target_list)
-		rhythmdb_query_model_drag_target_list
-			= gtk_target_list_new (rhythmdb_query_model_drag_types,
-					       G_N_ELEMENTS (rhythmdb_query_model_drag_types));
+	/* TODO: GTK4 DnD target lists removed */
 
 	model->priv = RHYTHMDB_QUERY_MODEL_GET_PRIVATE (model);
 
@@ -2001,11 +1994,10 @@ rhythmdb_query_model_drag_data_delete (RbTreeDragSource *dragsource,
 static gboolean
 rhythmdb_query_model_drag_data_get (RbTreeDragSource *dragsource,
 				    GList *paths,
-				    GtkSelectionData *selection_data)
+				    gpointer selection_data)
 {
 	RhythmDBQueryModel *model = RHYTHMDB_QUERY_MODEL (dragsource);
 	RhythmDBEntry *entry;
-	GdkAtom selection_data_target;
 	GString *data;
 	guint target;
 	GList *tem;
@@ -2013,11 +2005,8 @@ rhythmdb_query_model_drag_data_get (RbTreeDragSource *dragsource,
 
 	rb_debug ("getting drag data");
 
-	selection_data_target = gtk_selection_data_get_target (selection_data);
-	if (!gtk_target_list_find (rhythmdb_query_model_drag_target_list,
-				   selection_data_target, &target)) {
-		return FALSE;
-	}
+	/* TODO: reimplement DnD for GTK4 */
+	return FALSE;
 
 
 	data = g_string_new ("");
@@ -2054,10 +2043,7 @@ rhythmdb_query_model_drag_data_get (RbTreeDragSource *dragsource,
 		need_newline = TRUE;
 	}
 
-	gtk_selection_data_set (selection_data,
-				selection_data_target,
-				8, (guchar *) data->str,
-				data->len);
+	/* TODO: GTK4 DnD data set removed */
 
 	g_string_free (data, TRUE);
 
@@ -2068,7 +2054,7 @@ static gboolean
 rhythmdb_query_model_drag_data_received (RbTreeDragDest *drag_dest,
 					 GtkTreePath *dest,
 					 GtkTreeViewDropPosition pos,
-					 GtkSelectionData *selection_data)
+					 gpointer selection_data)
 {
 	RhythmDBQueryModel *model = RHYTHMDB_QUERY_MODEL (drag_dest);
 
@@ -2110,7 +2096,7 @@ rhythmdb_query_model_drag_data_received (RbTreeDragDest *drag_dest,
 		gboolean uri_list;
 		int i = 0;
 
-		uri_list = (gtk_selection_data_get_data_type (selection_data) == gdk_atom_intern ("text/uri-list", TRUE));
+		uri_list = (gtk_selection_data_get_data_type (selection_data) == (gpointer)0 /* GTK4: DnD stub */);
 
 		strv = g_strsplit ((char *) gtk_selection_data_get_data (selection_data), "\r\n", -1);
 
@@ -2233,7 +2219,7 @@ static gboolean
 rhythmdb_query_model_row_drop_possible (RbTreeDragDest *drag_dest,
 					GtkTreePath *dest,
 					GtkTreeViewDropPosition pos,
-					GtkSelectionData *selection_data)
+					gpointer selection_data)
 {
 	RhythmDBQueryModel *model = RHYTHMDB_QUERY_MODEL (drag_dest);
 	return query_model_chain_can_reorder (model);

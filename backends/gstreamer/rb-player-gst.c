@@ -52,30 +52,6 @@ static void rb_player_gst_filter_init (RBPlayerGstFilterIface *iface);
 
 static void state_change_finished (RBPlayerGst *mp, GError *error);
 
-G_DEFINE_TYPE_WITH_CODE(RBPlayerGst, rb_player_gst, G_TYPE_OBJECT,
-			G_IMPLEMENT_INTERFACE(RB_TYPE_PLAYER, rb_player_init)
-			G_IMPLEMENT_INTERFACE(RB_TYPE_PLAYER_GST_FILTER, rb_player_gst_filter_init)
-			)
-
-#define RB_PLAYER_GST_TICK_HZ 5
-#define STATE_CHANGE_MESSAGE_TIMEOUT 5
-
-enum
-{
-	PROP_0,
-	PROP_PLAYBIN,
-	PROP_BUS
-};
-
-enum
-{
-	PREPARE_SOURCE,
-	CAN_REUSE_STREAM,
-	REUSE_STREAM,
-	MISSING_PLUGINS,
-	LAST_SIGNAL
-};
-
 enum StateChangeAction {
 	DO_NOTHING,
 	PLAYER_SHUTDOWN,
@@ -83,8 +59,6 @@ enum StateChangeAction {
 	STOP_TICK_TIMER,
 	FINISH_TRACK_CHANGE
 };
-
-static guint signals[LAST_SIGNAL] = { 0 };
 
 struct _RBPlayerGstPrivate
 {
@@ -125,6 +99,36 @@ struct _RBPlayerGstPrivate
 	GMutex eos_lock;
 	GCond eos_cond;
 };
+
+G_DEFINE_TYPE_WITH_CODE(RBPlayerGst, rb_player_gst, G_TYPE_OBJECT,
+			G_ADD_PRIVATE(RBPlayerGst)
+			G_IMPLEMENT_INTERFACE(RB_TYPE_PLAYER, rb_player_init)
+			G_IMPLEMENT_INTERFACE(RB_TYPE_PLAYER_GST_FILTER, rb_player_gst_filter_init)
+			)
+
+#define RB_PLAYER_GST_TICK_HZ 5
+#define STATE_CHANGE_MESSAGE_TIMEOUT 5
+
+enum
+{
+	PROP_0,
+	PROP_PLAYBIN,
+	PROP_BUS
+};
+
+enum
+{
+	PREPARE_SOURCE,
+	CAN_REUSE_STREAM,
+	REUSE_STREAM,
+	MISSING_PLUGINS,
+	LAST_SIGNAL
+};
+
+
+static guint signals[LAST_SIGNAL] = { 0 };
+
+
 
 static void
 _destroy_stream_data (RBPlayerGst *player)
@@ -1027,9 +1031,7 @@ rb_player_gst_new (GError **error)
 static void
 rb_player_gst_init (RBPlayerGst *mp)
 {
-	mp->priv = (G_TYPE_INSTANCE_GET_PRIVATE ((mp),
-		    RB_TYPE_PLAYER_GST,
-		    RBPlayerGstPrivate));
+	mp->priv = rb_player_gst_get_instance_private (mp);
 
 	g_mutex_init (&mp->priv->eos_lock);
 	g_cond_init (&mp->priv->eos_cond);
@@ -1191,6 +1193,5 @@ rb_player_gst_class_init (RBPlayerGstClass *klass)
 			      3,
 			      G_TYPE_POINTER, G_TYPE_STRV, G_TYPE_STRV);
 
-	g_type_class_add_private (klass, sizeof (RBPlayerGstPrivate));
 }
 

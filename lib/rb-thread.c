@@ -79,7 +79,7 @@ struct RBThreadPrivate
 	gint exit_flag;
 };
 
-#define RB_THREAD_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_THREAD, RBThreadPrivate))
+#define RB_THREAD_GET_PRIVATE(o) (rb_thread_get_instance_private (o))
 
 enum
 {
@@ -92,7 +92,7 @@ enum
 	PROP_DATA,
 };
 
-G_DEFINE_TYPE(RBThread, rb_thread, G_TYPE_OBJECT)
+G_DEFINE_TYPE_WITH_PRIVATE (RBThread, rb_thread, G_TYPE_OBJECT)
 
 static void
 rb_thread_class_init (RBThreadClass *klass)
@@ -142,7 +142,6 @@ rb_thread_class_init (RBThreadClass *klass)
 							      "User data",
 							       G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
-	g_type_class_add_private (klass, sizeof (RBThreadPrivate));
 }
 
 static void

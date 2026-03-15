@@ -19,10 +19,11 @@
 #include "config.h"
 
 #include <gtk/gtk.h>
+#include <graphene.h>
 
 #include "gossip-cell-renderer-expander.h"
 
-#define GET_PRIV(obj) (G_TYPE_INSTANCE_GET_PRIVATE ((obj), GOSSIP_TYPE_CELL_RENDERER_EXPANDER, GossipCellRendererExpanderPriv))
+#define GET_PRIV(obj) (gossip_cell_renderer_expander_get_instance_private (GOSSIP_CELL_RENDERER_EXPANDER (obj)))
 
 static void     gossip_cell_renderer_expander_init         (GossipCellRendererExpander      *expander);
 static void     gossip_cell_renderer_expander_class_init   (GossipCellRendererExpanderClass *klass);
@@ -34,15 +35,8 @@ static void     gossip_cell_renderer_expander_set_property (GObject             
 							    guint                            param_id,
 							    const GValue                    *value,
 							    GParamSpec                      *pspec);
-static void     gossip_cell_renderer_expander_get_size     (GtkCellRenderer                 *cell,
-							    GtkWidget                       *widget,
-							    const GdkRectangle              *cell_area,
-							    gint                            *x_offset,
-							    gint                            *y_offset,
-							    gint                            *width,
-							    gint                            *height);
-static void     gossip_cell_renderer_expander_render       (GtkCellRenderer                 *cell,
-							    cairo_t			    *cr,
+static void     gossip_cell_renderer_expander_snapshot     (GtkCellRenderer                 *cell,
+							    GtkSnapshot                     *snapshot,
 							    GtkWidget                       *widget,
 							    const GdkRectangle              *background_area,
 							    const GdkRectangle              *cell_area,
@@ -69,10 +63,12 @@ struct _GossipCellRendererExpanderPriv {
 	gint                 expander_size;
 
 	guint                activatable : 1;
-	GtkExpanderStyle     expander_style;
+	gboolean             is_expanded;
 };
 
-G_DEFINE_TYPE (GossipCellRendererExpander, gossip_cell_renderer_expander, GTK_TYPE_CELL_RENDERER)
+typedef GossipCellRendererExpanderPriv GossipCellRendererExpanderPrivate;
+
+G_DEFINE_TYPE_WITH_PRIVATE (GossipCellRendererExpander, gossip_cell_renderer_expander, GTK_TYPE_CELL_RENDERER)
 
 static void
 gossip_cell_renderer_expander_init (GossipCellRendererExpander *expander)
@@ -102,18 +98,16 @@ gossip_cell_renderer_expander_class_init (GossipCellRendererExpanderClass *klass
 	object_class->get_property = gossip_cell_renderer_expander_get_property;
 	object_class->set_property = gossip_cell_renderer_expander_set_property;
 
-	cell_class->get_size = gossip_cell_renderer_expander_get_size;
-	cell_class->render = gossip_cell_renderer_expander_render;
+	cell_class->snapshot = gossip_cell_renderer_expander_snapshot;
 	cell_class->activate = gossip_cell_renderer_expander_activate;
 
 	g_object_class_install_property (object_class,
 					 PROP_EXPANDER_STYLE,
-					 g_param_spec_enum ("expander-style",
-							    "Expander Style",
-							    "Style to use when painting the expander",
-							    GTK_TYPE_EXPANDER_STYLE,
-							    GTK_EXPANDER_COLLAPSED,
-							    G_PARAM_READWRITE));
+					 g_param_spec_boolean ("expander-style",
+							       "Expander Style",
+							       "Whether the expander is expanded",
+							       FALSE,
+							       G_PARAM_READWRITE));
 
 	g_object_class_install_property (object_class,
 					 PROP_EXPANDER_SIZE,
@@ -133,7 +127,6 @@ gossip_cell_renderer_expander_class_init (GossipCellRendererExpanderClass *klass
 							       TRUE,
 							       G_PARAM_READWRITE));
 
-	g_type_class_add_private (object_class, sizeof (GossipCellRendererExpanderPriv));
 }
 
 static void
@@ -150,7 +143,7 @@ gossip_cell_renderer_expander_get_property (GObject    *object,
 
 	switch (param_id) {
 	case PROP_EXPANDER_STYLE:
-		g_value_set_enum (value, priv->expander_style);
+		g_value_set_boolean (value, priv->is_expanded);
 		break;
 
 	case PROP_EXPANDER_SIZE:
@@ -181,7 +174,7 @@ gossip_cell_renderer_expander_set_property (GObject      *object,
 
 	switch (param_id) {
 	case PROP_EXPANDER_STYLE:
-		priv->expander_style = g_value_get_enum (value);
+		priv->is_expanded = g_value_get_boolean (value);
 		break;
 
 	case PROP_EXPANDER_SIZE:
@@ -204,103 +197,65 @@ gossip_cell_renderer_expander_new (void)
 	return g_object_new (GOSSIP_TYPE_CELL_RENDERER_EXPANDER, NULL);
 }
 
-/* XXX implement preferred height/width/h-f-w/w-f-h */
+
+
 static void
-gossip_cell_renderer_expander_get_size (GtkCellRenderer *cell,
-					GtkWidget       *widget,
-					const GdkRectangle *cell_area,
-					gint            *x_offset,
-					gint            *y_offset,
-					gint            *width,
-					gint            *height)
+gossip_cell_renderer_expander_snapshot (GtkCellRenderer      *cell,
+					GtkSnapshot          *snapshot,
+					GtkWidget            *widget,
+					const GdkRectangle   *background_area,
+					const GdkRectangle   *cell_area,
+					GtkCellRendererState  flags)
 {
 	GossipCellRendererExpander     *expander;
 	GossipCellRendererExpanderPriv *priv;
 	gint                            xpad, ypad;
+	gint                            x_offset, y_offset;
 	gfloat                          xalign, yalign;
 
 	expander = (GossipCellRendererExpander*) cell;
 	priv = GET_PRIV (expander);
 	gtk_cell_renderer_get_padding (cell, &xpad, &ypad);
+	gtk_cell_renderer_get_alignment (cell, &xalign, &yalign);
 
-	if (cell_area) {
+	x_offset = xalign * (cell_area->width - (priv->expander_size + (2 * xpad)));
+	x_offset = MAX (x_offset, 0);
+	y_offset = yalign * (cell_area->height - (priv->expander_size + (2 * ypad)));
+	y_offset = MAX (y_offset, 0);
 
-		gtk_cell_renderer_get_alignment (cell, &xalign, &yalign);
+	/* In GTK4, we just use GtkTreeExpander or custom drawing.
+	 * For now, use a simple approach: render via cairo snapshot. */
+	{
+		GtkStyleContext *style_context;
+		GtkStateFlags state;
+		cairo_t *cr;
 
-		if (x_offset) {
-			*x_offset = xalign * (cell_area->width - (priv->expander_size + (2 * xpad)));
-			*x_offset = MAX (*x_offset, 0);
+		style_context = gtk_widget_get_style_context (widget);
+		gtk_style_context_save (style_context);
+		gtk_widget_add_css_class (widget, "expander");
+
+		state = gtk_cell_renderer_get_state (cell, widget, flags);
+		if (priv->is_expanded) {
+			state |= GTK_STATE_FLAG_CHECKED;
 		}
+		gtk_style_context_set_state (style_context, state);
 
-		if (y_offset) {
-			*y_offset = yalign * (cell_area->height - (priv->expander_size + (2 * ypad)));
-			*y_offset = MAX (*y_offset, 0);
-		}
-	} else {
-		if (x_offset)
-			*x_offset = 0;
+		cr = gtk_snapshot_append_cairo (snapshot, &GRAPHENE_RECT_INIT (
+			cell_area->x + x_offset + xpad,
+			cell_area->y + y_offset + ypad,
+			priv->expander_size,
+			priv->expander_size));
 
-		if (y_offset)
-			*y_offset = 0;
+		gtk_render_expander (style_context,
+				     cr,
+				     0, 0,
+				     priv->expander_size,
+				     priv->expander_size);
+
+		cairo_destroy (cr);
+		gtk_widget_remove_css_class (widget, "expander");
+		gtk_style_context_restore (style_context);
 	}
-
-	if (width)
-		*width = xpad * 2 + priv->expander_size;
-
-	if (height)
-		*height = ypad * 2 + priv->expander_size;
-}
-
-static void
-gossip_cell_renderer_expander_render (GtkCellRenderer      *cell,
-				      cairo_t              *cr,
-				      GtkWidget            *widget,
-				      const GdkRectangle   *background_area,
-				      const GdkRectangle   *cell_area,
-				      GtkCellRendererState  flags)
-{
-	GossipCellRendererExpander     *expander;
-	GossipCellRendererExpanderPriv *priv;
-	GtkStyleContext                *style_context;
-	gint                            x_offset, y_offset;
-	gint                            xpad, ypad;
-	GtkStateFlags                   state;
-
-	expander = (GossipCellRendererExpander*) cell;
-	priv = GET_PRIV (expander);
-
-	gossip_cell_renderer_expander_get_size (cell, widget, cell_area,
-						&x_offset, &y_offset,
-						NULL, NULL);
-	gtk_cell_renderer_get_padding (cell, &xpad, &ypad);
-
-	style_context = gtk_widget_get_style_context (widget);
-
-	gtk_style_context_save (style_context);
-	gtk_style_context_add_class (style_context, GTK_STYLE_CLASS_EXPANDER);
-
-	state = gtk_cell_renderer_get_state (cell, widget, flags);
-
-	if (priv->expander_style == GTK_EXPANDER_COLLAPSED) {
-		state |= GTK_STATE_FLAG_NORMAL;
-	} else {
-#if GTK_CHECK_VERSION(3,13,7)
-		state |= GTK_STATE_FLAG_CHECKED;
-#else
-		state |= GTK_STATE_FLAG_ACTIVE;
-#endif
-	}
-
-	gtk_style_context_set_state (style_context, state);
-
-	gtk_render_expander (style_context,
-			     cr,
-			     cell_area->x + x_offset + xpad,
-			     cell_area->y + y_offset + ypad,
-			     priv->expander_size,
-			     priv->expander_size);
-
-	gtk_style_context_restore (style_context);
 }
 
 static gboolean
@@ -325,11 +280,13 @@ gossip_cell_renderer_expander_activate (GtkCellRenderer      *cell,
 
 	path = gtk_tree_path_new_from_string (path_string);
 
-	gdk_window_get_device_position (gtk_widget_get_window (widget),
-					gdk_event_get_device (event),
-					&mouse_x,
-					&mouse_y,
-					NULL);
+	/* In GTK4, get coordinates from the event directly */
+	{
+		double ex, ey;
+		gdk_event_get_position (event, &ex, &ey);
+		mouse_x = (int) ex;
+		mouse_y = (int) ey;
+	}
 	gtk_tree_view_convert_widget_to_bin_window_coords (GTK_TREE_VIEW (widget),
 							   mouse_x, mouse_y,
 							   &mouse_x, &mouse_y);

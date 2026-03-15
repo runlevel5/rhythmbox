@@ -42,7 +42,6 @@
 #include "rb-display-page-tree.h"
 #include "rb-display-page-model.h"
 #include "rb-debug.h"
-#include "rb-cell-renderer-pixbuf.h"
 #include "gossip-cell-renderer-expander.h"
 #include "rb-tree-dnd.h"
 #include "rb-util.h"
@@ -116,7 +115,7 @@ enum
 
 static guint signals[LAST_SIGNAL] = { 0 };
 
-G_DEFINE_TYPE (RBDisplayPageTree, rb_display_page_tree, GTK_TYPE_GRID)
+G_DEFINE_TYPE_WITH_PRIVATE (RBDisplayPageTree, rb_display_page_tree, GTK_TYPE_GRID)
 
 static RBDisplayPage *
 get_selected_page (RBDisplayPageTree *display_page_tree)
@@ -325,7 +324,7 @@ expander_cell_data_func (GtkTreeViewColumn *column,
 
 		g_object_set (cell,
 			      "visible", TRUE,
-			      "expander-style", row_expanded ? GTK_EXPANDER_EXPANDED : GTK_EXPANDER_COLLAPSED,
+			      "expander-style", row_expanded ? TRUE : FALSE,
 			      NULL);
 	}
 
@@ -361,7 +360,7 @@ static void
 drop_received_cb (RBDisplayPageModel     *model,
 		  RBDisplayPage          *page,
 		  GtkTreeViewDropPosition pos,
-		  GtkSelectionData       *data,
+		  gpointer       *data,
 		  RBDisplayPageTree      *display_page_tree)
 {
 	rb_debug ("drop received");
@@ -415,15 +414,17 @@ model_row_inserted_cb (GtkTreeModel *model,
 }
 
 static gboolean
-key_release_cb (GtkTreeView *treeview,
-		GdkEventKey *event,
-		RBDisplayPageTree *display_page_tree)
+key_released_cb (GtkEventControllerKey *controller,
+		 guint keyval,
+		 guint keycode,
+		 GdkModifierType state,
+		 RBDisplayPageTree *display_page_tree)
 {
 	RBDisplayPage *page;
 	gboolean res;
 
 	/* F2 = rename playlist */
-	if (event->keyval != GDK_KEY_F2) {
+	if (keyval != GDK_KEY_F2) {
 		return FALSE;
 	}
 
@@ -468,8 +469,6 @@ rb_display_page_tree_edit_source_name (RBDisplayPageTree *display_page_tree,
 					&iter);
 	gtk_tree_view_expand_to_path (GTK_TREE_VIEW (display_page_tree->priv->treeview), path);
 
-	/* Make cell editable just for the moment.
-	   We'll turn it off once editing is done. */
 	g_object_set (display_page_tree->priv->title_renderer, "editable", TRUE, NULL);
 
 	gtk_tree_view_set_cursor_on_cell (GTK_TREE_VIEW (display_page_tree->priv->treeview),
@@ -548,14 +547,14 @@ rb_display_page_tree_toggle_expanded (RBDisplayPageTree *display_page_tree,
 		gtk_tree_view_collapse_row (GTK_TREE_VIEW (display_page_tree->priv->treeview), path);
 		g_object_set (display_page_tree->priv->expander_renderer,
 			      "expander-style",
-			      GTK_EXPANDER_COLLAPSED,
+			      FALSE,
 			      NULL);
 	} else {
 		rb_debug ("expanding page %p", page);
 		gtk_tree_view_expand_row (GTK_TREE_VIEW (display_page_tree->priv->treeview), path, FALSE);
 		g_object_set (display_page_tree->priv->expander_renderer,
 			      "expander-style",
-			      GTK_EXPANDER_EXPANDED,
+			      TRUE,
 			      NULL);
 	}
 
@@ -787,16 +786,11 @@ impl_constructed (GObject *object)
 	RBDisplayPageTree *display_page_tree;
 	GtkCellRenderer *renderer;
 	GtkWidget *scrolled;
-	GtkStyleContext *context;
 	GtkWidget *box;
-	GtkToolItem *tool_item;
 	GtkWidget *button;
-	GtkWidget *image;
-	GIcon *icon;
 	GMenuModel *menu;
 	GtkBuilder *builder;
 	GApplication *app;
-	GtkAccelGroup *accel_group;
 	int pixbuf_width, pixbuf_height;
 
 	GActionEntry actions[] = {
@@ -808,9 +802,7 @@ impl_constructed (GObject *object)
 	display_page_tree = RB_DISPLAY_PAGE_TREE (object);
 
 
-	scrolled = gtk_scrolled_window_new (NULL, NULL);
-	context = gtk_widget_get_style_context (scrolled);
-	gtk_style_context_set_junction_sides (context, GTK_JUNCTION_BOTTOM);
+	scrolled = gtk_scrolled_window_new ();
 	g_object_set (scrolled,
 		      "hscrollbar_policy", GTK_POLICY_AUTOMATIC,
 		      "vscrollbar_policy", GTK_POLICY_AUTOMATIC,
@@ -830,7 +822,7 @@ impl_constructed (GObject *object)
 				 display_page_tree, 0);
 
 	display_page_tree->priv->treeview = gtk_tree_view_new_with_model (GTK_TREE_MODEL (display_page_tree->priv->page_model));
-	gtk_style_context_add_class (gtk_widget_get_style_context (display_page_tree->priv->treeview), GTK_STYLE_CLASS_SIDEBAR);
+	gtk_style_context_add_class (gtk_widget_get_style_context (display_page_tree->priv->treeview), "sidebar");
 
 	g_object_set (display_page_tree->priv->treeview,
 		      "headers-visible", FALSE,
@@ -850,10 +842,14 @@ impl_constructed (GObject *object)
 				 "row_activated",
 				 G_CALLBACK (row_activated_cb),
 				 display_page_tree, 0);
-	g_signal_connect_object (display_page_tree->priv->treeview,
-				 "key_release_event",
-				 G_CALLBACK (key_release_cb),
-				 display_page_tree, 0);
+	{
+		GtkEventController *key_controller = gtk_event_controller_key_new ();
+		g_signal_connect (key_controller,
+				  "key-released",
+				  G_CALLBACK (key_released_cb),
+				  display_page_tree);
+		gtk_widget_add_controller (display_page_tree->priv->treeview, key_controller);
+	}
 
 	display_page_tree->priv->main_column = gtk_tree_view_column_new ();
 	gtk_tree_view_column_set_clickable (display_page_tree->priv->main_column, FALSE);
@@ -861,7 +857,7 @@ impl_constructed (GObject *object)
 	gtk_tree_view_append_column (GTK_TREE_VIEW (display_page_tree->priv->treeview),
 				     display_page_tree->priv->main_column);
 
-	gtk_icon_size_lookup (RB_DISPLAY_PAGE_ICON_SIZE, &pixbuf_width, &pixbuf_height);
+	pixbuf_width = 16; pixbuf_height = 16; /* GTK4: icon_size_lookup removed */
 	display_page_tree->priv->blank_pixbuf = gdk_pixbuf_new (GDK_COLORSPACE_RGB, TRUE, 8, pixbuf_width, pixbuf_height);
 	gdk_pixbuf_fill (display_page_tree->priv->blank_pixbuf, 0);
 
@@ -911,9 +907,7 @@ impl_constructed (GObject *object)
 						 (GtkTreeCellDataFunc) pixbuf_cell_data_func,
 						 display_page_tree,
 						 NULL);
-	if (gtk_check_version (3, 16, 0) != NULL) {
-		g_object_set (renderer, "follow-state", TRUE, NULL);
-	}
+	/* follow-state property removed in GTK4 */
 
 	/* Set up the name column */
 	renderer = gtk_cell_renderer_text_new ();
@@ -949,38 +943,18 @@ impl_constructed (GObject *object)
 	g_simple_action_set_enabled (display_page_tree->priv->remove_action, FALSE);
 	g_simple_action_set_enabled (display_page_tree->priv->eject_action, FALSE);
 
-	/* toolbar */
-	display_page_tree->priv->toolbar = gtk_toolbar_new ();
-	gtk_toolbar_set_style (GTK_TOOLBAR (display_page_tree->priv->toolbar), GTK_TOOLBAR_ICONS);
-	gtk_toolbar_set_icon_size (GTK_TOOLBAR (display_page_tree->priv->toolbar), GTK_ICON_SIZE_MENU);
-
-	context = gtk_widget_get_style_context (display_page_tree->priv->toolbar);
-	gtk_style_context_set_junction_sides (context, GTK_JUNCTION_TOP);
-	gtk_style_context_add_class (context, GTK_STYLE_CLASS_INLINE_TOOLBAR);
-	gtk_style_context_add_class (context, "sidebar-toolbar");
+	/* toolbar (GtkBox replaces GtkToolbar for GTK4) */
+	display_page_tree->priv->toolbar = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+	gtk_widget_add_css_class (display_page_tree->priv->toolbar, "toolbar");
+	gtk_widget_add_css_class (display_page_tree->priv->toolbar, "sidebar-toolbar");
 
 	gtk_grid_attach (GTK_GRID (display_page_tree), display_page_tree->priv->toolbar, 0, 1, 1, 1);
 
-	tool_item = gtk_tool_item_new ();
-	box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-	gtk_container_add (GTK_CONTAINER (tool_item), box);
-	gtk_toolbar_insert (GTK_TOOLBAR (display_page_tree->priv->toolbar), tool_item, -1);
+	box = display_page_tree->priv->toolbar;
 
 	display_page_tree->priv->add_menubutton = gtk_menu_button_new ();
-	icon = g_themed_icon_new_with_default_fallbacks ("list-add-symbolic");
-	image = gtk_image_new_from_gicon (icon, GTK_ICON_SIZE_MENU);
-	gtk_button_set_image (GTK_BUTTON (display_page_tree->priv->add_menubutton), image);
-	gtk_box_pack_start (GTK_BOX (box), display_page_tree->priv->add_menubutton, FALSE, FALSE, 0);
-	g_object_unref (icon);
-
-	g_object_get (display_page_tree->priv->shell, "accel-group", &accel_group, NULL);
-	gtk_widget_add_accelerator (display_page_tree->priv->add_menubutton,
-				    "activate",
-				    accel_group,
-				    GDK_KEY_A,
-				    GDK_MOD1_MASK,
-				    GTK_ACCEL_VISIBLE);
-	g_object_unref (accel_group);
+	gtk_menu_button_set_icon_name (GTK_MENU_BUTTON (display_page_tree->priv->add_menubutton), "list-add-symbolic");
+	gtk_box_append (GTK_BOX (box), display_page_tree->priv->add_menubutton);
 
 	builder = rb_builder_load ("display-page-add-menu.ui", NULL);
 	menu = G_MENU_MODEL (gtk_builder_get_object (builder, "display-page-add-menu"));
@@ -988,23 +962,13 @@ impl_constructed (GObject *object)
 	gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (display_page_tree->priv->add_menubutton), menu);
 	g_object_unref (builder);
 
-	button = gtk_button_new ();
-	icon = g_themed_icon_new_with_default_fallbacks ("list-remove-symbolic");
-	image = gtk_image_new_from_gicon (icon, GTK_ICON_SIZE_MENU);
-	gtk_button_set_image (GTK_BUTTON (button), image);
-	gtk_box_pack_start (GTK_BOX (box), button, FALSE, FALSE, 0);
-	g_object_unref (icon);
-
+	button = gtk_button_new_from_icon_name ("list-remove-symbolic");
+	gtk_box_append (GTK_BOX (box), button);
 	gtk_actionable_set_action_name (GTK_ACTIONABLE (button), "app.display-page-remove");
 
 	/* maybe this should be a column in the tree instead.. */
-	button = gtk_button_new ();
-	icon = g_themed_icon_new_with_default_fallbacks ("media-eject-symbolic");
-	image = gtk_image_new_from_gicon (icon, GTK_ICON_SIZE_MENU);
-	gtk_button_set_image (GTK_BUTTON (button), image);
-	gtk_box_pack_start (GTK_BOX (box), button, FALSE, FALSE, 0);
-	g_object_unref (icon);
-	
+	button = gtk_button_new_from_icon_name ("media-eject-symbolic");
+	gtk_box_append (GTK_BOX (box), button);
 	gtk_actionable_set_action_name (GTK_ACTIONABLE (button), "app.display-page-eject");
 
 	display_page_tree->priv->selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (display_page_tree->priv->treeview));
@@ -1018,16 +982,14 @@ impl_constructed (GObject *object)
 						display_page_tree,
 						NULL);
 
-	gtk_container_add (GTK_CONTAINER (scrolled), display_page_tree->priv->treeview);
+	gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (scrolled), display_page_tree->priv->treeview);
 }
 
 static void
 rb_display_page_tree_init (RBDisplayPageTree *display_page_tree)
 {
 	display_page_tree->priv =
-		G_TYPE_INSTANCE_GET_PRIVATE (display_page_tree,
-					     RB_TYPE_DISPLAY_PAGE_TREE,
-					     RBDisplayPageTreePrivate);
+rb_display_page_tree_get_instance_private (display_page_tree);
 }
 
 static void
@@ -1105,5 +1067,4 @@ rb_display_page_tree_class_init (RBDisplayPageTreeClass *class)
 			      2,
 			      G_TYPE_POINTER, G_TYPE_POINTER);
 
-	g_type_class_add_private (class, sizeof (RBDisplayPageTreePrivate));
 }

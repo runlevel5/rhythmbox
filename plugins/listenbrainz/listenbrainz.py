@@ -25,7 +25,6 @@ import sys
 import threading
 import time
 from gi.repository import GObject
-from gi.repository import Peas
 from gi.repository import RB
 from client import ListenBrainzClient, Track
 from queue import ListenBrainzQueue
@@ -40,7 +39,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger("listenbrainz")
 
 
-class ListenBrainzPlugin(GObject.Object, Peas.Activatable):
+class ListenBrainzPlugin(GObject.Object, RB.PeasActivatable):
     __gtype_name = 'ListenBrainzPlugin'
     object = GObject.property(type=GObject.GObject)
 

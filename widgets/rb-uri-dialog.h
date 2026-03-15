@@ -27,6 +27,7 @@
  */
 
 #include <gtk/gtk.h>
+#include <adwaita.h>
 
 #ifndef __RB_URI_DIALOG_H
 #define __RB_URI_DIALOG_H
@@ -46,21 +47,21 @@ typedef struct RBURIDialogPrivate RBURIDialogPrivate;
 
 struct _RBURIDialog
 {
-	GtkDialog parent;
+	AdwAlertDialog parent;
 
 	RBURIDialogPrivate *priv;
 };
 
 struct _RBURIDialogClass
 {
-	GtkDialogClass parent_class;
+	AdwAlertDialogClass parent_class;
 
         void (*location_added) (RBURIDialog *dialog,
 				const char  *uri);
 };
 
 GType      rb_uri_dialog_get_type (void);
-GtkWidget* rb_uri_dialog_new      (const char *title,
+AdwDialog* rb_uri_dialog_new      (const char *title,
 				   const char *label);
 
 G_END_DECLS

@@ -18,7 +18,7 @@ gidocgen = find_program('gi-docgen')
 docs_dir = datadir / 'doc'
 
 fs = import('fs')
-fs.copyfile(meson.project_source_root() / 'data/icons/hicolor/scalable/apps/org.gnome.Rhythmbox3.svg')
+fs.copyfile(meson.project_source_root() / 'data/icons/hicolor/scalable/apps/org.gnome.Rhythmbox.svg')
 
 custom_target('apidoc',
   input: [ rb_toml, rb_gir ],

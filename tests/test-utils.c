@@ -39,6 +39,7 @@
 static gboolean init_in_tests;
 static int argc_;
 static char **argv_;
+static GMainLoop *test_main_loop;
 
 void
 init_once (gboolean test)
@@ -46,7 +47,7 @@ init_once (gboolean test)
 	if (test != init_in_tests)
 		return;
 
-	gtk_init (&argc_, &argv_);
+	gtk_init ();
 }
 
 void
@@ -66,8 +67,8 @@ start_test_case (void)
 void
 end_step (void)
 {
-	while (gtk_events_pending ())
-		gtk_main_iteration_do (FALSE);
+	while (g_main_context_pending (NULL))
+		g_main_context_iteration (NULL, FALSE);
 	fprintf (stderr, "----------------------------------------------------------------\n");
 }
 
@@ -95,7 +96,7 @@ mark_signal (void)
 		rb_debug ("got signal '%s'", sig_name);
 		signaled = TRUE;
 		if (waiting)
-			gtk_main_quit ();
+			if (test_main_loop) g_main_loop_quit (test_main_loop);
 	}
 }
 
@@ -124,7 +125,9 @@ wait_for_signal (void)
 	if (!signaled) {
 		rb_debug ("waiting for signal '%s'", sig_name);
 		waiting = TRUE;
-		gtk_main ();
+		test_main_loop = g_main_loop_new (NULL, FALSE);
+		g_main_loop_run (test_main_loop);
+		g_clear_pointer (&test_main_loop, g_main_loop_unref);
 	} else {
 		rb_debug ("no need to wait for signal '%s', already received", sig_name);
 	}
@@ -173,9 +176,11 @@ test_rhythmdb_shutdown (void)
 	rhythmdb_shutdown (db);
 
 	/* release the reference, and wait until after finalisation */
-	g_object_weak_ref (G_OBJECT (db), (GWeakNotify)gtk_main_quit, NULL);
+	test_main_loop = g_main_loop_new (NULL, FALSE);
+	g_object_weak_ref (G_OBJECT (db), (GWeakNotify)g_main_loop_quit, test_main_loop);
 	g_idle_add (idle_unref, db);
-	gtk_main ();
+	g_main_loop_run (test_main_loop);
+	g_clear_pointer (&test_main_loop, g_main_loop_unref);
 	db = NULL;
 }
 

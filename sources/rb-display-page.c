@@ -33,7 +33,23 @@
 #include "rb-debug.h"
 #include "rb-util.h"
 
-G_DEFINE_ABSTRACT_TYPE (RBDisplayPage, rb_display_page, GTK_TYPE_BOX)
+struct _RBDisplayPagePrivate
+{
+	char *name;
+	gboolean visible;
+	gboolean selected;
+	GIcon *icon;
+	RBDisplayPage *parent;
+
+	GObject *plugin;
+	RBShell *shell;
+
+	gboolean deleted;
+
+	GList *pending_children;
+};
+
+G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE (RBDisplayPage, rb_display_page, GTK_TYPE_BOX)
 
 /**
  * SECTION:rbdisplaypage
@@ -51,21 +67,6 @@ G_DEFINE_ABSTRACT_TYPE (RBDisplayPage, rb_display_page, GTK_TYPE_BOX)
  * controls whether the display page is actually shown in the display page tree at all.
  */
 
-struct _RBDisplayPagePrivate
-{
-	char *name;
-	gboolean visible;
-	gboolean selected;
-	GIcon *icon;
-	RBDisplayPage *parent;
-
-	GObject *plugin;
-	RBShell *shell;
-
-	gboolean deleted;
-
-	GList *pending_children;
-};
 
 enum
 {
@@ -115,7 +116,7 @@ _rb_display_page_get_pending_children (RBDisplayPage *page)
  * Return value: TRUE if the page accepted the drag data
  */
 gboolean
-rb_display_page_receive_drag (RBDisplayPage *page, GtkSelectionData *data)
+rb_display_page_receive_drag (RBDisplayPage *page, gpointer data)
 {
 	RBDisplayPageClass *klass = RB_DISPLAY_PAGE_GET_CLASS (page);
 
@@ -564,7 +565,7 @@ static void
 rb_display_page_init (RBDisplayPage *page)
 {
 	gtk_orientable_set_orientation (GTK_ORIENTABLE (page), GTK_ORIENTATION_HORIZONTAL);
-	page->priv = G_TYPE_INSTANCE_GET_PRIVATE (page, RB_TYPE_DISPLAY_PAGE, RBDisplayPagePrivate);
+	page->priv = rb_display_page_get_instance_private (page);
 
 	page->priv->visible = TRUE;
 }
@@ -699,5 +700,4 @@ rb_display_page_class_init (RBDisplayPageClass *klass)
 			      G_TYPE_NONE,
 			      0);
 
-	g_type_class_add_private (object_class, sizeof (RBDisplayPagePrivate));
 }

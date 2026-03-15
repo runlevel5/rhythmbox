@@ -25,7 +25,7 @@
  *
  */
 
-#include <gtk/gtk.h>
+#include <adwaita.h>
 
 #ifndef __RB_SHELL_PREFERENCES_H
 #define __RB_SHELL_PREFERENCES_H
@@ -54,14 +54,14 @@ typedef struct RBShellPreferencesPrivate RBShellPreferencesPrivate;
 
 struct _RBShellPreferences
 {
-	GtkDialog parent;
+	AdwDialog parent;
 
 	RBShellPreferencesPrivate *priv;
 };
 
 struct _RBShellPreferencesClass
 {
-	GtkDialogClass parent_class;
+	AdwDialogClass parent_class;
 };
 
 GType		rb_shell_preferences_get_type		(void);
@@ -69,6 +69,7 @@ GType		rb_shell_preferences_get_type		(void);
 GtkWidget	*rb_shell_preferences_new		(GList *views);
 void		rb_shell_preferences_append_page	(RBShellPreferences *prefs,
 							 const char *name,
+							 const char *icon_name,
 							 GtkWidget *widget);
 void		rb_shell_preferences_add_widget		(RBShellPreferences *prefs,
 							 GtkWidget *widget,

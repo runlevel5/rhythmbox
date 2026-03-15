@@ -77,12 +77,12 @@ typedef struct {
 	GSettings *encoding_settings;
 } RBMediaPlayerSourcePrivate;
 
-G_DEFINE_TYPE (RBMediaPlayerSource, rb_media_player_source, RB_TYPE_BROWSER_SOURCE);
+G_DEFINE_TYPE_WITH_PRIVATE (RBMediaPlayerSource, rb_media_player_source, RB_TYPE_BROWSER_SOURCE);
 
-G_DEFINE_TYPE (RBMediaPlayerEntryType, rb_media_player_entry_type, RHYTHMDB_TYPE_ENTRY_TYPE);
+G_DEFINE_TYPE_WITH_PRIVATE (RBMediaPlayerEntryType, rb_media_player_entry_type, RHYTHMDB_TYPE_ENTRY_TYPE);
 
-#define MEDIA_PLAYER_SOURCE_GET_PRIVATE(o)   (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_MEDIA_PLAYER_SOURCE, RBMediaPlayerSourcePrivate))
-#define MEDIA_PLAYER_ENTRY_TYPE_GET_PRIVATE(o)   (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_MEDIA_PLAYER_ENTRY_TYPE, RBMediaPlayerEntryTypePrivate))
+#define MEDIA_PLAYER_SOURCE_GET_PRIVATE(o)   (rb_media_player_source_get_instance_private (RB_MEDIA_PLAYER_SOURCE (o)))
+#define MEDIA_PLAYER_ENTRY_TYPE_GET_PRIVATE(o)   (rb_media_player_entry_type_get_instance_private (RB_MEDIA_PLAYER_ENTRY_TYPE (o)))
 
 static void rb_media_player_entry_type_class_init (RBMediaPlayerEntryTypeClass *klass);
 static void rb_media_player_entry_type_init (RBMediaPlayerEntryType *etype);
@@ -105,7 +105,7 @@ static void sync_action_cb (GSimpleAction *action, GVariant *parameter, gpointer
 static void properties_action_cb (GSimpleAction *action, GVariant *parameter, gpointer data);
 static gboolean sync_idle_delete_entries (RBMediaPlayerSource *source);
 
-static gboolean impl_receive_drag (RBDisplayPage *page, GtkSelectionData *data);
+static gboolean impl_receive_drag (RBDisplayPage *page, gpointer data);
 static void impl_delete_thyself (RBDisplayPage *page);
 
 static char *impl_get_delete_label (RBSource *source);
@@ -224,7 +224,6 @@ rb_media_player_entry_type_class_init (RBMediaPlayerEntryTypeClass *klass)
 							      NULL,
 							      G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
-	g_type_class_add_private (klass, sizeof (RBMediaPlayerEntryTypePrivate));
 }
 
 static void
@@ -296,7 +295,6 @@ rb_media_player_source_class_init (RBMediaPlayerSourceClass *klass)
 							      G_TYPE_SETTINGS,
 							      G_PARAM_READWRITE));
 
-	g_type_class_add_private (klass, sizeof (RBMediaPlayerSourcePrivate));
 }
 
 static void
@@ -529,7 +527,7 @@ properties_dialog_response_cb (GtkDialog *dialog,
 {
 	RBMediaPlayerSourcePrivate *priv = MEDIA_PLAYER_SOURCE_GET_PRIVATE (source);
 	rb_debug ("media player properties dialog closed");
-	gtk_widget_destroy (GTK_WIDGET (dialog));
+	gtk_window_destroy (GTK_WINDOW (dialog));
 	g_object_unref (priv->properties_dialog);
 	priv->properties_dialog = NULL;
 }
@@ -540,7 +538,7 @@ rb_media_player_source_show_properties (RBMediaPlayerSource *source)
 	RBMediaPlayerSourcePrivate *priv = MEDIA_PLAYER_SOURCE_GET_PRIVATE (source);
 	RBMediaPlayerSourceClass *klass = RB_MEDIA_PLAYER_SOURCE_GET_CLASS (source);
 	GtkBuilder *builder;
-	GtkContainer *container;
+	GtkWidget *container;
 	char *name;
 	char *text;
 
@@ -579,9 +577,9 @@ rb_media_player_source_show_properties (RBMediaPlayerSource *source)
 	rb_sync_state_ui_create_bar (&priv->volume_usage, rb_media_player_source_get_capacity (source), NULL);
 	rb_sync_state_ui_update_volume_usage (&priv->volume_usage, priv->sync_state);
 
-	gtk_widget_show_all (priv->volume_usage.widget);
-	container = GTK_CONTAINER (gtk_builder_get_object (builder, "device-usage-container"));
-	gtk_container_add (container, priv->volume_usage.widget);
+	gtk_widget_show (priv->volume_usage.widget);
+	container = GTK_WIDGET (gtk_builder_get_object (builder, "device-usage-container"));
+	gtk_box_append (GTK_BOX (container), priv->volume_usage.widget);
 
 
 	/* let the subclass fill in device type specific details (model names, device names,
@@ -595,22 +593,21 @@ rb_media_player_source_show_properties (RBMediaPlayerSource *source)
 	}
 
 	/* create sync UI */
-	container = GTK_CONTAINER (gtk_builder_get_object (builder, "sync-settings-ui-container"));
-	gtk_container_add (container, rb_sync_settings_ui_new (source, priv->sync_settings));
+	container = GTK_WIDGET (gtk_builder_get_object (builder, "sync-settings-ui-container"));
+	gtk_box_append (GTK_BOX (container), rb_sync_settings_ui_new (source, priv->sync_settings));
 
-	container = GTK_CONTAINER (gtk_builder_get_object (builder, "sync-state-ui-container"));
-	gtk_box_pack_start (GTK_BOX (container), rb_sync_state_ui_new (priv->sync_state), TRUE, TRUE, 0);
-	gtk_widget_show_all (GTK_WIDGET (container));
+	container = GTK_WIDGET (gtk_builder_get_object (builder, "sync-state-ui-container"));
+	gtk_box_append (GTK_BOX (container), rb_sync_state_ui_new (priv->sync_state));
+	gtk_widget_show (GTK_WIDGET (container));
 
 	/* create encoding settings UI */
 	if (priv->encoding_settings) {
-		container = GTK_CONTAINER (gtk_builder_get_object (builder, "encoding-settings-container"));
-		gtk_container_add (container, rb_encoding_settings_new (priv->encoding_settings, priv->encoding_target, TRUE));
-		gtk_widget_show_all (GTK_WIDGET (container));
+		container = GTK_WIDGET (gtk_builder_get_object (builder, "encoding-settings-container"));
+		gtk_box_append (GTK_BOX (container), rb_encoding_settings_new (priv->encoding_settings, priv->encoding_target, TRUE));
+		gtk_widget_show (GTK_WIDGET (container));
 	} else {
-		container = GTK_CONTAINER (gtk_builder_get_object (builder, "encoding-settings-frame"));
+		container = GTK_WIDGET (gtk_builder_get_object (builder, "encoding-settings-frame"));
 		gtk_widget_hide (GTK_WIDGET (container));
-		gtk_widget_set_no_show_all (GTK_WIDGET (container), TRUE);
 	}
 
 	gtk_widget_show (GTK_WIDGET (priv->properties_dialog));
@@ -857,7 +854,7 @@ sync_confirm_dialog_cb (GtkDialog *dialog,
 	g_signal_handler_disconnect (priv->sync_state, priv->sync_dialog_update_id);
 	priv->sync_dialog_update_id = 0;
 
-	gtk_widget_destroy (GTK_WIDGET (dialog));
+	gtk_window_destroy (GTK_WINDOW (dialog));
 	priv->sync_dialog = NULL;
 	priv->sync_dialog_label = NULL;
 
@@ -911,7 +908,7 @@ display_sync_settings_dialog (RBMediaPlayerSource *source)
 	builder = rb_builder_load ("sync-dialog.ui", NULL);
 	if (builder == NULL) {
 		g_warning ("Couldn't load sync-dialog.ui");
-		gtk_widget_show_all (priv->sync_dialog);
+		gtk_widget_show (priv->sync_dialog);
 		return;
 	}
 
@@ -919,15 +916,15 @@ display_sync_settings_dialog (RBMediaPlayerSource *source)
 	priv->sync_dialog_error_box = GTK_WIDGET (gtk_builder_get_object (builder, "sync-dialog-message"));
 
 	widget = GTK_WIDGET (gtk_builder_get_object (builder, "sync-settings-ui-container"));
-	gtk_container_add (GTK_CONTAINER (widget), rb_sync_settings_ui_new (source, priv->sync_settings));
+	gtk_box_append (GTK_BOX (widget), rb_sync_settings_ui_new (source, priv->sync_settings));
 
 	widget = GTK_WIDGET (gtk_builder_get_object (builder, "sync-state-ui-container"));
-	gtk_box_pack_start (GTK_BOX (widget), rb_sync_state_ui_new (priv->sync_state), TRUE, TRUE, 0);
+	gtk_box_append (GTK_BOX (widget), rb_sync_state_ui_new (priv->sync_state));
 
 	widget = GTK_WIDGET (gtk_builder_get_object (builder, "sync-dialog"));
-	gtk_box_pack_start (GTK_BOX (content), widget, TRUE, TRUE, 0);
+	gtk_box_append (GTK_BOX (content), widget);
 
-	gtk_widget_show_all (priv->sync_dialog);
+	gtk_widget_show (priv->sync_dialog);
 	update_sync_settings_dialog (source);
 	g_object_unref (builder);
 }
@@ -1026,14 +1023,14 @@ get_db_for_source (RBSource *source)
 }
 
 gboolean
-impl_receive_drag (RBDisplayPage *page, GtkSelectionData *data)
+impl_receive_drag (RBDisplayPage *page, gpointer data)
 {
 	GList *entries;
 	RhythmDB *db;
 	char *type;
 
 	entries = NULL;
-	type = gdk_atom_name (gtk_selection_data_get_data_type (data));
+	type = "unknown"; /* GTK4: DnD stub */
         db = get_db_for_source (RB_SOURCE (page));
 
 	if (strcmp (type, "text/uri-list") == 0) {
@@ -1041,7 +1038,7 @@ impl_receive_drag (RBDisplayPage *page, GtkSelectionData *data)
 		GList *i;
 
 		rb_debug ("parsing uri list");
-		list = rb_uri_list_parse ((const char *) gtk_selection_data_get_data (data));
+		list = NULL; /* GTK4: DnD stub - no selection data in GTK4 */
 
 		for (i = list; i != NULL; i = g_list_next (i)) {
 			char *uri;
@@ -1068,7 +1065,7 @@ impl_receive_drag (RBDisplayPage *page, GtkSelectionData *data)
 		char **i;
 
 		rb_debug ("parsing entry ids");
-		list = g_strsplit ((const char*) gtk_selection_data_get_data (data), "\n", -1);
+		list = g_strsplit ((const char*) (const guchar *)"" /* GTK4: DnD stub */, "\n", -1);
 		for (i = list; *i != NULL; i++) {
 			RhythmDBEntry *entry;
 			gulong id;

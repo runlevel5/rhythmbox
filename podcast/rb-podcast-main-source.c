@@ -30,6 +30,7 @@
 
 #include <glib.h>
 #include <glib/gi18n.h>
+#include <adwaita.h>
 
 #include "rb-podcast-settings.h"
 #include "rb-podcast-main-source.h"
@@ -44,9 +45,11 @@
 struct _RBPodcastMainSourcePrivate
 {
 	GtkWidget *config_widget;
+	GtkWidget *location_button;
+	char *download_dir_uri;
 };
 
-G_DEFINE_TYPE (RBPodcastMainSource, rb_podcast_main_source, RB_TYPE_PODCAST_SOURCE)
+G_DEFINE_TYPE_WITH_PRIVATE (RBPodcastMainSource, rb_podcast_main_source, RB_TYPE_PODCAST_SOURCE)
 
 
 RBSource *
@@ -198,18 +201,16 @@ finish_download_cb (RBPodcastManager *pd,
 }
 
 static void
-error_dialog_response_cb (GtkDialog *dialog, int response, RBPodcastMainSource *source)
+error_dialog_response_cb (AdwAlertDialog *dialog, const char *response, RBPodcastMainSource *source)
 {
 	const char *url = g_object_get_data (G_OBJECT (dialog), "feed-url");
 
-	if (response == GTK_RESPONSE_YES) {
+	if (g_strcmp0 (response, "yes") == 0) {
 		RBPodcastManager *pd;
 		g_object_get (source, "podcast-manager", &pd, NULL);
 		rb_podcast_manager_insert_feed_url (pd, url);
 		g_object_unref (pd);
 	}
-
-	gtk_widget_destroy (GTK_WIDGET (dialog));
 }
 
 static void
@@ -220,7 +221,7 @@ feed_update_status_cb (RBPodcastManager *mgr, const char *url, RBPodcastFeedUpda
 	RBShell *shell;
 	char *podcast_name;
 	char *nice_error;
-	GtkWidget *dialog;
+	AdwDialog *dialog;
 	RhythmDB *db;
 
 	source = data;
@@ -235,29 +236,30 @@ feed_update_status_cb (RBPodcastManager *mgr, const char *url, RBPodcastFeedUpda
 		 * ask if the user wants to add it anyway; if it already
 		 * exists, there's nothing to do besides reporting the error.
 		 */
-		dialog = gtk_message_dialog_new (GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (source))),
-						 GTK_DIALOG_DESTROY_WITH_PARENT,
-						 GTK_MESSAGE_ERROR,
-						 (entry != NULL) ? GTK_BUTTONS_OK : GTK_BUTTONS_YES_NO,
-						 _("Error in podcast"));
-
 		nice_error = g_strdup_printf (_("There was a problem adding this podcast: %s.  Please verify the URL: %s"), error, url);
 		if (entry != NULL) {
-			gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog),
-								  "%s", nice_error);
+			dialog = adw_alert_dialog_new (_("Error in podcast"), nice_error);
+			adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "ok", _("_OK"));
+			adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "ok");
+			adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "ok");
 		} else {
-			gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog),
-								  _("%s. Would you like to add the podcast feed anyway?"), nice_error);
+			char *body = g_strdup_printf (_("%s. Would you like to add the podcast feed anyway?"), nice_error);
+			dialog = adw_alert_dialog_new (_("Error in podcast"), body);
+			g_free (body);
+			adw_alert_dialog_add_responses (ADW_ALERT_DIALOG (dialog),
+							"no", _("_No"),
+							"yes", _("_Yes"),
+							NULL);
+			adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "yes", ADW_RESPONSE_SUGGESTED);
+			adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "yes");
+			adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "no");
 		}
 		g_free (nice_error);
-
-		gtk_window_set_title (GTK_WINDOW (dialog), "");
-		gtk_container_set_border_width (GTK_CONTAINER (dialog), 6);
 
 		g_object_set_data_full (G_OBJECT (dialog), "feed-url", g_strdup (url), g_free);
 		g_signal_connect (dialog, "response", G_CALLBACK (error_dialog_response_cb), source);
 
-		gtk_widget_show_all (dialog);
+		adw_dialog_present (dialog, GTK_WIDGET (source));
 
 		break;
 
@@ -277,19 +279,90 @@ feed_update_status_cb (RBPodcastManager *mgr, const char *url, RBPodcastFeedUpda
 	g_object_unref (db);
 }
 
+static const char *interval_settings[] = { "hourly", "daily", "weekly", "manual" };
+static const int num_intervals = G_N_ELEMENTS (interval_settings);
+
 static void
-rb_podcast_main_source_btn_file_change_cb (GtkFileChooserButton *widget, RBPodcastSource *source)
+update_location_button_label (RBPodcastMainSource *source)
+{
+	GFile *file;
+	char *basename;
+
+	if (source->priv->download_dir_uri == NULL || source->priv->download_dir_uri[0] == '\0') {
+		gtk_button_set_label (GTK_BUTTON (source->priv->location_button), _("(None)"));
+		return;
+	}
+
+	file = g_file_new_for_uri (source->priv->download_dir_uri);
+	basename = g_file_get_basename (file);
+	gtk_button_set_label (GTK_BUTTON (source->priv->location_button), basename);
+	gtk_widget_set_tooltip_text (source->priv->location_button, source->priv->download_dir_uri);
+	g_free (basename);
+	g_object_unref (file);
+}
+
+static void
+location_dialog_cb (GObject *source_object, GAsyncResult *result, gpointer data)
+{
+	RBPodcastMainSource *source = RB_PODCAST_MAIN_SOURCE (data);
+	GtkFileDialog *dialog = GTK_FILE_DIALOG (source_object);
+	GFile *file;
+	GSettings *settings;
+
+	file = gtk_file_dialog_select_folder_finish (dialog, result, NULL);
+	if (file != NULL) {
+		char *uri = g_file_get_uri (file);
+
+		g_free (source->priv->download_dir_uri);
+		source->priv->download_dir_uri = g_strdup (uri);
+
+		settings = g_settings_new (PODCAST_SETTINGS_SCHEMA);
+		g_settings_set_string (settings, PODCAST_DOWNLOAD_DIR_KEY, uri);
+		g_object_unref (settings);
+
+		update_location_button_label (source);
+
+		g_free (uri);
+		g_object_unref (file);
+	}
+}
+
+static void
+location_button_clicked_cb (GtkButton *button, RBPodcastMainSource *source)
+{
+	GtkFileDialog *dialog;
+	GtkWidget *toplevel;
+
+	dialog = gtk_file_dialog_new ();
+	gtk_file_dialog_set_title (dialog, _("Select Folder For Podcasts"));
+
+	if (source->priv->download_dir_uri != NULL && source->priv->download_dir_uri[0] != '\0') {
+		GFile *folder = g_file_new_for_uri (source->priv->download_dir_uri);
+		gtk_file_dialog_set_initial_folder (dialog, folder);
+		g_object_unref (folder);
+	}
+
+	toplevel = GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (button)));
+	gtk_file_dialog_select_folder (dialog,
+				       GTK_WINDOW (toplevel),
+				       NULL,
+				       location_dialog_cb,
+				       source);
+	g_object_unref (dialog);
+}
+
+static void
+update_interval_changed_cb (GtkDropDown *dropdown, GParamSpec *pspec, gpointer data)
 {
 	GSettings *settings;
-	char *uri;
+	guint selected;
 
-	settings = g_settings_new (PODCAST_SETTINGS_SCHEMA);
-
-	uri = gtk_file_chooser_get_uri (GTK_FILE_CHOOSER (widget));
-	g_settings_set_string (settings, PODCAST_DOWNLOAD_DIR_KEY, uri);
-	g_free (uri);
-
-	g_object_unref (settings);
+	selected = gtk_drop_down_get_selected (dropdown);
+	if (selected != GTK_INVALID_LIST_POSITION && (int)selected < num_intervals) {
+		settings = g_settings_new (PODCAST_SETTINGS_SCHEMA);
+		g_settings_set_string (settings, PODCAST_DOWNLOAD_INTERVAL, interval_settings[selected]);
+		g_object_unref (settings);
+	}
 }
 
 static GtkWidget *
@@ -299,9 +372,10 @@ impl_get_config_widget (RBDisplayPage *page, RBShellPreferences *prefs)
 	RBPodcastManager *podcast_mgr;
 	GtkBuilder *builder;
 	GtkWidget *update_interval;
-	GtkWidget *btn_file;
 	GSettings *settings;
 	char *download_dir;
+	char *interval_value;
+	int i;
 
 	if (source->priv->config_widget)
 		return source->priv->config_widget;
@@ -309,34 +383,61 @@ impl_get_config_widget (RBDisplayPage *page, RBShellPreferences *prefs)
 	builder = rb_builder_load ("podcast-prefs.ui", source);
 	source->priv->config_widget = GTK_WIDGET (gtk_builder_get_object (builder, "podcast_vbox"));
 
-	btn_file = GTK_WIDGET (gtk_builder_get_object (builder, "location_chooser"));
-	gtk_file_chooser_add_shortcut_folder (GTK_FILE_CHOOSER (btn_file),
-					      rb_music_dir (),
-					      NULL);
+	/* download location button */
+	source->priv->location_button = GTK_WIDGET (gtk_builder_get_object (builder, "location_button"));
 
 	g_object_get (source,
 		      "podcast-manager", &podcast_mgr,
 		      NULL);
 	download_dir = rb_podcast_manager_get_podcast_dir (podcast_mgr);
-
-	gtk_file_chooser_set_current_folder_uri (GTK_FILE_CHOOSER (btn_file),
-						 download_dir);
 	g_object_unref (podcast_mgr);
-	g_free (download_dir);
 
-	g_signal_connect_object (btn_file,
-				 "selection-changed",
-				 G_CALLBACK (rb_podcast_main_source_btn_file_change_cb),
-				 source, 0);
+	source->priv->download_dir_uri = download_dir;
+	update_location_button_label (source);
 
+	g_signal_connect (source->priv->location_button,
+			  "clicked",
+			  G_CALLBACK (location_button_clicked_cb),
+			  source);
+
+	/* update interval dropdown */
 	update_interval = GTK_WIDGET (gtk_builder_get_object (builder, "update_interval"));
-	g_object_set (update_interval, "id-column", 1, NULL);
+	{
+		const char *labels[] = {
+			N_("Every hour"),
+			N_("Every day"),
+			N_("Every week"),
+			N_("Manually"),
+			NULL
+		};
+		const char *translated[5];
+		GtkStringList *model;
 
+		for (i = 0; i < num_intervals; i++)
+			translated[i] = _(labels[i]);
+		translated[num_intervals] = NULL;
+
+		model = gtk_string_list_new (translated);
+		gtk_drop_down_set_model (GTK_DROP_DOWN (update_interval), G_LIST_MODEL (model));
+		g_object_unref (model);
+	}
+
+	/* sync current interval setting */
 	settings = g_settings_new (PODCAST_SETTINGS_SCHEMA);
-	g_settings_bind (settings, PODCAST_DOWNLOAD_INTERVAL,
-			 update_interval, "active-id",
-			 G_SETTINGS_BIND_DEFAULT);
+	interval_value = g_settings_get_string (settings, PODCAST_DOWNLOAD_INTERVAL);
+	for (i = 0; i < num_intervals; i++) {
+		if (g_strcmp0 (interval_value, interval_settings[i]) == 0) {
+			gtk_drop_down_set_selected (GTK_DROP_DOWN (update_interval), i);
+			break;
+		}
+	}
+	g_free (interval_value);
 	g_object_unref (settings);
+
+	g_signal_connect (update_interval,
+			  "notify::selected",
+			  G_CALLBACK (update_interval_changed_cb),
+			  source);
 
 	return source->priv->config_widget;
 }
@@ -413,6 +514,7 @@ impl_dispose (GObject *object)
 
 	source = RB_PODCAST_MAIN_SOURCE (object);
 
+	g_clear_pointer (&source->priv->download_dir_uri, g_free);
 	g_clear_object (&source->priv->config_widget);
 
 	G_OBJECT_CLASS (rb_podcast_main_source_parent_class)->dispose (object);
@@ -421,9 +523,7 @@ impl_dispose (GObject *object)
 static void
 rb_podcast_main_source_init (RBPodcastMainSource *source)
 {
-	source->priv = G_TYPE_INSTANCE_GET_PRIVATE (source,
-						    RB_TYPE_PODCAST_MAIN_SOURCE,
-						    RBPodcastMainSourcePrivate);
+	source->priv = rb_podcast_main_source_get_instance_private (source);
 }
 
 static void
@@ -441,5 +541,4 @@ rb_podcast_main_source_class_init (RBPodcastMainSourceClass *klass)
 	source_class->want_uri = impl_want_uri;
 	source_class->add_uri = impl_add_uri;
 
-	g_type_class_add_private (klass, sizeof (RBPodcastMainSourcePrivate));
 }

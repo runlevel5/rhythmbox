@@ -117,7 +117,7 @@ struct RBShellClipboardPrivate
 	GMenuModel *playlist_menu;
 };
 
-#define RB_SHELL_CLIPBOARD_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_SHELL_CLIPBOARD, RBShellClipboardPrivate))
+#define RB_SHELL_CLIPBOARD_GET_PRIVATE(o) (rb_shell_clipboard_get_instance_private (o))
 
 enum
 {
@@ -128,7 +128,7 @@ enum
 };
 
 
-G_DEFINE_TYPE (RBShellClipboard, rb_shell_clipboard, G_TYPE_OBJECT)
+G_DEFINE_TYPE_WITH_PRIVATE (RBShellClipboard, rb_shell_clipboard, G_TYPE_OBJECT)
 
 static void
 rb_shell_clipboard_class_init (RBShellClipboardClass *klass)
@@ -164,7 +164,6 @@ rb_shell_clipboard_class_init (RBShellClipboardClass *klass)
 							      RB_TYPE_PLAYLIST_SOURCE,
 							      G_PARAM_READWRITE));
 
-	g_type_class_add_private (klass, sizeof (RBShellClipboardPrivate));
 }
 
 static void
@@ -558,7 +557,7 @@ get_focussed_widget (RBShellClipboard *clipboard)
 	GtkWidget *widget;
 
 	/* FIXME: this should be better */
-	window = gtk_widget_get_toplevel (GTK_WIDGET (clipboard->priv->source));
+	window = GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (clipboard->priv->source)));
 	widget = gtk_window_get_focus (GTK_WINDOW (window));
 
 	return widget;

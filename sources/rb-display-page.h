@@ -29,6 +29,7 @@
 #define RB_DISPLAY_PAGE_H
 
 #include <gtk/gtk.h>
+#include "rb-gtk4-compat.h"
 
 #include <shell/rb-shell-preferences.h>
 
@@ -71,7 +72,7 @@ struct _RBDisplayPageClass
 	GtkWidget *(*get_config_widget)	(RBDisplayPage *page, RBShellPreferences *prefs);
 
 	void	(*get_status)		(RBDisplayPage *page, char **text, gboolean *busy);
-	gboolean (*receive_drag)	(RBDisplayPage *page, GtkSelectionData *data);
+	gboolean (*receive_drag)	(RBDisplayPage *page, gpointer data);
 	void	(*delete_thyself)	(RBDisplayPage *page);
 
 	gboolean (*can_remove)		(RBDisplayPage *page);
@@ -80,7 +81,7 @@ struct _RBDisplayPageClass
 
 GType		rb_display_page_get_type		(void);
 
-gboolean	rb_display_page_receive_drag		(RBDisplayPage *page, GtkSelectionData *data);
+gboolean	rb_display_page_receive_drag		(RBDisplayPage *page, gpointer data);
 
 gboolean	rb_display_page_selectable		(RBDisplayPage *page);
 void		rb_display_page_selected		(RBDisplayPage *page);

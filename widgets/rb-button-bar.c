@@ -47,7 +47,7 @@ struct _RBButtonBarPrivate
 	int position;
 };
 
-G_DEFINE_TYPE (RBButtonBar, rb_button_bar, GTK_TYPE_GRID);
+G_DEFINE_TYPE_WITH_PRIVATE (RBButtonBar, rb_button_bar, GTK_TYPE_GRID);
 
 enum {
 	PROP_0,
@@ -73,15 +73,16 @@ clear_handlers (RBButtonBar *bar)
 static void
 clear_button_bar (RBButtonBar *bar)
 {
-	GList *c, *l;
+	GtkWidget *child;
 
-	c = gtk_container_get_children (GTK_CONTAINER (bar));
-	for (l = c; l != NULL; l = l->next) {
-		if (!GTK_IS_LABEL (l->data))
-			gtk_size_group_remove_widget (bar->priv->size_group, l->data);
-		gtk_container_remove (GTK_CONTAINER (bar), l->data);
+	child = gtk_widget_get_first_child (GTK_WIDGET (bar));
+	while (child != NULL) {
+		GtkWidget *next = gtk_widget_get_next_sibling (child);
+		if (!GTK_IS_LABEL (child))
+			gtk_size_group_remove_widget (bar->priv->size_group, child);
+		gtk_grid_remove (GTK_GRID (bar), child);
+		child = next;
 	}
-	g_list_free (c);
 
 	bar->priv->position = 0;
 }
@@ -148,6 +149,7 @@ append_menu (RBButtonBar *bar, GMenuModel *menu, gboolean need_separator)
 
 		if (submenu != NULL) {
 			button = gtk_menu_button_new ();
+			gtk_menu_button_set_always_show_arrow (GTK_MENU_BUTTON (button), FALSE);
 			gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (button), submenu);
 
 			g_object_set_data_full (G_OBJECT (button), "rb-menu-model", g_object_ref (submenu), (GDestroyNotify)g_object_unref);
@@ -202,19 +204,23 @@ append_menu (RBButtonBar *bar, GMenuModel *menu, gboolean need_separator)
 		}
 
 		gtk_widget_set_hexpand (button, FALSE);
-		gtk_button_set_relief (GTK_BUTTON (button), GTK_RELIEF_NONE);
+		gtk_widget_add_css_class (button, "flat");
 
 		label_text = NULL;
 		g_menu_model_get_item_attribute (menu, i, "label", "s", &label_text);
-		label = gtk_label_new (g_dgettext (NULL, label_text));
-		g_object_set (label, "margin-start", 6, "margin-end", 6, NULL);
-		gtk_container_add (GTK_CONTAINER (button), label);
+		if (GTK_IS_MENU_BUTTON (button)) {
+			gtk_menu_button_set_label (GTK_MENU_BUTTON (button), g_dgettext (NULL, label_text));
+		} else {
+			label = gtk_label_new (g_dgettext (NULL, label_text));
+			g_object_set (label, "margin-start", 6, "margin-end", 6, NULL);
+			gtk_button_set_child (GTK_BUTTON (button), label);
+		}
 
 		if (g_menu_model_get_item_attribute (menu, i, "accel", "s", &accel)) {
 			g_object_set_data_full (G_OBJECT (button), "rb-accel", accel, (GDestroyNotify) g_free);
 		}
 
-		gtk_widget_show_all (button);
+		gtk_widget_show (button);
 		gtk_size_group_add_widget (bar->priv->size_group, button);
 		gtk_grid_attach (GTK_GRID (bar), button, bar->priv->position++, 0, 1, 1);
 
@@ -306,7 +312,7 @@ impl_set_property (GObject *object, guint prop_id, const GValue *value, GParamSp
 static void
 rb_button_bar_init (RBButtonBar *bar)
 {
-	bar->priv = G_TYPE_INSTANCE_GET_PRIVATE (bar, RB_TYPE_BUTTON_BAR, RBButtonBarPrivate);
+	bar->priv = rb_button_bar_get_instance_private (bar);
 }
 
 static void
@@ -314,7 +320,6 @@ rb_button_bar_class_init (RBButtonBarClass *klass)
 {
 	GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
 
-	g_type_class_add_private (klass, sizeof (RBButtonBarPrivate));
 
 	gobject_class->constructed = impl_constructed;
 	gobject_class->dispose = impl_dispose;
@@ -366,79 +371,53 @@ rb_button_bar_new (GMenuModel *model, GObject *target)
 /**
  * rb_button_bar_add_accelerators:
  * @bar: a #RBButtonBar
- * @group: the #GtkAccelGroup to add accelerators to
+ * @group: the #gpointer to add accelerators to
  *
  * Adds accelerators for the buttons in @bar to the accelerator
  * group @group.
  */
 void
-rb_button_bar_add_accelerators (RBButtonBar *bar, GtkAccelGroup *group)
+rb_button_bar_add_accelerators (RBButtonBar *bar, gpointer group)
 {
-	GList *c, *l;
+	GtkWidget *child;
 
-	c = gtk_container_get_children (GTK_CONTAINER (bar));
-	for (l = c; l != NULL; l = l->next) {
-		GtkWidget *widget = l->data;
-		const char *accel_text;
-		guint accel_key;
-		GdkModifierType accel_mods;
-
-		accel_text = g_object_get_data (G_OBJECT (widget), "rb-accel");
-		if (accel_text != NULL) {
-			gtk_accelerator_parse (accel_text, &accel_key, &accel_mods);
-			if (accel_key != 0) {
-				gtk_widget_add_accelerator (widget, "activate", group, accel_key, accel_mods, 0);
-			}
-		}
-
+	child = gtk_widget_get_first_child (GTK_WIDGET (bar));
+	while (child != NULL) {
 		/* handle menus attached to menu buttons */
-		if (GTK_IS_MENU_BUTTON (widget)) {
+		if (GTK_IS_MENU_BUTTON (child)) {
 			RBApplication *app = RB_APPLICATION (g_application_get_default ());
 			GMenuModel *model;
-			model = g_object_get_data (G_OBJECT (widget), "rb-menu-model");
+			model = g_object_get_data (G_OBJECT (child), "rb-menu-model");
 			if (model != NULL)
 				rb_application_set_menu_accelerators (app, model, TRUE);
 		}
+		child = gtk_widget_get_next_sibling (child);
 	}
-	g_list_free (c);
 }
 
 /**
  * rb_button_bar_remove_accelerators:
  * @bar: a #RBButtonBar
- * @group: the #GtkAccelGroup to remove accelerators from
+ * @group: the #gpointer to remove accelerators from
  *
  * Reverses the effects of @rb_button_bar_add_accelerators.
  */
 void
-rb_button_bar_remove_accelerators (RBButtonBar *bar, GtkAccelGroup *group)
+rb_button_bar_remove_accelerators (RBButtonBar *bar, gpointer group)
 {
-	GList *c, *l;
+	GtkWidget *child;
 
-	c = gtk_container_get_children (GTK_CONTAINER (bar));
-	for (l = c; l != NULL; l = l->next) {
-		GtkWidget *widget = l->data;
-		const char *accel_text;
-		guint accel_key;
-		GdkModifierType accel_mods;
-
-		accel_text = g_object_get_data (G_OBJECT (widget), "rb-accel");
-		if (accel_text != NULL) {
-			gtk_accelerator_parse (accel_text, &accel_key, &accel_mods);
-			if (accel_key != 0) {
-				gtk_widget_remove_accelerator (widget, group, accel_key, accel_mods);
-			}
-		}
-
+	child = gtk_widget_get_first_child (GTK_WIDGET (bar));
+	while (child != NULL) {
 		/* handle menus attached to menu buttons */
-		if (GTK_IS_MENU_BUTTON (widget)) {
+		if (GTK_IS_MENU_BUTTON (child)) {
 			RBApplication *app = RB_APPLICATION (g_application_get_default ());
 			GMenuModel *model;
 
-			model = g_object_get_data (G_OBJECT (widget), "rb-menu-model");
+			model = g_object_get_data (G_OBJECT (child), "rb-menu-model");
 			if (model != NULL)
 				rb_application_set_menu_accelerators (app, model, FALSE);
 		}
+		child = gtk_widget_get_next_sibling (child);
 	}
-	g_list_free (c);
 }

@@ -46,7 +46,7 @@ struct _RBTaskListDisplayPrivate
 	GArray *widgets;
 };
 
-G_DEFINE_TYPE (RBTaskListDisplay, rb_task_list_display, GTK_TYPE_GRID);
+G_DEFINE_TYPE_WITH_PRIVATE (RBTaskListDisplay, rb_task_list_display, GTK_TYPE_BOX);
 
 enum {
 	PROP_0,
@@ -91,7 +91,7 @@ task_list_changed_cb (RBListModel *model, int position, int removed, int added, 
 		GtkWidget *w;
 
 		w = g_array_index (list->priv->widgets, GtkWidget *, position);
-		gtk_container_remove (GTK_CONTAINER (list), w);
+		gtk_box_remove (GTK_BOX (list), w);
 		g_array_remove_index (list->priv->widgets, position);
 	}
 
@@ -101,6 +101,7 @@ task_list_changed_cb (RBListModel *model, int position, int removed, int added, 
 		GtkWidget *widget;
 		gboolean cancellable;
 		RBTaskProgress *task;
+		GtkWidget *sibling;
 
 		task = RB_TASK_PROGRESS (rb_list_model_get (model, position + i));
 
@@ -133,10 +134,15 @@ task_list_changed_cb (RBListModel *model, int position, int removed, int added, 
 		}
 		g_signal_connect_object (widget, "clicked", G_CALLBACK (stop_clicked_cb), task, 0);
 
-		gtk_grid_insert_column (GTK_GRID (list), position + i);
-		gtk_grid_attach (GTK_GRID (list), entry, 0, position + i, 1, 1);
-		gtk_widget_show_all (entry);
+		if (position + i > 0) {
+			sibling = g_array_index (list->priv->widgets, GtkWidget *, position + i - 1);
+			gtk_box_insert_child_after (GTK_BOX (list), entry, sibling);
+		} else {
+			gtk_box_prepend (GTK_BOX (list), entry);
+		}
 		g_array_insert_val (list->priv->widgets, position + i, entry);
+
+		g_object_unref (b);
 	}
 }
 
@@ -201,7 +207,7 @@ impl_dispose (GObject *object)
 static void
 rb_task_list_display_init (RBTaskListDisplay *list)
 {
-	list->priv = G_TYPE_INSTANCE_GET_PRIVATE (list, RB_TYPE_TASK_LIST_DISPLAY, RBTaskListDisplayPrivate);
+	list->priv = rb_task_list_display_get_instance_private (list);
 
 	list->priv->widgets = g_array_new (FALSE, FALSE, sizeof (GtkWidget *));
 }
@@ -211,7 +217,6 @@ rb_task_list_display_class_init (RBTaskListDisplayClass *klass)
 {
 	GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
 
-	g_type_class_add_private (klass, sizeof (RBTaskListDisplayPrivate));
 
 	gobject_class->constructed = impl_constructed;
 	gobject_class->dispose = impl_dispose;
@@ -232,6 +237,7 @@ rb_task_list_display_new (RBListModel *model)
 {
 	return GTK_WIDGET (g_object_new (RB_TYPE_TASK_LIST_DISPLAY,
 					 "model", model,
-					 "row-spacing", 12,
+					 "orientation", GTK_ORIENTATION_VERTICAL,
+					 "spacing", 12,
 					 NULL));
 }

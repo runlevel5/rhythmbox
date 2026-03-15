@@ -99,8 +99,8 @@ typedef struct
 	GtkWidget *sort_desc;
 } RBQueryCreatorPrivate;
 
-G_DEFINE_TYPE (RBQueryCreator, rb_query_creator, GTK_TYPE_DIALOG)
-#define QUERY_CREATOR_GET_PRIVATE(o)  (G_TYPE_INSTANCE_GET_PRIVATE ((o), rb_query_creator_get_type(), RBQueryCreatorPrivate))
+G_DEFINE_TYPE_WITH_PRIVATE (RBQueryCreator, rb_query_creator, GTK_TYPE_DIALOG)
+#define QUERY_CREATOR_GET_PRIVATE(o) (rb_query_creator_get_instance_private (RB_QUERY_CREATOR (o)))
 
 /**
  * SECTION:rbquerycreator
@@ -163,7 +163,6 @@ rb_query_creator_class_init (RBQueryCreatorClass *klass)
 							       TRUE,
 							       G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
-	g_type_class_add_private (klass, sizeof (RBQueryCreatorPrivate));
 }
 
 static void
@@ -213,7 +212,7 @@ rb_query_creator_constructed (GObject *object)
 
 	content_area = gtk_dialog_get_content_area (GTK_DIALOG (creator));
 
-	gtk_container_set_border_width (GTK_CONTAINER (creator), 5);
+	/* removed: border_width */
 	gtk_box_set_spacing (GTK_BOX (content_area), 2);
 
 	builder = rb_builder_load ("create-playlist.ui", creator);
@@ -244,8 +243,8 @@ rb_query_creator_constructed (GObject *object)
 		append_row (creator);
 
 	mainbox = GTK_WIDGET (gtk_builder_get_object (builder, "complex-playlist-creator"));
-	gtk_box_pack_start (GTK_BOX (content_area), mainbox, FALSE, FALSE, 0);
-	gtk_widget_show_all (GTK_WIDGET (creator));
+	gtk_box_append (GTK_BOX (content_area), mainbox);
+	gtk_widget_show (GTK_WIDGET (creator));
 
 	g_object_unref (builder);
 }
@@ -406,9 +405,9 @@ rb_query_creator_load_query (RBQueryCreator *creator,
 	}
 
 	/* setup the limits */
-	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->disjunction_check),
+	gtk_check_button_set_active (GTK_CHECK_BUTTON (priv->disjunction_check),
 				      disjunction);
-	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->limit_check),
+	gtk_check_button_set_active (GTK_CHECK_BUTTON (priv->limit_check),
 				      limit_type != RHYTHMDB_QUERY_MODEL_LIMIT_NONE);
 
 	switch (limit_type) {
@@ -462,7 +461,7 @@ rb_query_creator_set_sorting (RBQueryCreator *creator,
 		sort_direction = DEFAULT_SORTING_ORDER;
 	}
 
-	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->sort_desc), (sort_direction == GTK_SORT_DESCENDING));
+	gtk_check_button_set_active (GTK_CHECK_BUTTON (priv->sort_desc), (sort_direction == GTK_SORT_DESCENDING));
 
 	for (i = 0; i < num_sort_options; i++)
 		if (strcmp (sort_options[i].sort_key, sort_column) == 0)
@@ -506,7 +505,7 @@ rb_query_creator_new_from_query (RhythmDB *db,
 
 	if ( !rb_query_creator_load_query (creator, query, limit_type, limit_value)
 	   | !rb_query_creator_set_sorting (creator, sort_column, sort_direction)) {
-		gtk_widget_destroy (GTK_WIDGET (creator));
+		gtk_window_destroy (GTK_WINDOW (creator));
 		return NULL;
 	}
 
@@ -525,22 +524,14 @@ rb_query_creator_new_from_query (RhythmDB *db,
 GtkWidget *
 get_box_widget_at_pos (GtkBox *box, guint pos)
 {
-	GtkWidget *ret = NULL;
-	GList *children = gtk_container_get_children (GTK_CONTAINER (box));
-	GList *tem;
-	for (tem = children; tem; tem = tem->next) {
-		GValue thispos = { 0, };
-		g_value_init (&thispos, G_TYPE_INT);
-		gtk_container_child_get_property (GTK_CONTAINER (box),
-						  GTK_WIDGET (tem->data),
-						  "position", &thispos);
-		if (g_value_get_int (&thispos) == pos) {
-			ret = tem->data;
-			break;
-		}
-	}
-	g_list_free (children);
-	return GTK_WIDGET (ret);
+	GtkWidget *child;
+	guint i;
+
+	child = gtk_widget_get_first_child (GTK_WIDGET (box));
+	for (i = 0; child != NULL && i < pos; i++)
+		child = gtk_widget_get_next_sibling (child);
+
+	return child;
 }
 
 static GtkWidget *
@@ -579,7 +570,7 @@ rb_query_creator_get_query (RBQueryCreator *creator)
 
 	priv = QUERY_CREATOR_GET_PRIVATE (creator);
 
-	disjunction = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (priv->disjunction_check));
+	disjunction = gtk_check_button_get_active (GTK_CHECK_BUTTON (priv->disjunction_check));
 	sub_query = g_ptr_array_new ();
 	rows = priv->rows;
 
@@ -644,7 +635,7 @@ rb_query_creator_get_limit (RBQueryCreator *creator,
 
 	priv = QUERY_CREATOR_GET_PRIVATE (creator);
 
-	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (priv->limit_check))) {
+	if (gtk_check_button_get_active (GTK_CHECK_BUTTON (priv->limit_check))) {
 		guint64 l;
 		l = gtk_spin_button_get_value(GTK_SPIN_BUTTON (priv->limit_entry));
 
@@ -698,7 +689,7 @@ rb_query_creator_get_sort_order (RBQueryCreator *creator,
 	priv = QUERY_CREATOR_GET_PRIVATE (creator);
 
 	if (sort_direction != NULL) {
-		if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (priv->sort_desc)))
+		if (gtk_check_button_get_active (GTK_CHECK_BUTTON (priv->sort_desc)))
 			*sort_direction = GTK_SORT_DESCENDING;
 		else
 			*sort_direction = GTK_SORT_ASCENDING;
@@ -716,7 +707,7 @@ limit_toggled_cb (GtkWidget *limit,
                   RBQueryCreator *creator)
 {
 	RBQueryCreatorPrivate *priv = QUERY_CREATOR_GET_PRIVATE (creator);
-	gboolean active = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (limit));
+	gboolean active = gtk_check_button_get_active (GTK_CHECK_BUTTON (limit));
 
 	gtk_widget_set_sensitive (priv->limit_entry, active);
 	gtk_widget_set_sensitive (priv->limit_option, active);
@@ -733,12 +724,19 @@ lookup_row_by_widget (RBQueryCreator *creator,
 	GList *rows = priv->rows;
 	GList *row;
 	GtkWidget *ret = NULL;
-	guint i;
 
-	for (row = rows, i = 0; row; row = row->next, i++) {
-		GList *columns = gtk_container_get_children (GTK_CONTAINER (row->data));
-		gboolean found = g_list_find (columns, widget) != NULL;
-		g_list_free (columns);
+	for (row = rows; row; row = row->next) {
+		GtkWidget *child;
+		gboolean found = FALSE;
+
+		for (child = gtk_widget_get_first_child (GTK_WIDGET (row->data));
+		     child != NULL;
+		     child = gtk_widget_get_next_sibling (child)) {
+			if (child == widget) {
+				found = TRUE;
+				break;
+			}
+		}
 		if (found) {
 			ret = row->data;
 			break;
@@ -756,7 +754,7 @@ remove_button_click_cb (GtkWidget *button,
 
 	row = lookup_row_by_widget (creator, button);
 	g_assert (row);
-	gtk_container_remove (GTK_CONTAINER (priv->vbox),
+	gtk_box_remove (GTK_BOX (priv->vbox),
 			      GTK_WIDGET (row));
 	priv->rows = g_list_remove (priv->rows, row);
 }
@@ -780,32 +778,31 @@ append_row (RBQueryCreator *creator)
 	gboolean constrain;
 
 	hbox = GTK_BOX (gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 5));
-	gtk_box_pack_start (GTK_BOX (priv->vbox), GTK_WIDGET (hbox), TRUE, TRUE, 0);
-	priv->rows = g_list_prepend (priv->rows, hbox);
-	gtk_box_reorder_child (priv->vbox, GTK_WIDGET (hbox), -1);
+	gtk_box_append (GTK_BOX (priv->vbox), GTK_WIDGET (hbox));
+	priv->rows = g_list_append (priv->rows, hbox);
 
 	/* This is the main (leftmost) GtkComboBox, for types. */
 	option = create_property_option_menu (creator, property_options, num_property_options);
 	gtk_size_group_add_widget (priv->property_size_group, option);
-	gtk_box_pack_start (hbox, GTK_WIDGET (option), TRUE, TRUE, 0);
+	gtk_box_append (hbox, GTK_WIDGET (option));
 	gtk_combo_box_set_active (GTK_COMBO_BOX (option), 0);
 	criteria = create_criteria_option_menu (property_options[0].property_type->criteria_options,
 						property_options[0].property_type->num_criteria_options);
 	gtk_size_group_add_widget (priv->criteria_size_group, criteria);
-	gtk_box_pack_start (hbox, GTK_WIDGET (criteria), TRUE, TRUE, 0);
+	gtk_box_append (hbox, GTK_WIDGET (criteria));
 
 	entry = get_entry_for_property (creator, property_options[0].strict_val, &constrain);
 	if (constrain)
 		gtk_size_group_add_widget (priv->entry_size_group, entry);
-	gtk_box_pack_start (hbox, GTK_WIDGET (entry), TRUE, TRUE, 0);
+	gtk_box_append (hbox, GTK_WIDGET (entry));
 
 	remove_button = gtk_button_new_with_label (_("Remove"));
 	g_signal_connect_object (G_OBJECT (remove_button), "clicked", G_CALLBACK (remove_button_click_cb),
 				 creator, 0);
 	gtk_size_group_add_widget (priv->button_size_group, remove_button);
-	gtk_box_pack_start (hbox, GTK_WIDGET (remove_button), TRUE, TRUE, 0);
+	gtk_box_append (hbox, GTK_WIDGET (remove_button));
 
-	gtk_widget_show_all (GTK_WIDGET (priv->vbox));
+	gtk_widget_show (GTK_WIDGET (priv->vbox));
 	return GTK_WIDGET (hbox);
 }
 
@@ -873,7 +870,7 @@ property_option_menu_changed (GtkComboBox *propmenu,
 	row = lookup_row_by_widget (creator, GTK_WIDGET (propmenu));
 
 	criteria = get_box_widget_at_pos (GTK_BOX (row), 1);
-	gtk_container_remove (GTK_CONTAINER (row), criteria);
+	gtk_box_remove (GTK_BOX (row), criteria);
 
 	criteria_options = prop_option->property_type->criteria_options;
 	length = prop_option->property_type->num_criteria_options;
@@ -881,19 +878,19 @@ property_option_menu_changed (GtkComboBox *propmenu,
 	criteria = create_criteria_option_menu (criteria_options, length);
 	gtk_widget_show (criteria);
 	gtk_size_group_add_widget (priv->criteria_size_group, criteria);
-	gtk_box_pack_start (GTK_BOX (row), GTK_WIDGET (criteria), TRUE, TRUE, 0);
-	gtk_box_reorder_child (GTK_BOX (row), criteria, 1);
+	gtk_box_insert_child_after (GTK_BOX (row), GTK_WIDGET (criteria),
+				   get_box_widget_at_pos (GTK_BOX (row), 0));
 
 	entry = get_box_widget_at_pos (GTK_BOX (row), 2);
-	gtk_container_remove (GTK_CONTAINER (row), entry);
+	gtk_box_remove (GTK_BOX (row), entry);
 	entry = get_entry_for_property (creator, prop_option->strict_val,
 					&constrain);
 	gtk_widget_show (entry);
 
 	if (constrain)
 		gtk_size_group_add_widget (priv->entry_size_group, entry);
-	gtk_box_pack_start (GTK_BOX (row), GTK_WIDGET (entry), TRUE, TRUE, 0);
-	gtk_box_reorder_child (GTK_BOX (row), entry, 2);
+	gtk_box_insert_child_after (GTK_BOX (row), GTK_WIDGET (entry),
+				   get_box_widget_at_pos (GTK_BOX (row), 1));
 }
 
 static GtkWidget*
@@ -942,7 +939,7 @@ sort_option_menu_changed (GtkComboBox *propmenu,
 	RBQueryCreatorPrivate *priv = QUERY_CREATOR_GET_PRIVATE (creator);
 	int index = gtk_combo_box_get_active (propmenu);
 
-	gtk_button_set_label (GTK_BUTTON (priv->sort_desc), _(sort_options[index].sort_descending_name));
+	gtk_check_button_set_label (GTK_CHECK_BUTTON (priv->sort_desc), _(sort_options[index].sort_descending_name));
 	rb_debug("changing descending label to %s[%d]", sort_options[index].sort_descending_name, index);
 }
 

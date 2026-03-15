@@ -65,7 +65,21 @@
 static void rb_player_init (RBPlayerIface *iface);
 
 
+typedef struct _RBPlayerGstMultiStream RBPlayerGstMultiStream;
+struct _RBPlayerGstMultiPrivate
+{
+	RBPlayerGstMultiStream *current;
+	RBPlayerGstMultiStream *next;
+	GList *previous;
+
+	float cur_volume;
+
+	guint tick_timeout_id;
+	guint emit_stream_idle_id;
+};
+
 G_DEFINE_TYPE_WITH_CODE(RBPlayerGstMulti, rb_player_gst_multi, G_TYPE_OBJECT,
+			G_ADD_PRIVATE(RBPlayerGstMulti)
 			G_IMPLEMENT_INTERFACE(RB_TYPE_PLAYER, rb_player_init)
 			)
 
@@ -152,17 +166,6 @@ typedef struct _RBPlayerGstMultiStream
 
 } RBPlayerGstMultiStream;
 
-struct _RBPlayerGstMultiPrivate
-{
-	RBPlayerGstMultiStream *current;
-	RBPlayerGstMultiStream *next;
-	GList *previous;
-
-	float cur_volume;
-
-	guint tick_timeout_id;
-	guint emit_stream_idle_id;
-};
 
 static void start_state_change (RBPlayerGstMultiStream *stream, GstState state, enum StateChangeAction action);
 static void state_change_finished (RBPlayerGstMultiStream *stream, GError *error);
@@ -1457,9 +1460,7 @@ rb_player_gst_multi_new (GError **error)
 static void
 rb_player_gst_multi_init (RBPlayerGstMulti *player)
 {
-	player->priv = (G_TYPE_INSTANCE_GET_PRIVATE ((player),
-			RB_TYPE_PLAYER_GST_MULTI,
-			RBPlayerGstMultiPrivate));
+	player->priv = rb_player_gst_multi_get_instance_private (player);
 }
 
 static void
@@ -1607,7 +1608,5 @@ rb_player_gst_multi_class_init (RBPlayerGstMultiClass *klass)
 			      G_TYPE_ARRAY,
 			      1,
 			      G_TYPE_STRING);
-
-	g_type_class_add_private (klass, sizeof (RBPlayerGstMultiPrivate));
 }
 

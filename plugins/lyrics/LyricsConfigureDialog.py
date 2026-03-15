@@ -30,12 +30,12 @@ from LyricsSites import lyrics_sites
 from os import system, path
 
 import rb
-from gi.repository import RB, Gtk, Gio, GObject, PeasGtk
+from gi.repository import RB, Gtk, Gio, GLib, GObject
 
 import gettext
 gettext.install('rhythmbox', RB.locale_dir())
 
-class LyricsConfigureDialog (GObject.Object, PeasGtk.Configurable):
+class LyricsConfigureDialog (GObject.Object, RB.PeasGtkConfigurable):
 	__gtype_name__ = 'LyricsConfigureDialog'
 	object = GObject.property(type=GObject.Object)
 
@@ -68,9 +68,8 @@ class LyricsConfigureDialog (GObject.Object, PeasGtk.Configurable):
 			checkbutton.set_active(s['id'] in engines)
 			checkbutton.connect("toggled", self.set_sites)
 			self.site_checks[site_id] = checkbutton
-			site_box.pack_start(checkbutton, True, True, 0)
+			site_box.append(checkbutton)
 
-		site_box.show_all()
 
 		return self.config
 
@@ -89,25 +88,19 @@ class LyricsConfigureDialog (GObject.Object, PeasGtk.Configurable):
 
 
 	def choose_callback(self, widget):
-		def response_handler(widget, response):
-			if response == Gtk.ResponseType.OK:
-				path = self.chooser.get_filename()
-				self.chooser.destroy()
+		dialog = Gtk.FileDialog(title=_("Choose lyrics folder..."))
+		window = self.config.get_root()
+		dialog.select_folder(window, None, self._folder_selected_cb)
+
+	def _folder_selected_cb(self, dialog, result):
+		try:
+			folder = dialog.select_folder_finish(result)
+			if folder:
+				path = folder.get_path()
 				self.path_display.set_text(path)
 				self.settings['folder'] = path
-			else:
-				self.chooser.destroy()
-
-		buttons = (Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE,
-				Gtk.STOCK_OK, Gtk.ResponseType.OK)
-		self.chooser = Gtk.FileChooserDialog(title=_("Choose lyrics folder..."),
-					parent=None,
-					action=Gtk.FileChooserAction.SELECT_FOLDER,
-					buttons=buttons)
-		self.chooser.connect("response", response_handler)
-		self.chooser.set_modal(True)
-		self.chooser.set_transient_for(self.config.get_toplevel())
-		self.chooser.present()
+		except Exception:
+			pass
 
 	def get_prefs (self):
 		try:

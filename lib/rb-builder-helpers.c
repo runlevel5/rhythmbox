@@ -78,6 +78,8 @@ rb_builder_load (const char *file, gpointer user_data)
 
 	builder = gtk_builder_new ();
 	gtk_builder_set_translation_domain (builder, GETTEXT_PACKAGE);
+	if (user_data != NULL && G_IS_OBJECT (user_data))
+		gtk_builder_set_current_object (builder, G_OBJECT (user_data));
 	if (resource != NULL) {
 		if (gtk_builder_add_from_resource (builder, resource, &error) == 0) {
 			g_warning ("Error loading GtkBuilder resource %s; %s", resource, error->message);
@@ -89,8 +91,6 @@ rb_builder_load (const char *file, gpointer user_data)
 			g_error_free (error);
 		}
 	}
-
-	gtk_builder_connect_signals (builder, user_data);
 
 	g_free (resource);
 	return builder;

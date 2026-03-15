@@ -31,7 +31,7 @@ import os.path
 import os
 import time
 
-from gi.repository import RB, Gtk
+from gi.repository import RB, Gtk, Gdk
 
 # rb classes
 from Loader import Loader
@@ -39,20 +39,20 @@ from Coroutine import Coroutine
 from URLCache import URLCache
 import rbconfig
 
-def try_load_icon(theme, icon, size, flags):
+def try_load_icon(theme, icon, size):
 	try:
-		return theme.load_icon(icon, size, flags)
+		return theme.lookup_icon(icon, None, size, 1, Gtk.TextDirection.NONE, Gtk.IconLookupFlags.PRELOAD)
 	except:
 		return None
 
 def append_plugin_source_path(plugin, iconpath):
-	theme = Gtk.IconTheme.get_default()
+	theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
 
 	# get plugin data dir
 	datadir = plugin.plugin_info.get_data_dir()
 	icondir = os.path.join(datadir, iconpath)
 	if os.path.exists(icondir):
-		theme.append_search_path(icondir)
+		theme.add_search_path(icondir)
 
 	# where was the caller loaded from?
 	fr = sys._getframe(1)
@@ -63,7 +63,7 @@ def append_plugin_source_path(plugin, iconpath):
 	plugindir = filename[:filename.rfind(os.sep)]
 	icondir = os.path.join(plugindir, iconpath)
 	if os.path.exists(icondir):
-		theme.append_search_path(icondir)
+		theme.add_search_path(icondir)
 
 def entry_equal(a, b):
 	if (a is None and b is None):

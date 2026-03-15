@@ -1,6 +1,6 @@
 icons = [
-  'hicolor/scalable/apps/org.gnome.Rhythmbox3.svg',
-  'hicolor/scalable/apps/org.gnome.Rhythmbox3-symbolic.svg'
+  'hicolor/scalable/apps/org.gnome.Rhythmbox.svg',
+  'hicolor/scalable/apps/org.gnome.Rhythmbox-symbolic.svg'
 ]
 
 install_data(icons,

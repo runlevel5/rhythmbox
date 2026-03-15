@@ -54,12 +54,12 @@
  * the usual horizontal space allowed for the side bar.
  */
 
-static const char *RB_PLAY_QUEUE_DBUS_PATH = "/org/gnome/Rhythmbox3/PlayQueue";
-static const char *RB_PLAY_QUEUE_IFACE_NAME = "org.gnome.Rhythmbox3.PlayQueue";
+static const char *RB_PLAY_QUEUE_DBUS_PATH = "/org/gnome/Rhythmbox/PlayQueue";
+static const char *RB_PLAY_QUEUE_IFACE_NAME = "org.gnome.Rhythmbox.PlayQueue";
 
 static const char *rb_play_queue_dbus_spec =
 "<node>"
-"  <interface name='org.gnome.Rhythmbox3.PlayQueue'>"
+"  <interface name='org.gnome.Rhythmbox.PlayQueue'>"
 "    <method name='AddToQueue'>"
 "      <arg type='s' name='uri'/>"
 "    </method>"
@@ -138,8 +138,8 @@ enum
 	PROP_PLAY_ORDER
 };
 
-G_DEFINE_TYPE (RBPlayQueueSource, rb_play_queue_source, RB_TYPE_STATIC_PLAYLIST_SOURCE)
-#define RB_PLAY_QUEUE_SOURCE_GET_PRIVATE(object) (G_TYPE_INSTANCE_GET_PRIVATE ((object), RB_TYPE_PLAY_QUEUE_SOURCE, RBPlayQueueSourcePrivate))
+G_DEFINE_TYPE_WITH_PRIVATE (RBPlayQueueSource, rb_play_queue_source, RB_TYPE_STATIC_PLAYLIST_SOURCE)
+#define RB_PLAY_QUEUE_SOURCE_GET_PRIVATE(object) (rb_play_queue_source_get_instance_private (RB_PLAY_QUEUE_SOURCE (object)))
 
 static const GDBusInterfaceVTable play_queue_vtable = {
 	(GDBusInterfaceMethodCallFunc) rb_play_queue_dbus_method_call,
@@ -233,7 +233,6 @@ rb_play_queue_source_class_init (RBPlayQueueSourceClass *klass)
 					  PROP_PLAY_ORDER,
 					  "play-order");
 
-	g_type_class_add_private (klass, sizeof (RBPlayQueueSourcePrivate));
 }
 
 static void
@@ -439,7 +438,6 @@ impl_show_entry_view_popup (RBPlaylistSource *source,
 			    gboolean over_entry)
 {
 	RBPlayQueueSourcePrivate *priv = RB_PLAY_QUEUE_SOURCE_GET_PRIVATE (source);
-	GtkWidget *menu;
 	GMenu *popup;
 	RBApplication *app;
 
@@ -452,15 +450,7 @@ impl_show_entry_view_popup (RBPlaylistSource *source,
 	app = RB_APPLICATION (g_application_get_default ());
 	rb_menu_update_link (popup, "rb-playlist-menu-link", rb_application_get_shared_menu (app, "playlist-page-menu"));
 
-	menu = gtk_menu_new_from_model (G_MENU_MODEL (popup));
-	gtk_menu_attach_to_widget (GTK_MENU (menu), GTK_WIDGET (source), NULL);
-	gtk_menu_popup (GTK_MENU (menu),
-			NULL,
-			NULL,
-			NULL,
-			NULL,
-			3,
-			gtk_get_current_event_time ());
+	rb_entry_view_popup_menu (view, G_MENU_MODEL (popup));
 }
 
 static void
@@ -607,7 +597,7 @@ queue_properties_action_cb (GSimpleAction *action, GVariant *parameters, gpointe
 
 	song_info = rb_song_info_new (RB_SOURCE (source), priv->sidebar);
 	if (song_info)
-		gtk_widget_show_all (song_info);
+		adw_dialog_present (ADW_DIALOG (song_info), GTK_WIDGET (source));
 	else
 		rb_debug ("failed to create dialog, or no selection!");
 }

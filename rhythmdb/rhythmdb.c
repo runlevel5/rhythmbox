@@ -174,8 +174,8 @@ static const RhythmDBPropertyDef rhythmdb_properties[] = {
 #define RB_PARSE_NICK_END (xmlChar *) "]"
 
 
-#define RHYTHMDB_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RHYTHMDB_TYPE, RhythmDBPrivate))
-G_DEFINE_ABSTRACT_TYPE(RhythmDB, rhythmdb, G_TYPE_OBJECT)
+#define RHYTHMDB_GET_PRIVATE(o) (rhythmdb_get_instance_private (o))
+G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE (RhythmDB, rhythmdb, G_TYPE_OBJECT)
 
 /* file attributes requested in RHYTHMDB_ACTION_STAT and RHYTHMDB_ACTION_LOAD */
 #define RHYTHMDB_FILE_INFO_ATTRIBUTES			\
@@ -619,7 +619,6 @@ rhythmdb_class_init (RhythmDBClass *klass)
 			      G_TYPE_MOUNT_OPERATION,
 			      0);
 
-	g_type_class_add_private (klass, sizeof (RhythmDBPrivate));
 }
 
 static void

@@ -37,7 +37,7 @@
 
 #include <libsoup/soup.h>
 
-#include <libpeas-gtk/peas-gtk.h>
+#include <libpeas.h>
 
 #include "rb-plugin-macros.h"
 #include "rb-daap-plugin.h"
@@ -64,12 +64,12 @@
 
 #include <libdmapsharing/dmap.h>
 
-#define DAAP_DBUS_PATH	"/org/gnome/Rhythmbox3/DAAP"
-#define DAAP_DBUS_IFACE "org.gnome.Rhythmbox3.DAAP"
+#define DAAP_DBUS_PATH	"/org/gnome/Rhythmbox/DAAP"
+#define DAAP_DBUS_IFACE "org.gnome.Rhythmbox.DAAP"
 
 static const char *rb_daap_dbus_iface =
 "<node>"
-"  <interface name='org.gnome.Rhythmbox3.DAAP'>"
+"  <interface name='org.gnome.Rhythmbox.DAAP'>"
 "    <method name='AddDAAPSource'>"
 "     <arg type='s' name='service_name'/>"
 "      <arg type='s' name='host'/>"
@@ -498,23 +498,21 @@ new_daap_share_location_added_cb (RBURIDialog *dialog,
 }
 
 static void
-new_daap_share_response_cb (GtkDialog *dialog, int response, gpointer meh)
-{
-	gtk_widget_destroy (GTK_WIDGET (dialog));
-}
-
-static void
 new_share_action_cb (GSimpleAction *action, GVariant *parameter, gpointer data)
 {
 	RBDaapPlugin *plugin = RB_DAAP_PLUGIN (data);
-	GtkWidget *dialog;
+	g_autoptr(RBShell) shell = NULL;
+	GtkWindow *window;
+	AdwDialog *dialog;
+
+	g_object_get (plugin, "object", &shell, NULL);
+	window = gtk_application_get_active_window (GTK_APPLICATION (shell));
 
 	dialog = rb_uri_dialog_new (_("New DAAP share"), _("Host:port of DAAP share:"));
 	g_signal_connect_object (dialog, "location-added",
 				 G_CALLBACK (new_daap_share_location_added_cb),
 				 plugin, 0);
-	gtk_widget_show_all (dialog);
-	g_signal_connect (dialog, "response", G_CALLBACK (new_daap_share_response_cb), NULL);
+	adw_dialog_present (dialog, GTK_WIDGET (window));
 }
 
 /* daap:// URI -> RBDAAPSource mapping */

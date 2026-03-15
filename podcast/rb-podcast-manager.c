@@ -36,6 +36,7 @@
 #include <glib/gstdio.h>
 #include <gio/gio.h>
 #include <gtk/gtk.h>
+#include <adwaita.h>
 #include <libsoup/soup.h>
 
 #include "rb-podcast-settings.h"
@@ -131,7 +132,7 @@ struct RBPodcastManagerPrivate
 	SoupSession *soup_session;
 };
 
-#define RB_PODCAST_MANAGER_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_PODCAST_MANAGER, RBPodcastManagerPrivate))
+#define RB_PODCAST_MANAGER_GET_PRIVATE(o) (rb_podcast_manager_get_instance_private (o))
 
 
 static guint rb_podcast_manager_signals[LAST_SIGNAL] = { 0 };
@@ -178,7 +179,7 @@ static void podcast_album_art_request_cb		(RBExtDB *db,
 							 guint64 last_time,
 							 RBPodcastManager *pd);
 
-G_DEFINE_TYPE (RBPodcastManager, rb_podcast_manager, G_TYPE_OBJECT)
+G_DEFINE_TYPE_WITH_PRIVATE (RBPodcastManager, rb_podcast_manager, G_TYPE_OBJECT)
 
 static void
 rb_podcast_manager_class_init (RBPodcastManagerClass *klass)
@@ -243,7 +244,6 @@ rb_podcast_manager_class_init (RBPodcastManagerClass *klass)
 			      RB_TYPE_PODCAST_FEED_UPDATE_STATUS,
 			      G_TYPE_STRING);
 
-	g_type_class_add_private (klass, sizeof (RBPodcastManagerPrivate));
 }
 
 static void
@@ -756,9 +756,9 @@ feed_parse_cb (RBPodcastChannel *channel, GError *error, gpointer user_data)
 }
 
 static void
-confirm_bad_mime_type_response_cb (GtkDialog *dialog, int response, RBPodcastUpdate *update)
+confirm_bad_mime_type_response_cb (AdwAlertDialog *dialog, const char *response, RBPodcastUpdate *update)
 {
-	if (response == GTK_RESPONSE_YES) {
+	if (g_strcmp0 (response, "yes") == 0) {
 		rb_debug ("user confirmed addition of podcast feed %s", update->channel->url);
 		update->state = RB_PODCAST_UPDATE_PROCESS_PARSE;
 	} else {
@@ -767,7 +767,6 @@ confirm_bad_mime_type_response_cb (GtkDialog *dialog, int response, RBPodcastUpd
 		update->state = RB_PODCAST_UPDATE_PROCESS_CANCELLED;
 	}
 
-	gtk_widget_destroy (GTK_WIDGET (dialog));
 	process_feed_update (update);
 }
 
@@ -852,7 +851,7 @@ process_feed_update (RBPodcastUpdate *update)
 		WAITING,
 		DONE
 	} step = RUNNING;
-	GtkWidget *dialog;
+	AdwDialog *dialog;
 	GList *searches, *s;
 
 	while (step == RUNNING) {
@@ -936,17 +935,30 @@ process_feed_update (RBPodcastUpdate *update)
 			break;
 
 		case RB_PODCAST_UPDATE_PROCESS_MIME_TYPE_CONFIRM:
-			dialog = gtk_message_dialog_new (NULL, 0,
-							 GTK_MESSAGE_QUESTION,
-							 GTK_BUTTONS_YES_NO,
-							 _("The URL '%s' does not appear to be a podcast feed. "
-							 "It may be the wrong URL, or the feed may be broken. "
-							 "Would you like Rhythmbox to attempt to use it anyway?"),
-							 update->channel->url);
-			gtk_widget_show_all (dialog);
+		{
+			char *body = g_strdup_printf (
+				_("The URL '%s' does not appear to be a podcast feed. "
+				"It may be the wrong URL, or the feed may be broken. "
+				"Would you like Rhythmbox to attempt to use it anyway?"),
+				update->channel->url);
+			GtkWidget *parent_widget;
+
+			dialog = adw_alert_dialog_new (_("Podcast Feed"), body);
+			g_free (body);
+			adw_alert_dialog_add_responses (ADW_ALERT_DIALOG (dialog),
+							"no", _("_No"),
+							"yes", _("_Yes"),
+							NULL);
+			adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "yes", ADW_RESPONSE_SUGGESTED);
+			adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "yes");
+			adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "no");
 			g_signal_connect (dialog, "response", G_CALLBACK (confirm_bad_mime_type_response_cb), update);
+
+			parent_widget = GTK_WIDGET (gtk_application_get_active_window (GTK_APPLICATION (g_application_get_default ())));
+			adw_dialog_present (dialog, parent_widget);
 			step = WAITING;
 			break;
+		}
 
 		case RB_PODCAST_UPDATE_PROCESS_PARSE:
 			if (update->channel->resolved_url != NULL) {

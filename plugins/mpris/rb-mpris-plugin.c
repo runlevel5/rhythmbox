@@ -285,7 +285,7 @@ get_root_property (GDBusConnection *connection,
 		GVariant *v = NULL;
 		char *path;
 
-		path = g_build_filename (DATADIR, "applications", "org.gnome.Rhythmbox3.desktop", NULL);
+		path = g_build_filename (DATADIR, "applications", "org.gnome.Rhythmbox.desktop", NULL);
 		if (path != NULL) {
 			char *basename;
 			char *ext;
@@ -1361,7 +1361,7 @@ display_page_inserted_cb (RBDisplayPageModel *model, RBDisplayPage *page, GtkTre
 		if (is_local) {
 			char *id;
 
-			id = g_strdup_printf ("/org/gnome/Rhythmbox3/Playlist/%p", page);
+			id = g_strdup_printf ("/org/gnome/Rhythmbox/Playlist/%p", page);
 			g_object_set_data_full (G_OBJECT (page), MPRIS_PLAYLIST_ID_ITEM, id, g_free);
 
 			plugin->playlist_count++;

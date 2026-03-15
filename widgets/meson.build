@@ -1,6 +1,5 @@
 widgets_headers = files(
   'rb-button-bar.h',
-  'rb-cell-renderer-pixbuf.h',
   'rb-cell-renderer-rating.h',
   'rb-dialog.h',
   'rb-entry-view.h',
@@ -18,13 +17,9 @@ widgets_headers = files(
 install_headers(widgets_headers, subdir: 'rhythmbox/widgets')
 
 widgets_sources = files(
-  'eggwrapbox-enums.c',
-  'eggwrapbox.c',
   'gossip-cell-renderer-expander.c',
   'nautilus-floating-bar.c',
-  'rb-alert-dialog.c',
   'rb-button-bar.c',
-  'rb-cell-renderer-pixbuf.c',
   'rb-cell-renderer-rating.c',
   'rb-dialog.c',
   'rb-encoding-settings.c',
@@ -53,7 +48,7 @@ widgets_c_args = [
   '-DG_LOG_DOMAIN="Rhythmbox"',
 ]
 
-widgets_dependencies = [gtk, gdk_pixbuf, cairo, pango, gstreamer_pbutils, libsoup]
+widgets_dependencies = [gtk, libadwaita, gdk_pixbuf, cairo, pango, gstreamer_pbutils, libsoup]
 
 rbwidgets_lib = static_library('rbwidgets',
   widgets_sources,

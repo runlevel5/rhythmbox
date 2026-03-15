@@ -33,8 +33,7 @@
 #include <errno.h>
 
 #include <glib/gi18n.h>
-#include <gtk/gtk.h>
-#include <glib.h>
+#include <adwaita.h>
 
 #include "rb-podcast-properties-dialog.h"
 #include "rb-file-helpers.h"
@@ -57,10 +56,8 @@ static void rb_podcast_properties_dialog_get_property (GObject *object,
 						       guint prop_id,
 						       GValue *value,
 						       GParamSpec *pspec);
+static void rb_podcast_properties_dialog_setup (RBPodcastPropertiesDialog *dialog);
 static gboolean rb_podcast_properties_dialog_get_current_entry (RBPodcastPropertiesDialog *dialog);
-static void rb_podcast_properties_dialog_response_cb (GtkDialog *gtkdialog,
-						      int response_id,
-						      RBPodcastPropertiesDialog *dialog);
 
 static void rb_podcast_properties_dialog_update (RBPodcastPropertiesDialog *dialog);
 static void rb_podcast_properties_dialog_update_title (RBPodcastPropertiesDialog *dialog);
@@ -97,8 +94,6 @@ struct RBPodcastPropertiesDialogPrivate
 	GtkWidget   *rating;
 	GtkWidget   *date;
 	GtkWidget   *description;
-
-	GtkWidget   *close_button;
 };
 
 enum
@@ -108,7 +103,7 @@ enum
 	PROP_BACKEND
 };
 
-G_DEFINE_TYPE (RBPodcastPropertiesDialog, rb_podcast_properties_dialog, GTK_TYPE_DIALOG)
+G_DEFINE_TYPE_WITH_PRIVATE (RBPodcastPropertiesDialog, rb_podcast_properties_dialog, ADW_TYPE_DIALOG)
 
 /* list of HTML-ish strings that we search for to distinguish plain text from HTML podcast
  * descriptions.  we don't really have anything else to go on - regular content type
@@ -285,82 +280,180 @@ rb_podcast_properties_dialog_class_init (RBPodcastPropertiesDialogClass *klass)
 	object_class->dispose = rb_podcast_properties_dialog_dispose;
 	object_class->finalize = rb_podcast_properties_dialog_finalize;
 
-	g_type_class_add_private (klass, sizeof (RBPodcastPropertiesDialogPrivate));
 }
 
 static void
 rb_podcast_properties_dialog_init (RBPodcastPropertiesDialog *dialog)
 {
-	GtkWidget  *content_area;
-	GtkBuilder *builder;
-	AtkObject *lobj, *robj;
+	dialog->priv = rb_podcast_properties_dialog_get_instance_private (dialog);
+}
 
-	dialog->priv = G_TYPE_INSTANCE_GET_PRIVATE (dialog,
-						    RB_TYPE_PODCAST_PROPERTIES_DIALOG,
-						    RBPodcastPropertiesDialogPrivate);
+/* Helper: add a label row to a grid */
+static void
+add_label_row (GtkGrid *grid, int row, const char *desc_text, const char *desc_id,
+	       GtkWidget **value_widget, gboolean selectable, gboolean wrap)
+{
+	GtkWidget *desc;
 
-	g_signal_connect_object (G_OBJECT (dialog),
-				 "response",
-				 G_CALLBACK (rb_podcast_properties_dialog_response_cb),
-				 dialog, 0);
+	desc = gtk_label_new (desc_text);
+	gtk_label_set_xalign (GTK_LABEL (desc), 0.0);
+	gtk_widget_set_halign (desc, GTK_ALIGN_START);
 
-	content_area = gtk_dialog_get_content_area (GTK_DIALOG (dialog));
+	/* boldify */
+	PangoAttrList *attrs = pango_attr_list_new ();
+	pango_attr_list_insert (attrs, pango_attr_weight_new (PANGO_WEIGHT_BOLD));
+	gtk_label_set_attributes (GTK_LABEL (desc), attrs);
+	pango_attr_list_unref (attrs);
 
-	gtk_container_set_border_width (GTK_CONTAINER (dialog), 5);
-	gtk_box_set_spacing (GTK_BOX (content_area), 2);
+	gtk_grid_attach (grid, desc, 0, row, 1, 1);
 
-	gtk_dialog_set_default_response (GTK_DIALOG (dialog),
-					 GTK_RESPONSE_OK);
+	*value_widget = gtk_label_new ("-");
+	gtk_label_set_xalign (GTK_LABEL (*value_widget), 0.0);
+	gtk_widget_set_halign (*value_widget, GTK_ALIGN_FILL);
+	gtk_widget_set_hexpand (*value_widget, TRUE);
+	gtk_label_set_selectable (GTK_LABEL (*value_widget), selectable);
+	if (wrap)
+		gtk_label_set_wrap (GTK_LABEL (*value_widget), TRUE);
 
-	builder = rb_builder_load ("podcast-properties.ui", dialog);
+	gtk_grid_attach (grid, *value_widget, 1, row, 1, 1);
+}
 
-	gtk_container_add (GTK_CONTAINER (content_area),
-			   GTK_WIDGET (gtk_builder_get_object (builder, "podcastproperties")));
-	dialog->priv->close_button = gtk_dialog_add_button (GTK_DIALOG (dialog),
-							    _("_Close"),
-							    GTK_RESPONSE_CLOSE);
-	gtk_dialog_set_default_response (GTK_DIALOG (dialog), GTK_RESPONSE_CLOSE);
+static void
+rb_podcast_properties_dialog_setup (RBPodcastPropertiesDialog *dialog)
+{
+	GtkWidget *toolbar_view;
+	GtkWidget *header_bar;
+	GtkWidget *stack;
+	GtkWidget *switcher;
+	GtkWidget *grid;
+	GtkWidget *desc_label;
+	GtkWidget *scroll;
+	GtkWidget *viewport;
+	GtkWidget *rating_box;
+	int row;
 
-	/* get the widgets from the builder */
-	dialog->priv->title = GTK_WIDGET (gtk_builder_get_object (builder, "titleLabel"));
-	dialog->priv->feed = GTK_WIDGET (gtk_builder_get_object (builder, "feedLabel"));
-	dialog->priv->duration = GTK_WIDGET (gtk_builder_get_object (builder, "durationLabel"));
-	dialog->priv->location = GTK_WIDGET (gtk_builder_get_object (builder, "locationLabel"));
-	dialog->priv->download_location = GTK_WIDGET (gtk_builder_get_object (builder, "downloadLocationLabel"));
-	dialog->priv->lastplayed = GTK_WIDGET (gtk_builder_get_object (builder, "lastplayedLabel"));
-	dialog->priv->playcount = GTK_WIDGET (gtk_builder_get_object (builder, "playcountLabel"));
-	dialog->priv->bitrate = GTK_WIDGET (gtk_builder_get_object (builder, "bitrateLabel"));
-	dialog->priv->date = GTK_WIDGET (gtk_builder_get_object (builder, "dateLabel"));
-	dialog->priv->description = GTK_WIDGET (gtk_builder_get_object (builder, "descriptionLabel"));
+	/* Stack + Switcher in header bar */
+	stack = gtk_stack_new ();
+	switcher = gtk_stack_switcher_new ();
+	gtk_stack_switcher_set_stack (GTK_STACK_SWITCHER (switcher), GTK_STACK (stack));
 
-	rb_builder_boldify_label (builder, "titleDescLabel");
-	rb_builder_boldify_label (builder, "feedDescLabel");
-	rb_builder_boldify_label (builder, "locationDescLabel");
-	rb_builder_boldify_label (builder, "downloadLocationDescLabel");
-	rb_builder_boldify_label (builder, "durationDescLabel");
-	rb_builder_boldify_label (builder, "ratingDescLabel");
-	rb_builder_boldify_label (builder, "lastplayedDescLabel");
-	rb_builder_boldify_label (builder, "playcountDescLabel");
-	rb_builder_boldify_label (builder, "bitrateDescLabel");
-	rb_builder_boldify_label (builder, "dateDescLabel");
-	rb_builder_boldify_label (builder, "descriptionDescLabel");
+	header_bar = adw_header_bar_new ();
+	adw_header_bar_set_title_widget (ADW_HEADER_BAR (header_bar), switcher);
 
-	dialog->priv->rating = GTK_WIDGET (rb_rating_new ());
-	g_signal_connect_object (dialog->priv->rating,
-				 "rated",
-				 G_CALLBACK (rb_podcast_properties_dialog_rated_cb),
-				 G_OBJECT (dialog), 0);
-	gtk_container_add (GTK_CONTAINER (gtk_builder_get_object (builder, "ratingVBox")),
-			   dialog->priv->rating);
+	toolbar_view = adw_toolbar_view_new ();
+	adw_toolbar_view_add_top_bar (ADW_TOOLBAR_VIEW (toolbar_view), header_bar);
+	adw_toolbar_view_set_content (ADW_TOOLBAR_VIEW (toolbar_view), stack);
 
-	/* add relationship between the rating label and the rating widget */
-	lobj = gtk_widget_get_accessible (GTK_WIDGET (gtk_builder_get_object (builder, "ratingDescLabel")));
-	robj = gtk_widget_get_accessible (dialog->priv->rating);
-	
-	atk_object_add_relationship (lobj, ATK_RELATION_LABEL_FOR, robj);
-	atk_object_add_relationship (robj, ATK_RELATION_LABELLED_BY, lobj);
+	adw_dialog_set_child (ADW_DIALOG (dialog), toolbar_view);
+	adw_dialog_set_content_width (ADW_DIALOG (dialog), 500);
+	adw_dialog_set_content_height (ADW_DIALOG (dialog), 450);
 
-	g_object_unref (builder);
+	/* ---- Basic page ---- */
+	grid = gtk_grid_new ();
+	gtk_grid_set_row_spacing (GTK_GRID (grid), 6);
+	gtk_grid_set_column_spacing (GTK_GRID (grid), 12);
+	gtk_widget_set_margin_start (grid, 12);
+	gtk_widget_set_margin_end (grid, 12);
+	gtk_widget_set_margin_top (grid, 12);
+	gtk_widget_set_margin_bottom (grid, 12);
+	row = 0;
+
+	add_label_row (GTK_GRID (grid), row++, _("Title:"), "titleDescLabel",
+		       &dialog->priv->title, TRUE, FALSE);
+	add_label_row (GTK_GRID (grid), row++, _("Feed:"), "feedDescLabel",
+		       &dialog->priv->feed, TRUE, FALSE);
+	gtk_label_set_ellipsize (GTK_LABEL (dialog->priv->feed), PANGO_ELLIPSIZE_MIDDLE);
+	add_label_row (GTK_GRID (grid), row++, _("Date:"), "dateDescLabel",
+		       &dialog->priv->date, TRUE, FALSE);
+
+	/* Description with scroll */
+	desc_label = gtk_label_new (_("Description:"));
+	gtk_label_set_xalign (GTK_LABEL (desc_label), 0.0);
+	gtk_widget_set_halign (desc_label, GTK_ALIGN_START);
+	gtk_widget_set_valign (desc_label, GTK_ALIGN_START);
+	{
+		PangoAttrList *attrs = pango_attr_list_new ();
+		pango_attr_list_insert (attrs, pango_attr_weight_new (PANGO_WEIGHT_BOLD));
+		gtk_label_set_attributes (GTK_LABEL (desc_label), attrs);
+		pango_attr_list_unref (attrs);
+	}
+	gtk_grid_attach (GTK_GRID (grid), desc_label, 0, row, 1, 1);
+
+	dialog->priv->description = gtk_label_new (NULL);
+	gtk_label_set_wrap (GTK_LABEL (dialog->priv->description), TRUE);
+	gtk_label_set_selectable (GTK_LABEL (dialog->priv->description), TRUE);
+	gtk_label_set_xalign (GTK_LABEL (dialog->priv->description), 0.0);
+	gtk_label_set_yalign (GTK_LABEL (dialog->priv->description), 0.0);
+
+	viewport = gtk_viewport_new (NULL, NULL);
+	gtk_widget_set_size_request (viewport, 300, -1);
+	gtk_viewport_set_child (GTK_VIEWPORT (viewport), dialog->priv->description);
+
+	scroll = gtk_scrolled_window_new ();
+	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scroll),
+					GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+	gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (scroll), viewport);
+	gtk_widget_set_vexpand (scroll, TRUE);
+	gtk_grid_attach (GTK_GRID (grid), scroll, 1, row, 1, 1);
+
+	gtk_stack_add_titled (GTK_STACK (stack), grid, "basic", _("Basic"));
+
+	/* ---- Details page ---- */
+	grid = gtk_grid_new ();
+	gtk_grid_set_row_spacing (GTK_GRID (grid), 6);
+	gtk_grid_set_column_spacing (GTK_GRID (grid), 12);
+	gtk_widget_set_margin_start (grid, 12);
+	gtk_widget_set_margin_end (grid, 12);
+	gtk_widget_set_margin_top (grid, 12);
+	gtk_widget_set_margin_bottom (grid, 12);
+	row = 0;
+
+	add_label_row (GTK_GRID (grid), row++, _("Source:"), "locationDescLabel",
+		       &dialog->priv->location, TRUE, FALSE);
+	gtk_label_set_ellipsize (GTK_LABEL (dialog->priv->location), PANGO_ELLIPSIZE_MIDDLE);
+	add_label_row (GTK_GRID (grid), row++, _("Download location:"), "downloadLocationDescLabel",
+		       &dialog->priv->download_location, FALSE, FALSE);
+	gtk_label_set_ellipsize (GTK_LABEL (dialog->priv->download_location), PANGO_ELLIPSIZE_MIDDLE);
+	add_label_row (GTK_GRID (grid), row++, _("Duration:"), "durationDescLabel",
+		       &dialog->priv->duration, FALSE, FALSE);
+	add_label_row (GTK_GRID (grid), row++, _("Bitrate:"), "bitrateDescLabel",
+		       &dialog->priv->bitrate, TRUE, FALSE);
+	add_label_row (GTK_GRID (grid), row++, _("Last played:"), "lastplayedDescLabel",
+		       &dialog->priv->lastplayed, TRUE, FALSE);
+	add_label_row (GTK_GRID (grid), row++, _("Play count:"), "playcountDescLabel",
+		       &dialog->priv->playcount, TRUE, FALSE);
+
+	/* Rating row — bold label + RBRating widget */
+	{
+		GtkWidget *rating_desc = gtk_label_new (_("_Rating:"));
+		gtk_label_set_use_underline (GTK_LABEL (rating_desc), TRUE);
+		gtk_label_set_xalign (GTK_LABEL (rating_desc), 0.0);
+		gtk_widget_set_halign (rating_desc, GTK_ALIGN_START);
+		PangoAttrList *attrs = pango_attr_list_new ();
+		pango_attr_list_insert (attrs, pango_attr_weight_new (PANGO_WEIGHT_BOLD));
+		gtk_label_set_attributes (GTK_LABEL (rating_desc), attrs);
+		pango_attr_list_unref (attrs);
+		gtk_grid_attach (GTK_GRID (grid), rating_desc, 0, row, 1, 1);
+
+		dialog->priv->rating = GTK_WIDGET (rb_rating_new ());
+		g_signal_connect_object (dialog->priv->rating,
+					 "rated",
+					 G_CALLBACK (rb_podcast_properties_dialog_rated_cb),
+					 G_OBJECT (dialog), 0);
+
+		rating_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+		gtk_box_append (GTK_BOX (rating_box), dialog->priv->rating);
+		gtk_grid_attach (GTK_GRID (grid), rating_box, 1, row, 1, 1);
+
+		/* accessibility */
+		gtk_accessible_update_relation (GTK_ACCESSIBLE (dialog->priv->rating),
+						GTK_ACCESSIBLE_RELATION_LABELLED_BY,
+						rating_desc,
+						NULL,
+						-1);
+	}
+
+	gtk_stack_add_titled (GTK_STACK (stack), grid, "details", _("Details"));
 }
 
 static void
@@ -455,6 +548,8 @@ rb_podcast_properties_dialog_new (RBEntryView *entry_view)
 	dialog = g_object_new (RB_TYPE_PODCAST_PROPERTIES_DIALOG,
 			       "entry-view", entry_view, NULL);
 
+	rb_podcast_properties_dialog_setup (dialog);
+
 	if (!rb_podcast_properties_dialog_get_current_entry (dialog)) {
 		g_object_unref (G_OBJECT (dialog));
 		return NULL;
@@ -462,17 +557,6 @@ rb_podcast_properties_dialog_new (RBEntryView *entry_view)
 	rb_podcast_properties_dialog_update (dialog);
 
 	return GTK_WIDGET (dialog);
-}
-
-static void
-rb_podcast_properties_dialog_response_cb (GtkDialog *gtkdialog,
-					  int response_id,
-					  RBPodcastPropertiesDialog *dialog)
-{
-	if (response_id != GTK_RESPONSE_OK)
-		goto cleanup;
-cleanup:
-	gtk_widget_destroy (GTK_WIDGET (dialog));
 }
 
 static gboolean
@@ -519,7 +603,7 @@ rb_podcast_properties_dialog_update_title (RBPodcastPropertiesDialog *dialog)
 
 	name = rhythmdb_entry_get_string (dialog->priv->current_entry, RHYTHMDB_PROP_TITLE);
 	tmp = g_strdup_printf (_("%s Properties"), name);
-	gtk_window_set_title (GTK_WINDOW (dialog), tmp);
+	adw_dialog_set_title (ADW_DIALOG (dialog), tmp);
 	g_free (tmp);
 }
 

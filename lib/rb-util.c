@@ -1160,8 +1160,8 @@ rb_scale_pixbuf_to_size (GdkPixbuf *pixbuf, GtkIconSize size)
 
 	g_return_val_if_fail (GDK_IS_PIXBUF (pixbuf), NULL);
 
-	if (gtk_icon_size_lookup (size, &icon_size, NULL) == FALSE)
-		return NULL;
+	/* GTK4: icon sizes are not enumerated; use the numeric value directly */
+	icon_size = (int)size;
 
 	width = gdk_pixbuf_get_width (pixbuf);
 	height = gdk_pixbuf_get_height (pixbuf);

@@ -51,14 +51,14 @@ typedef struct RBPropertyViewPrivate RBPropertyViewPrivate;
 
 struct _RBPropertyView
 {
-	GtkScrolledWindow parent;
+	GtkBox parent;
 
 	RBPropertyViewPrivate *priv;
 };
 
 struct _RBPropertyViewClass
 {
-	GtkScrolledWindowClass parent;
+	GtkBoxClass parent;
 
 	void (*property_selected)	(RBPropertyView *view, const char *name);
 	void (*properties_selected)	(RBPropertyView *view, GList *properties);
@@ -92,6 +92,9 @@ void		rb_property_view_set_model		(RBPropertyView *view,
 							 RhythmDBPropertyModel *model);
 
 guint		rb_property_view_get_num_properties	(RBPropertyView *view);
+
+void		rb_property_view_popup_menu		(RBPropertyView *view,
+							 GMenuModel *menu_model);
 
 void		rb_property_view_set_search_func	(RBPropertyView *view,
 							 GtkTreeViewSearchEqualFunc func,

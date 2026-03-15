@@ -50,7 +50,7 @@ enum {
 	PROP_SYNC_SETTINGS
 };
 
-G_DEFINE_TYPE (RBSyncSettingsUI, rb_sync_settings_ui, GTK_TYPE_BOX)
+G_DEFINE_TYPE_WITH_PRIVATE (RBSyncSettingsUI, rb_sync_settings_ui, GTK_TYPE_BOX)
 
 
 static void
@@ -182,7 +182,7 @@ rb_sync_settings_ui_new (RBMediaPlayerSource *source, RBSyncSettings *settings)
 static void
 rb_sync_settings_ui_init (RBSyncSettingsUI *ui)
 {
-	ui->priv = G_TYPE_INSTANCE_GET_PRIVATE (ui, RB_TYPE_SYNC_SETTINGS_UI, RBSyncSettingsUIPrivate);
+	ui->priv = rb_sync_settings_ui_get_instance_private (ui);
 	gtk_orientable_set_orientation (GTK_ORIENTABLE (ui), GTK_ORIENTATION_VERTICAL);
 }
 
@@ -304,7 +304,7 @@ impl_constructed (GObject *object)
 	/* Set up the treeview */
 	tree_view = gtk_tree_view_new ();
 	gtk_tree_view_set_headers_visible (GTK_TREE_VIEW (tree_view), FALSE);
-	gtk_box_pack_start (GTK_BOX (ui), tree_view, TRUE, TRUE, 0);
+	gtk_box_append (GTK_BOX (ui), tree_view);
 
 	/* First column */
 	renderer = gtk_cell_renderer_toggle_new ();
@@ -334,7 +334,7 @@ impl_constructed (GObject *object)
 	g_object_unref (shell);
 	g_object_unref (db);
 
-	gtk_widget_show_all (GTK_WIDGET (ui));
+	gtk_widget_show (GTK_WIDGET (ui));
 
 	RB_CHAIN_GOBJECT_METHOD(rb_sync_settings_ui_parent_class, constructed, object);
 }
@@ -413,5 +413,4 @@ rb_sync_settings_ui_class_init (RBSyncSettingsUIClass *klass)
 							      RB_TYPE_SYNC_SETTINGS,
 							      G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
-	g_type_class_add_private (object_class, sizeof (RBSyncSettingsUIPrivate));
 }

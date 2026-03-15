@@ -53,9 +53,13 @@ typedef struct
 	gboolean	was_reordered;
 } RBIpodStaticPlaylistSourcePrivate;
 
-G_DEFINE_DYNAMIC_TYPE(RBIpodStaticPlaylistSource, rb_ipod_static_playlist_source, RB_TYPE_STATIC_PLAYLIST_SOURCE)
+G_DEFINE_DYNAMIC_TYPE_EXTENDED (RBIpodStaticPlaylistSource,
+	rb_ipod_static_playlist_source,
+	RB_TYPE_STATIC_PLAYLIST_SOURCE,
+	0,
+	G_ADD_PRIVATE_DYNAMIC (RBIpodStaticPlaylistSource))
 
-#define IPOD_STATIC_PLAYLIST_SOURCE_GET_PRIVATE(o)   (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_IPOD_STATIC_PLAYLIST_SOURCE, RBIpodStaticPlaylistSourcePrivate))
+#define IPOD_STATIC_PLAYLIST_SOURCE_GET_PRIVATE(o) (rb_ipod_static_playlist_source_get_instance_private (o))
 
 enum {
 	PROP_0,
@@ -279,7 +283,6 @@ rb_ipod_static_playlist_source_class_init (RBIpodStaticPlaylistSourceClass *klas
 							      "itdb-playlist",
 							      G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
-	g_type_class_add_private (klass, sizeof (RBIpodStaticPlaylistSourcePrivate));
 }
 
 static void

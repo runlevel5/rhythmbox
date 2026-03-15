@@ -99,12 +99,6 @@ static void default_pack_content (RBBrowserSource *source, GtkWidget *content);
 
 void rb_browser_source_browser_views_activated_cb (GtkWidget *widget,
 						 RBBrowserSource *source);
-static void songs_view_drag_data_received_cb (GtkWidget *widget,
-					      GdkDragContext *dc,
-					      gint x, gint y,
-					      GtkSelectionData *data,
-					      guint info, guint time,
-					      RBBrowserSource *source);
 static void rb_browser_source_do_query (RBBrowserSource *source,
 					gboolean subset);
 static void rb_browser_source_populate (RBBrowserSource *source);
@@ -130,12 +124,9 @@ struct RBBrowserSourcePrivate
 	GAction *search_action;
 };
 
-#define RB_BROWSER_SOURCE_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_BROWSER_SOURCE, RBBrowserSourcePrivate))
+#define RB_BROWSER_SOURCE_GET_PRIVATE(o) (rb_browser_source_get_instance_private (o))
 
-static const GtkTargetEntry songs_view_drag_types[] = {
-	{ "application/x-rhythmbox-entry", 0, 0 },
-	{ "text/uri-list", 0, 1 }
-};
+/* GtkTargetEntry removed - GTK4 uses GtkDropTarget */
 
 enum
 {
@@ -145,7 +136,7 @@ enum
 	PROP_SHOW_BROWSER
 };
 
-G_DEFINE_ABSTRACT_TYPE (RBBrowserSource, rb_browser_source, RB_TYPE_SOURCE)
+G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE (RBBrowserSource, rb_browser_source, RB_TYPE_SOURCE)
 
 static void
 rb_browser_source_class_init (RBBrowserSourceClass *klass)
@@ -192,7 +183,6 @@ rb_browser_source_class_init (RBBrowserSourceClass *klass)
 					  PROP_SHOW_BROWSER,
 					  "show-browser");
 
-	g_type_class_add_private (klass, sizeof (RBBrowserSourcePrivate));
 }
 
 static void
@@ -248,7 +238,6 @@ rb_browser_source_songs_show_popup_cb (RBEntryView *view,
 static void
 default_show_entry_popup (RBBrowserSource *source)
 {
-	GtkWidget *menu;
 	GMenuModel *playlist_menu;
 
 	/* update add to playlist menu links */
@@ -256,15 +245,7 @@ default_show_entry_popup (RBBrowserSource *source)
 	rb_menu_update_link (source->priv->popup, "rb-playlist-menu-link", playlist_menu);
 	g_clear_object (&playlist_menu);
 
-	menu = gtk_menu_new_from_model (G_MENU_MODEL (source->priv->popup));
-	gtk_menu_attach_to_widget (GTK_MENU (menu), GTK_WIDGET (source), NULL);
-	gtk_menu_popup (GTK_MENU (menu),
-			NULL,
-			NULL,
-			NULL,
-			NULL,
-			3,
-			gtk_get_current_event_time ());
+	rb_entry_view_popup_menu (source->priv->songs, G_MENU_MODEL (source->priv->popup));
 }
 
 static void
@@ -274,7 +255,7 @@ rb_browser_source_constructed (GObject *object)
 	RBBrowserSourceClass *klass;
 	RBShell *shell;
 	GObject *shell_player;
-	GtkAccelGroup *accel_group;
+	gpointer accel_group;
 	RhythmDBEntryType *entry_type;
 	GtkWidget *content;
 	GtkWidget *paned;
@@ -334,12 +315,8 @@ rb_browser_source_constructed (GObject *object)
 	paned = gtk_paned_new (GTK_ORIENTATION_VERTICAL);
 
 	source->priv->browser = rb_library_browser_new (source->priv->db, entry_type);
-	gtk_widget_set_no_show_all (GTK_WIDGET (source->priv->browser), TRUE);
-	gtk_paned_pack1 (GTK_PANED (paned), GTK_WIDGET (source->priv->browser), TRUE, FALSE);
-	gtk_container_child_set (GTK_CONTAINER (paned),
-				 GTK_WIDGET (source->priv->browser),
-				 "resize", FALSE,
-				 NULL);
+	gtk_paned_set_start_child (GTK_PANED (paned), GTK_WIDGET (source->priv->browser));
+	gtk_paned_set_resize_start_child (GTK_PANED (paned), FALSE);
 	g_signal_connect_object (G_OBJECT (source->priv->browser), "notify::output-model",
 				 G_CALLBACK (rb_browser_source_browser_changed_cb),
 				 source, 0);
@@ -375,24 +352,9 @@ rb_browser_source_constructed (GObject *object)
 				 GTK_WIDGET (source->priv->browser),
 				 TRUE);
 
-	if (rb_browser_source_has_drop_support (source)) {
-		gtk_drag_dest_set (GTK_WIDGET (source->priv->songs),
-				   GTK_DEST_DEFAULT_ALL,
-				   songs_view_drag_types, G_N_ELEMENTS (songs_view_drag_types),
-				   GDK_ACTION_COPY | GDK_ACTION_MOVE);	/* really accept move actions? */
+	/* TODO: set up GtkDropTarget for drag and drop */
 
-		/* set up drag and drop for the song tree view.
-		 * we don't use RBEntryView's DnD support because it does too much.
-		 * we just want to be able to drop songs in to add them to the
-		 * library.
-		 */
-		g_signal_connect_object (G_OBJECT (source->priv->songs),
-					 "drag_data_received",
-					 G_CALLBACK (songs_view_drag_data_received_cb),
-					 source, 0);
-	}
-
-	gtk_paned_pack2 (GTK_PANED (paned), GTK_WIDGET (source->priv->songs), TRUE, FALSE);
+	gtk_paned_set_end_child (GTK_PANED (paned), GTK_WIDGET (source->priv->songs));
 
 	/* set up toolbar */
 	source->priv->toolbar = rb_source_toolbar_new (RB_DISPLAY_PAGE (source), accel_group);
@@ -410,7 +372,7 @@ rb_browser_source_constructed (GObject *object)
 	klass = RB_BROWSER_SOURCE_GET_CLASS (source);
 	klass->pack_content (source, content);
 
-	gtk_widget_show_all (GTK_WIDGET (source));
+	gtk_widget_show (GTK_WIDGET (source));
 
 	/* use a throwaway model until the real one is ready */
 	rb_library_browser_set_model (source->priv->browser,
@@ -667,10 +629,8 @@ impl_song_properties (RBSource *asource)
 
  	song_info = rb_song_info_new (asource, NULL);
 
-        g_return_if_fail (song_info != NULL);
-
  	if (song_info)
- 		gtk_widget_show_all (song_info);
+ 		adw_dialog_present (ADW_DIALOG (song_info), GTK_WIDGET (source));
  	else
 		rb_debug ("failed to create dialog, or no selection!");
 }
@@ -692,17 +652,6 @@ rb_browser_source_has_drop_support (RBBrowserSource *source)
 	return klass->has_drop_support (source);
 }
 
-static void
-songs_view_drag_data_received_cb (GtkWidget *widget,
-				  GdkDragContext *dc,
-				  gint x, gint y,
-				  GtkSelectionData *selection_data,
-				  guint info, guint time,
-				  RBBrowserSource *source)
-{
-	rb_debug ("data dropped on the library source song view");
-	rb_display_page_receive_drag (RB_DISPLAY_PAGE (source), selection_data);
-}
 
 static void
 rb_browser_source_browser_changed_cb (RBLibraryBrowser *browser,
@@ -797,5 +746,5 @@ rb_browser_source_do_query (RBBrowserSource *source, gboolean subset)
 static void
 default_pack_content (RBBrowserSource *source, GtkWidget *content)
 {
-	gtk_container_add (GTK_CONTAINER (source), content);
+	gtk_box_append (GTK_BOX (source), content);
 }

@@ -111,7 +111,7 @@ G_DEFINE_DYNAMIC_TYPE_EXTENDED (
 	G_IMPLEMENT_INTERFACE_DYNAMIC (RB_TYPE_DEVICE_SOURCE, rb_android_device_source_init)
 	G_IMPLEMENT_INTERFACE_DYNAMIC (RB_TYPE_TRANSFER_TARGET, rb_android_transfer_target_init))
 
-#define GET_PRIVATE(o)   (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_ANDROID_SOURCE, RBAndroidSourcePrivate))
+#define GET_PRIVATE(o) (rb_android_source_get_instance_private (RB_ANDROID_SOURCE (o)))
 
 static void
 free_space_cb (GObject *obj, GAsyncResult *res, gpointer data)
@@ -199,9 +199,9 @@ music_dirs_done (RBAndroidSource *source)
 		rb_debug ("no storage areas found");
 		if (gtk_widget_get_visible (priv->info_bar) == FALSE) {
 			label = gtk_label_new (_("No storage areas found on this device. You may need to unlock it and change it to File Transfer mode."));
-			gtk_container_add (GTK_CONTAINER (gtk_info_bar_get_content_area (GTK_INFO_BAR (priv->info_bar))), label);
+			gtk_info_bar_add_child (GTK_INFO_BAR (priv->info_bar), label);
 			gtk_info_bar_set_message_type (GTK_INFO_BAR (priv->info_bar), GTK_MESSAGE_INFO);
-			gtk_widget_show_all (priv->info_bar);
+			gtk_widget_show (priv->info_bar);
 
 			/* more or less */
 			g_object_set (source, "load-status", RB_SOURCE_LOAD_STATUS_LOADED, NULL);
@@ -567,7 +567,7 @@ impl_show_properties (RBMediaPlayerSource *source, GtkWidget *info_box, GtkWidge
 	/* 'basic' tab stuff */
 
 	widget = GTK_WIDGET (gtk_builder_get_object (builder, "android-basic-info"));
-	gtk_box_pack_start (GTK_BOX (info_box), widget, TRUE, TRUE, 0);
+	gtk_box_append (GTK_BOX (info_box), widget);
 
 	g_object_get (source, "base-query-model", &model, NULL);
 	widget = GTK_WIDGET (gtk_builder_get_object (builder, "num-tracks"));
@@ -902,8 +902,8 @@ impl_constructed (GObject *object)
 	priv->info_bar = gtk_info_bar_new ();
 	gtk_grid_attach (GTK_GRID (priv->grid), priv->info_bar, 0, 0, 1, 1);
 
-	gtk_container_add (GTK_CONTAINER (source), priv->grid);
-	gtk_widget_show_all (priv->grid);
+	gtk_box_append (GTK_BOX (source), priv->grid);
+	gtk_widget_show (priv->grid);
 	gtk_widget_hide (priv->info_bar);
 
 	rb_device_source_set_display_details (RB_DEVICE_SOURCE (source));
@@ -1149,7 +1149,6 @@ rb_android_source_class_init (RBAndroidSourceClass *klass)
 
 	g_object_class_override_property (object_class, PROP_DEVICE_SERIAL, "serial");
 
-	g_type_class_add_private (klass, sizeof (RBAndroidSourcePrivate));
 }
 
 static void

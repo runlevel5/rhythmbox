@@ -47,14 +47,14 @@ typedef struct _RBTaskListDisplayPrivate RBTaskListDisplayPrivate;
 
 struct _RBTaskListDisplay
 {
-	GtkGrid parent;
+	GtkBox parent;
 
 	RBTaskListDisplayPrivate *priv;
 };
 
 struct _RBTaskListDisplayClass
 {
-	GtkGridClass parent;
+	GtkBoxClass parent;
 };
 
 GType		rb_task_list_display_get_type		(void);

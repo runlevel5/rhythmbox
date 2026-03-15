@@ -68,30 +68,6 @@ typedef struct _RBLibraryBrowserRebuildData RBLibraryBrowserRebuildData;
 
 static void destroy_idle_rebuild_model (RBLibraryBrowserRebuildData *data);
 
-G_DEFINE_TYPE (RBLibraryBrowser, rb_library_browser, GTK_TYPE_BOX)
-#define RB_LIBRARY_BROWSER_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_LIBRARY_BROWSER, RBLibraryBrowserPrivate))
-
-/**
- * SECTION:rblibrarybrowser
- * @short_description: album/artist/genre browser widget
- * @include: rb-library-browser.h
- *
- * This widget contains a set of #RBPropertyView<!-- -->s backed by
- * #RhythmDBPropertyModel<!-- -->s and constructs a chain of
- * #RhythmDBQueryModel<!-- -->s to perform filtering of the entries
- * in a source.
- *
- * It operates on an input query model, containing the full set of
- * entries that may be displayed in the source, and produces an
- * output query model containing those entries that match the current
- * selection.
- *
- * When the selection in any of the property views changes, or when
- * #rb_library_browser_reset or #rb_library_browser_set_selection are
- * called to manipulate the selection, the query chain is rebuilt
- * asynchronously to update the property views.
- */
-
 struct _RBLibraryBrowserRebuildData
 {
 	RBLibraryBrowser *widget;
@@ -115,6 +91,29 @@ typedef struct
 	RBLibraryBrowserRebuildData *rebuild_data;
 } RBLibraryBrowserPrivate;
 
+G_DEFINE_TYPE_WITH_PRIVATE (RBLibraryBrowser, rb_library_browser, GTK_TYPE_BOX)
+#define RB_LIBRARY_BROWSER_GET_PRIVATE(o) (rb_library_browser_get_instance_private (RB_LIBRARY_BROWSER (o)))
+
+/**
+ * SECTION:rblibrarybrowser
+ * @short_description: album/artist/genre browser widget
+ * @include: rb-library-browser.h
+ *
+ * This widget contains a set of #RBPropertyView<!-- -->s backed by
+ * #RhythmDBPropertyModel<!-- -->s and constructs a chain of
+ * #RhythmDBQueryModel<!-- -->s to perform filtering of the entries
+ * in a source.
+ *
+ * It operates on an input query model, containing the full set of
+ * entries that may be displayed in the source, and produces an
+ * output query model containing those entries that match the current
+ * selection.
+ *
+ * When the selection in any of the property views changes, or when
+ * #rb_library_browser_reset or #rb_library_browser_set_selection are
+ * called to manipulate the selection, the query chain is rebuilt
+ * asynchronously to update the property views.
+ */
 enum
 {
 	PROP_0,
@@ -219,7 +218,6 @@ rb_library_browser_class_init (RBLibraryBrowserClass *klass)
 							      "artists-albums",
 							      G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
 
-	g_type_class_add_private (klass, sizeof (RBLibraryBrowserPrivate));
 }
 
 static void
@@ -263,9 +261,9 @@ rb_library_browser_constructed (GObject *object)
 					 "property-selection-reset",
 					 G_CALLBACK (view_selection_reset_cb),
 					 browser, 0);
-		gtk_widget_show_all (GTK_WIDGET (view));
-		gtk_widget_set_no_show_all (GTK_WIDGET (view), TRUE);
-		gtk_box_pack_start (GTK_BOX (browser), GTK_WIDGET (view), TRUE, TRUE, 0);
+		gtk_widget_show (GTK_WIDGET (view));
+		/* removed: no_show_all not needed in GTK4 */
+		gtk_box_append (GTK_BOX (browser), GTK_WIDGET (view));
 	}
 
 	update_browser_views_visibility (browser);

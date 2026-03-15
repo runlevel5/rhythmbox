@@ -29,7 +29,9 @@
 #include "config.h"
 
 #include <string.h>
+#include <graphene.h>
 #include <gtk/gtk.h>
+#include "rb-gtk4-compat.h"
 #include <gdk/gdkkeysyms.h>
 
 #include "rb-rating.h"
@@ -54,15 +56,14 @@ static void rb_rating_set_property (GObject *object,
 				    guint param_id,
 				    const GValue *value,
 				    GParamSpec *pspec);
-static void rb_rating_realize (GtkWidget *widget);
-static gboolean rb_rating_draw (GtkWidget *widget, cairo_t *cr);
+/* rb_rating_realize removed - no GdkWindow in GTK4 */
+static void rb_rating_snapshot (GtkWidget *widget, GtkSnapshot *snapshot);
 static gboolean rb_rating_focus (GtkWidget *widget, GtkDirectionType direction);
 static gboolean rb_rating_set_rating_cb (RBRating *rating, gdouble score);
 static gboolean rb_rating_adjust_rating_cb (RBRating *rating, gdouble adjust);
-static gboolean rb_rating_button_press_cb (GtkWidget *widget,
-					   GdkEventButton *event);
-static void rb_rating_get_preferred_width (GtkWidget *widget, int *minimum_width, int *natural_width);
-static void rb_rating_get_preferred_height (GtkWidget *widget, int *minimum_height, int *natural_height);
+static void rb_rating_button_press_cb (GtkGestureClick *gesture, int n_press, double x, double y, gpointer user_data);
+static void rb_rating_measure (GtkWidget *widget, GtkOrientation orientation, int for_size, int *minimum, int *natural, int *minimum_baseline, int *natural_baseline);
+
 
 struct _RBRatingPrivate
 {
@@ -70,8 +71,8 @@ struct _RBRatingPrivate
 	RBRatingPixbufs *pixbufs;
 };
 
-G_DEFINE_TYPE (RBRating, rb_rating, GTK_TYPE_WIDGET)
-#define RB_RATING_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_RATING, RBRatingPrivate))
+G_DEFINE_TYPE_WITH_PRIVATE (RBRating, rb_rating, GTK_TYPE_WIDGET)
+#define RB_RATING_GET_PRIVATE(o) (rb_rating_get_instance_private (o))
 
 /**
  * SECTION:rbrating
@@ -102,19 +103,14 @@ rb_rating_class_init (RBRatingClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
 	GtkWidgetClass *widget_class;
-	GtkBindingSet *binding_set;
-
 	widget_class = (GtkWidgetClass*) klass;
 
 	object_class->finalize = rb_rating_finalize;
 	object_class->get_property = rb_rating_get_property;
 	object_class->set_property = rb_rating_set_property;
 
-	widget_class->realize = rb_rating_realize;
-	widget_class->draw = rb_rating_draw;
-	widget_class->get_preferred_width = rb_rating_get_preferred_width;
-	widget_class->get_preferred_height = rb_rating_get_preferred_height;
-	widget_class->button_press_event = rb_rating_button_press_cb;
+	widget_class->snapshot = rb_rating_snapshot;
+	widget_class->measure = rb_rating_measure;
 	widget_class->focus = rb_rating_focus;
 
 	klass->set_rating = rb_rating_set_rating_cb;
@@ -181,28 +177,14 @@ rb_rating_class_init (RBRatingClass *klass)
 			      1,
 			      G_TYPE_DOUBLE);
 
-	binding_set = gtk_binding_set_by_class (klass);
-	gtk_binding_entry_add_signal (binding_set, GDK_KEY_Home, 0, "set-rating", 1, G_TYPE_DOUBLE, 0.0);
-	gtk_binding_entry_add_signal (binding_set, GDK_KEY_End, 0, "set-rating", 1, G_TYPE_DOUBLE, (double)RB_RATING_MAX_SCORE);
-
-	gtk_binding_entry_add_signal (binding_set, GDK_KEY_equal, 0, "adjust-rating", 1, G_TYPE_DOUBLE, 1.0);
-	gtk_binding_entry_add_signal (binding_set, GDK_KEY_plus, 0, "adjust-rating", 1, G_TYPE_DOUBLE, 1.0);
-	gtk_binding_entry_add_signal (binding_set, GDK_KEY_KP_Add, 0, "adjust-rating", 1, G_TYPE_DOUBLE, 1.0);
-	gtk_binding_entry_add_signal (binding_set, GDK_KEY_Right, 0, "adjust-rating", 1, G_TYPE_DOUBLE, 1.0);
-	gtk_binding_entry_add_signal (binding_set, GDK_KEY_KP_Right, 0, "adjust-rating", 1, G_TYPE_DOUBLE, 1.0);
+	/* TODO: add GtkShortcutController for key bindings */
 	
-	gtk_binding_entry_add_signal (binding_set, GDK_KEY_minus, 0, "adjust-rating", 1, G_TYPE_DOUBLE, -1.0);
-	gtk_binding_entry_add_signal (binding_set, GDK_KEY_KP_Subtract, 0, "adjust-rating", 1, G_TYPE_DOUBLE, -1.0);
-	gtk_binding_entry_add_signal (binding_set, GDK_KEY_Left, 0, "adjust-rating", 1, G_TYPE_DOUBLE, -1.0);
-	gtk_binding_entry_add_signal (binding_set, GDK_KEY_KP_Left, 0, "adjust-rating", 1, G_TYPE_DOUBLE, -1.0);
-	
-	g_type_class_add_private (klass, sizeof (RBRatingPrivate));
 }
 
 static void
 rb_rating_init (RBRating *rating)
 {
-	AtkObject *atk_obj;
+	GtkGesture *click;
 
 	rating->priv = RB_RATING_GET_PRIVATE (rating);
 
@@ -211,10 +193,19 @@ rb_rating_init (RBRating *rating)
 	
 	rb_rating_set_accessible_description (GTK_WIDGET (rating), 0.0);
 
-	gtk_style_context_add_class (gtk_widget_get_style_context (GTK_WIDGET (rating)),
-				     GTK_STYLE_CLASS_ENTRY);
-	atk_obj = gtk_widget_get_accessible (GTK_WIDGET (rating));
-	atk_object_set_role (atk_obj, ATK_ROLE_RATING);
+	gtk_widget_add_css_class (GTK_WIDGET (rating), "entry");
+
+	gtk_widget_set_can_focus (GTK_WIDGET (rating), TRUE);
+	gtk_widget_set_focusable (GTK_WIDGET (rating), TRUE);
+
+	click = gtk_gesture_click_new ();
+	gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (click), GDK_BUTTON_PRIMARY);
+	g_signal_connect (click, "pressed", G_CALLBACK (rb_rating_button_press_cb), rating);
+	gtk_widget_add_controller (GTK_WIDGET (rating), GTK_EVENT_CONTROLLER (click));
+
+	gtk_accessible_update_property (GTK_ACCESSIBLE (rating),
+					GTK_ACCESSIBLE_PROPERTY_ROLE_DESCRIPTION, "rating",
+					-1);
 }
 
 static void
@@ -305,144 +296,86 @@ rb_rating_new (void)
 	return rating;
 }
 
+
 static void
-rb_rating_realize (GtkWidget *widget)
+rb_rating_measure (GtkWidget *widget, GtkOrientation orientation, int for_size,
+		   int *minimum, int *natural, int *minimum_baseline, int *natural_baseline)
 {
-	GtkAllocation allocation;
-	GdkWindowAttr attributes;
-	GdkWindow *window;
-	int attributes_mask;
+	int icon_size = 16;
 
-	gtk_widget_set_realized (widget, TRUE);
+	if (orientation == GTK_ORIENTATION_HORIZONTAL) {
+		int width = RB_RATING_MAX_SCORE * icon_size + X_OFFSET;
+		if (minimum != NULL)
+			*minimum = width;
+		if (natural != NULL)
+			*natural = width;
+	} else {
+		int height = icon_size + Y_OFFSET * 2;
+		if (minimum != NULL)
+			*minimum = height;
+		if (natural != NULL)
+			*natural = height;
+	}
 
-	gtk_widget_get_allocation (widget, &allocation);
-
-	attributes.x = allocation.x;
-	attributes.y = allocation.y;
-	attributes.width = allocation.width;
-	attributes.height = allocation.height;
-	attributes.wclass = GDK_INPUT_OUTPUT;
-	attributes.window_type = GDK_WINDOW_CHILD;
-	attributes.event_mask = gtk_widget_get_events (widget) | GDK_EXPOSURE_MASK | GDK_BUTTON_PRESS_MASK | GDK_KEY_RELEASE_MASK | GDK_FOCUS_CHANGE_MASK;
-	attributes.visual = gtk_widget_get_visual (widget);
-
-	attributes_mask = GDK_WA_X | GDK_WA_Y | GDK_WA_VISUAL;
-
-	window = gdk_window_new (gtk_widget_get_parent_window (widget), &attributes, attributes_mask);
-	gtk_widget_set_window (widget, window);
-	gdk_window_set_user_data (window, widget);
-
-	gtk_widget_set_can_focus (widget, TRUE);
+	if (minimum_baseline != NULL)
+		*minimum_baseline = -1;
+	if (natural_baseline != NULL)
+		*natural_baseline = -1;
 }
 
 static void
-rb_rating_get_preferred_width (GtkWidget *widget, int *minimum_width, int *natural_width)
+rb_rating_snapshot (GtkWidget *widget, GtkSnapshot *snapshot)
 {
-	int icon_size;
-	int width;
-
-	gtk_icon_size_lookup (GTK_ICON_SIZE_MENU, &icon_size, NULL);
-
-	width = RB_RATING_MAX_SCORE * icon_size + X_OFFSET;
-	if (minimum_width != NULL)
-		*minimum_width = width;
-	if (natural_width != NULL)
-		*natural_width = width;
-}
-
-static void
-rb_rating_get_preferred_height (GtkWidget *widget, int *minimum_height, int *natural_height)
-{
-	int icon_size;
-	int height;
-	gtk_icon_size_lookup (GTK_ICON_SIZE_MENU, &icon_size, NULL);
-
-	height = icon_size + Y_OFFSET * 2;
-	if (minimum_height != NULL)
-		*minimum_height = height;
-	if (natural_height != NULL)
-		*natural_height = height;
-}
-
-static gboolean
-rb_rating_draw (GtkWidget *widget, cairo_t *cr)
-{
-	gboolean ret;
-	GdkWindow *window;
 	RBRating *rating;
-	int x = 0;
-	int y = 0;
 	int width;
 	int height;
+	cairo_t *cr;
+	graphene_rect_t bounds;
 
-	g_return_val_if_fail (RB_IS_RATING (widget), FALSE);
+	g_return_if_fail (RB_IS_RATING (widget));
 
-	ret = FALSE;
 	rating = RB_RATING (widget);
 
-	window = gtk_widget_get_window (widget);
-	width = gdk_window_get_width (window);
-	height = gdk_window_get_height (window);
+	width = gtk_widget_get_width (widget);
+	height = gtk_widget_get_height (widget);
 
-	gtk_render_background (gtk_widget_get_style_context (widget),
-			       cr,
-			       x, y,
-			       width, height);
-	gtk_render_frame (gtk_widget_get_style_context (widget),
-			  cr,
-			  x, y,
-			  width, height);
-
-	if (gtk_widget_has_focus (widget)) {
-		int focus_width;
-		gtk_widget_style_get (widget, "focus-line-width", &focus_width, NULL);
-
-		x += focus_width;
-		y += focus_width;
-		width -= 2 * focus_width;
-		height -= 2 * focus_width;
-
-		gtk_render_focus (gtk_widget_get_style_context (widget),
-				  cr,
-				  x, y,
-				  width, height);
-	}
+	graphene_rect_init (&bounds, 0, 0, width, height);
+	cr = gtk_snapshot_append_cairo (snapshot, &bounds);
 
 	/* draw the stars */
 	if (rating->priv->pixbufs != NULL) {
-		ret = rb_rating_render_stars (widget,
-					      cr,
-					      rating->priv->pixbufs,
-					      0, 0,
-					      X_OFFSET, Y_OFFSET,
-					      rating->priv->rating,
-					      FALSE);
+		rb_rating_render_stars (widget,
+				        cr,
+				        rating->priv->pixbufs,
+				        0, 0,
+				        X_OFFSET, Y_OFFSET,
+				        rating->priv->rating,
+				        FALSE);
 	}
 
-	return ret;
+	cairo_destroy (cr);
 }
 
-static gboolean
-rb_rating_button_press_cb (GtkWidget *widget,
-			   GdkEventButton *event)
+static void
+rb_rating_button_press_cb (GtkGestureClick *gesture,
+			   int n_press,
+			   double x,
+			   double y,
+			   gpointer user_data)
 {
-	int mouse_x, mouse_y;
 	double new_rating;
 	RBRating *rating;
-	GtkAllocation allocation;
-	
-	g_return_val_if_fail (widget != NULL, FALSE);
-	g_return_val_if_fail (RB_IS_RATING (widget), FALSE);
+	GtkWidget *widget;
+	int width;
+
+	widget = gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (gesture));
+	g_return_if_fail (RB_IS_RATING (widget));
 
 	rating = RB_RATING (widget);
+	width = gtk_widget_get_width (widget);
 
-	gdk_window_get_device_position (gtk_widget_get_window (widget),
-					gdk_event_get_device ((GdkEvent *)event),
-					&mouse_x, &mouse_y, NULL);
-	gtk_widget_get_allocation (widget, &allocation);
-
-	new_rating = rb_rating_get_rating_from_widget (widget, mouse_x,
-						       allocation.width,
+	new_rating = rb_rating_get_rating_from_widget (widget, (int)x,
+						       width,
 						       rating->priv->rating);
 
 	if (new_rating > -0.0001) {
@@ -452,8 +385,6 @@ rb_rating_button_press_cb (GtkWidget *widget,
 	}
 
 	gtk_widget_grab_focus (widget);
-
-	return FALSE;
 }
 
 static gboolean

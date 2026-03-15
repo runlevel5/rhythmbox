@@ -32,6 +32,7 @@
 #include <glib/gi18n.h>
 
 #include <gtk/gtk.h>
+#include <adwaita.h>
 #include <glib.h>
 #include <glib/gprintf.h>
 #include <stdio.h>
@@ -73,26 +74,24 @@ rb_error_dialog (GtkWindow *parent,
 {
 	char *text = "";
 	va_list args;
-	GtkWidget *dialog;
+	AdwDialog *dialog;
+	GtkWidget *parent_widget;
 
 	va_start (args, secondary);
 	g_vasprintf (&text, secondary, args);
 	va_end (args);
 
-	dialog = gtk_message_dialog_new (parent,
-					 GTK_DIALOG_DESTROY_WITH_PARENT,
-					 GTK_MESSAGE_ERROR,
-					 GTK_BUTTONS_CLOSE,
-					 "%s", primary);
+	dialog = adw_alert_dialog_new (primary, text);
+	adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "close", _("_Close"));
+	adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "close");
+	adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "close");
 
-	gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog),
-						  "%s", text);
+	if (parent != NULL)
+		parent_widget = GTK_WIDGET (parent);
+	else
+		parent_widget = GTK_WIDGET (gtk_application_get_active_window (GTK_APPLICATION (g_application_get_default ())));
 
-	gtk_window_set_title (GTK_WINDOW (dialog), "");
-
-	g_signal_connect (dialog, "response", G_CALLBACK (gtk_widget_destroy), NULL);
-
-	gtk_widget_show (dialog);
+	adw_dialog_present (dialog, parent_widget);
 
 	g_free (text);
 }
@@ -124,8 +123,7 @@ rb_file_chooser_new (const char *title,
 	GtkWidget *dialog;
 
 	if (action == GTK_FILE_CHOOSER_ACTION_OPEN	    ||
-	    action == GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER ||
-	    action == GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER) {
+	    action == GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER) {
 		dialog = gtk_file_chooser_dialog_new (title, parent,
 						      action,
 						      _("_Cancel"), GTK_RESPONSE_CANCEL,
@@ -141,23 +139,24 @@ rb_file_chooser_new (const char *title,
 						      NULL);
 		gtk_dialog_set_default_response (GTK_DIALOG (dialog),
 						 GTK_RESPONSE_ACCEPT);
-		gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
 	} else {
 		g_assert_not_reached ();
 		return NULL;
 	}
 
-	gtk_file_chooser_set_local_only (GTK_FILE_CHOOSER (dialog), local_only);
-	gtk_file_chooser_add_shortcut_folder (GTK_FILE_CHOOSER (dialog),
-					      rb_music_dir (),
-					      NULL);
+	{
+		GFile *music_dir = g_file_new_for_path (rb_music_dir ());
+		gtk_file_chooser_add_shortcut_folder (GTK_FILE_CHOOSER (dialog),
+						      music_dir, NULL);
+		g_object_unref (music_dir);
+	}
 
 	if (parent != NULL) {
 		gtk_window_set_transient_for (GTK_WINDOW (dialog), GTK_WINDOW (parent));
 		gtk_window_set_destroy_with_parent (GTK_WINDOW (dialog), TRUE);
 	}
 
-	gtk_widget_show_all (dialog);
+	gtk_widget_show (dialog);
 
 	return dialog;
 }

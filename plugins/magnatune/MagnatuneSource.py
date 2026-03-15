@@ -100,9 +100,9 @@ class MagnatuneSource(RB.BrowserSource):
 			builder.add_from_file(rb.find_plugin_file(self.props.plugin, "magnatune-popup.ui"))
 			self.__popup = builder.get_object("magnatune-popup")
 
-		menu = Gtk.Menu.new_from_model(self.__popup)
-		menu.attach_to_widget(self, None)
-		menu.popup(None, None, None, None, 3, Gtk.get_current_event_time())
+		menu = Gtk.PopoverMenu.new_from_model(self.__popup)
+		menu.set_parent(self)
+		menu.popup()
 
 
 	def do_selected(self):
@@ -130,9 +130,9 @@ class MagnatuneSource(RB.BrowserSource):
 		return False
 
 	def do_pack_content(self, content):
-		self.__paned_box = Gtk.VBox(homogeneous=False, spacing=5)
-		self.pack_start(self.__paned_box, True, True, 0)
-		self.__paned_box.pack_start(content, True, True, 0)
+		self.__paned_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, homogeneous=False, spacing=5)
+		self.append(self.__paned_box)
+		self.__paned_box.append(content)
 
 
 	def do_delete_thyself(self):
@@ -155,7 +155,6 @@ class MagnatuneSource(RB.BrowserSource):
 	#
 
 	def display_artist_info(self):
-		screen = self.props.shell.props.window.get_screen()
 		tracks = self.get_entry_view().get_selected_entries()
 		if len(tracks) == 0:
 			return
@@ -163,17 +162,16 @@ class MagnatuneSource(RB.BrowserSource):
 		tr = tracks[0]
 		sku = self.__sku_dict[tr.get_string(RB.RhythmDBPropType.LOCATION)]
 		url = self.__home_dict[sku]
-		Gtk.show_uri(screen, url, Gdk.CURRENT_TIME)
+		Gtk.show_uri(self.props.shell.props.window, url, Gdk.CURRENT_TIME)
 
 
 	def download_redirect(self):
-		screen = self.props.shell.props.window.get_screen()
 		tracks = self.get_entry_view().get_selected_entries()
 		if len(tracks) == 0:
 			return
 
 		url = magnatune_member_signup_uri + urllib.parse.urlencode({ 'ref': magnatune_partner_id })
-		Gtk.show_uri(screen, url, Gdk.CURRENT_TIME)
+		Gtk.show_uri(self.props.shell.props.window, url, Gdk.CURRENT_TIME)
 
 
 	def download_album(self):
@@ -352,9 +350,7 @@ class MagnatuneSource(RB.BrowserSource):
 			builder = Gtk.Builder()
 			builder.add_from_file(rb.find_plugin_file(self.props.plugin, "magnatune-loading.ui"))
 			self.__info_screen = builder.get_object("magnatune_loading_scrolledwindow")
-			self.pack_start(self.__info_screen, True, True, 0)
-			self.get_entry_view().set_no_show_all(True)
-			self.__info_screen.set_no_show_all(True)
+			self.append(self.__info_screen)
 
 		self.__info_screen.set_property("visible", show)
 		self.__paned_box.set_property("visible", not show)

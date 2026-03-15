@@ -1,7 +1,7 @@
 project('rhythmbox', 'c',
-  version: '3.4.9',
+  version: '50.0',
   meson_version: '>= 0.64.0',
-  default_options: ['c_std=gnu89'])
+  default_options: ['c_std=gnu23'])
 
 gnome = import('gnome')
 i18n = import('i18n')
@@ -51,8 +51,7 @@ gio = dependency('gio-2.0', version: '>=' + glib_required, required: true)
 gio_unix = dependency('gio-unix-2.0', version: '>=' + glib_required, required: true)
 glib = dependency('glib-2.0', version: '>=' + glib_required, required: true)
 gobject = dependency('gobject-2.0', version: '>=' + glib_required, required: true)
-girepository = dependency('girepository-2.0', version: '>=' + glib_required, required: false)
-gobject_introspection = dependency('gobject-introspection-1.0', version: '>= 0.10.0', required: true)
+girepository = dependency('girepository-2.0', version: '>=' + glib_required, required: true)
 gstreamer = dependency('gstreamer-1.0', version: '>= ' + gstreamer_required, required: true)
 gstreamer_audio = dependency('gstreamer-audio-1.0', version: '>= ' + gstreamer_required, required: true)
 gstreamer_base = dependency('gstreamer-base-1.0', version: '>= ' + gstreamer_required, required: true)
@@ -60,10 +59,10 @@ gstreamer_controller = dependency('gstreamer-controller-1.0', version: '>= ' + g
 gstreamer_plugins_base = dependency('gstreamer-plugins-base-1.0', version: '>= ' + gstreamer_required, required: true)
 gstreamer_pbutils = dependency('gstreamer-pbutils-1.0', version: '>= ' + gstreamer_required, required: true)
 gstreamer_tag = dependency('gstreamer-tag-1.0', version: '>= ' + gstreamer_required, required: true)
-gtk = dependency('gtk+-3.0', version: '>= 3.16.0', required: true)
+gtk = dependency('gtk4', version: '>= 4.21.6', required: true)
+libadwaita = dependency('libadwaita-1', version: '>= 1.8.0', required: true)
 json_glib = dependency('json-glib-1.0', required: true)
-libpeas = dependency('libpeas-1.0', version: '>= 0.7.3', required: true)
-libpeas_gtk = dependency('libpeas-gtk-1.0', version: '>= 0.7.3', required: true)
+libpeas = dependency('libpeas-2', version: '>= 2.0.0', required: true)
 libsoup = dependency('libsoup-3.0', version: '>= 3.0.7', required: true)
 libxml = dependency('libxml-2.0', version: '>= 2.7.8', required: true)
 pango = dependency('pango', required: true)
@@ -79,10 +78,10 @@ endif
 common_deps = [
   libmath,
   intl, glib, gobject, gio, gio_unix,
-  cairo, pango, gdk_pixbuf, gtk,
+  cairo, pango, gdk_pixbuf, gtk, libadwaita,
   gstreamer, gstreamer_audio, gstreamer_base, gstreamer_controller, gstreamer_plugins_base, gstreamer_pbutils, gstreamer_tag,
   json_glib, libsoup, libxml, tdb, totem_plparser,
-  libpeas, libpeas_gtk,
+  libpeas,
   gudev
 ]
 
@@ -102,11 +101,6 @@ cdata.set('HAVE_GNU_FWRITE_UNLOCKED', have_gnu_fwrite_unlocked)
 # rhythmbox-client interactive mode uses this non-standard function
 have_cfmakeraw = cc.has_function('cfmakeraw', prefix: '#include <termios.h>')
 cdata.set('HAVE_CFMAKERAW', have_cfmakeraw)
-
-gtk_targets = gtk.get_variable(pkgconfig: 'targets').split()
-if gtk_targets.contains('x11')
-  common_deps += dependency('x11', required: true)
-endif
 
 have_prctl = cc.has_function('prctl', prefix: '#include <sys/prctl.h>')
 cdata.set('HAVE_PRCTL', have_prctl)
@@ -144,23 +138,12 @@ sampleplugindir = libdir / 'rhythmbox' / 'sample-plugins'
 sampleplugindatadir = datadir / 'rhythmbox' / 'sample-plugins'
 
 enable_python = false
-enable_gir2 = false
+enable_gir2 = true
 python_install = python.find_installation('python3', required: get_option('plugins_python'))
-pygobject = dependency('pygobject-3.0', version: '>= 3.0.0', required: get_option('plugins_python'))
+pygobject = dependency('pygobject-3.0', version: '>= 3.53.0', required: get_option('plugins_python'))
 if python_install.found() and pygobject.found()
   enable_python = true
-
-  if pygobject.version() >= '3.53.0'
-    # must have girepository-2.0 and a compatible version of libpeas for this to work
-    if girepository.found() and libpeas.version() > '1.36'
-      enable_gir2 = true
-      cdata.set('USE_GIREPOSITORY2', 1)
-    else
-      error('cannot mix girepository 1.0 (via libpeas) and 2.0 (via pygobject)')
-    endif
-  elif pygobject.version() >= '3.52.0'
-    error('rhythmbox cannot be used with pygobject 3.52 due to girepository clashes')
-  endif
+  cdata.set('USE_GIREPOSITORY2', 1)
 endif
 
 
@@ -282,13 +265,13 @@ meson.add_dist_script(
   find_program('check-news.sh').full_path(),
   '@0@'.format(meson.project_version()),
   'NEWS',
-  'data/org.gnome.Rhythmbox3.metainfo.xml.in'
+  'data/org.gnome.Rhythmbox.metainfo.xml.in'
 )
 
 pkg.generate(
   name: 'rhythmbox',
   description: 'plugin API for rhythmbox',
-  requires: [glib, gobject, gio, gtk, libsoup, totem_plparser, gstreamer],
+  requires: [glib, gobject, gio, gtk, libadwaita, libsoup, totem_plparser, gstreamer],
   requires_private: libxml,
   variables: [
     'plugin_dir=' + plugindir,

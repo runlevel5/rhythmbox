@@ -25,7 +25,7 @@
  *
  */
 
-#include <gtk/gtk.h>
+#include <adwaita.h>
 #include "rb-entry-view.h"
 
 #ifndef __RB_STATION_PROPERTIES_DIALOG_H
@@ -44,14 +44,14 @@ typedef struct RBStationPropertiesDialogPrivate RBStationPropertiesDialogPrivate
 
 typedef struct
 {
-	GtkDialog parent;
+	AdwDialog parent;
 
 	RBStationPropertiesDialogPrivate *priv;
 } RBStationPropertiesDialog;
 
 typedef struct
 {
-	GtkDialogClass parent_class;
+	AdwDialogClass parent_class;
 } RBStationPropertiesDialogClass;
 
 GType      rb_station_properties_dialog_get_type (void);

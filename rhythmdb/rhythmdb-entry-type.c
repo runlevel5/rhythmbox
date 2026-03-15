@@ -70,7 +70,7 @@ struct _RhythmDBEntryTypePrivate
 };
 
 
-G_DEFINE_TYPE (RhythmDBEntryType, rhythmdb_entry_type, G_TYPE_OBJECT)
+G_DEFINE_TYPE_WITH_PRIVATE (RhythmDBEntryType, rhythmdb_entry_type, G_TYPE_OBJECT)
 
 /**
  * SECTION:rhythmdbentrytype
@@ -426,9 +426,7 @@ rhythmdb_entry_create_ext_db_key (RhythmDBEntry *entry, RhythmDBPropType prop)
 static void
 rhythmdb_entry_type_init (RhythmDBEntryType *etype)
 {
-	etype->priv = G_TYPE_INSTANCE_GET_PRIVATE (etype,
-						   RHYTHMDB_TYPE_ENTRY_TYPE,
-						   RhythmDBEntryTypePrivate);
+	etype->priv = rhythmdb_entry_type_get_instance_private (etype);
 }
 
 static void
@@ -620,7 +618,6 @@ rhythmdb_entry_type_class_init (RhythmDBEntryTypeClass *klass)
 							      NULL,
 							      G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
-	g_type_class_add_private (klass, sizeof (RhythmDBEntryTypePrivate));
 }
 
 

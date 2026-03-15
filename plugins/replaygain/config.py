@@ -26,7 +26,7 @@
 #
 
 import rb
-from gi.repository import Gtk, Gio, GObject, PeasGtk
+from gi.repository import Gtk, Gio, GObject
 from gi.repository import RB
 
 import gettext
@@ -40,7 +40,7 @@ REPLAYGAIN_MODE_ALBUM = 1
 # to apply for tracks that aren't tagged
 AVERAGE_GAIN_SAMPLES = 10
 
-class ReplayGainConfig(GObject.Object, PeasGtk.Configurable):
+class ReplayGainConfig(GObject.Object, RB.PeasGtkConfigurable):
 	__gtype_name__ = 'ReplayGainConfig'
 	object = GObject.property(type=GObject.Object)
 
@@ -53,9 +53,12 @@ class ReplayGainConfig(GObject.Object, PeasGtk.Configurable):
 
 		content = self.builder.get_object("replaygain-prefs")
 
+		self.mode_values = ["radio", "album"]
 		combo = self.builder.get_object("replaygainmode")
-		combo.props.id_column = 1
-		self.settings.bind("mode", combo, "active-id", Gio.SettingsBindFlags.DEFAULT)
+		current_mode = self.settings.get_string("mode")
+		if current_mode in self.mode_values:
+			combo.set_selected(self.mode_values.index(current_mode))
+		combo.connect("notify::selected", self.mode_changed_cb)
 
 		preamp = self.builder.get_object("preamp")
 		self.settings.bind("preamp", preamp.props.adjustment, "value", Gio.SettingsBindFlags.GET)
@@ -69,6 +72,11 @@ class ReplayGainConfig(GObject.Object, PeasGtk.Configurable):
 		self.settings.bind("limiter", limiter, "active", Gio.SettingsBindFlags.DEFAULT)
 
 		return content
+
+	def mode_changed_cb(self, combo, pspec):
+		idx = combo.get_selected()
+		if idx < len(self.mode_values):
+			self.settings.set_string("mode", self.mode_values[idx])
 
 	def preamp_changed_cb(self, preamp):
 		RB.settings_delayed_sync(self.settings, self.sync_preamp, preamp)

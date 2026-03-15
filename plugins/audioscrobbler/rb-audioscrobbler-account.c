@@ -66,7 +66,7 @@ struct _RBAudioscrobblerAccountPrivate
 	SoupSession *soup_session;
 };
 
-#define RB_AUDIOSCROBBLER_ACCOUNT_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_AUDIOSCROBBLER_ACCOUNT, RBAudioscrobblerAccountPrivate))
+#define RB_AUDIOSCROBBLER_ACCOUNT_GET_PRIVATE(o) (rb_audioscrobbler_account_get_instance_private (o))
 
 static void          rb_audioscrobbler_account_class_init (RBAudioscrobblerAccountClass *klass);
 static void          rb_audioscrobbler_account_init (RBAudioscrobblerAccount *account);
@@ -120,7 +120,11 @@ enum
 
 static guint rb_audioscrobbler_account_signals[LAST_SIGNAL] = { 0 };
 
-G_DEFINE_DYNAMIC_TYPE (RBAudioscrobblerAccount, rb_audioscrobbler_account, G_TYPE_OBJECT)
+G_DEFINE_DYNAMIC_TYPE_EXTENDED (RBAudioscrobblerAccount,
+	rb_audioscrobbler_account,
+	G_TYPE_OBJECT,
+	0,
+	G_ADD_PRIVATE_DYNAMIC (RBAudioscrobblerAccount))
 
 RBAudioscrobblerAccount *
 rb_audioscrobbler_account_new (RBAudioscrobblerService *service)
@@ -193,7 +197,6 @@ rb_audioscrobbler_account_class_init (RBAudioscrobblerAccountClass *klass)
 			      1,
 			      RB_TYPE_AUDIOSCROBBLER_ACCOUNT_LOGIN_STATUS);
 
-	g_type_class_add_private (klass, sizeof (RBAudioscrobblerAccountPrivate));
 }
 
 static void
@@ -591,7 +594,7 @@ parse_token (RBAudioscrobblerAccount *account, const char *body, gsize body_size
 				               rb_audioscrobbler_service_get_api_key (account->priv->service),
 				               account->priv->auth_token);
 			rb_debug ("sending user to %s", url);
-			gtk_show_uri (NULL, url, GDK_CURRENT_TIME, NULL);
+			gtk_show_uri (NULL, url, GDK_CURRENT_TIME);
 
 			/* add timeout which will ask for session key */
 			account->priv->session_key_timeout_id =

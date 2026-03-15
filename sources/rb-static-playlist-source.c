@@ -50,6 +50,7 @@
 #include <libxml/tree.h>
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
+#include "rb-gtk4-compat.h"
 
 #include "rb-static-playlist-source.h"
 #include "rb-library-browser.h"
@@ -80,7 +81,7 @@ static RBTrackTransferBatch *impl_paste (RBSource *asource, GList *entries);
 static void impl_delete_selected (RBSource *source);
 static void impl_search (RBSource *asource, RBSourceSearch *search, const char *cur_text, const char *new_text);
 static void impl_reset_filters (RBSource *asource);
-static gboolean impl_receive_drag (RBDisplayPage *page, GtkSelectionData *data);
+static gboolean impl_receive_drag (RBDisplayPage *page, gpointer data);
 static guint impl_want_uri (RBSource *source, const char *uri);
 
 static GPtrArray *construct_query_from_selection (RBStaticPlaylistSource *source);
@@ -99,10 +100,6 @@ static void rb_static_playlist_source_browser_changed_cb (RBLibraryBrowser *entr
 
 static void rb_static_playlist_source_do_query (RBStaticPlaylistSource *source);
 
-static void rb_static_playlist_source_add_id_list (RBStaticPlaylistSource *source,
-						   GList *list);
-static void rb_static_playlist_source_add_uri_list (RBStaticPlaylistSource *source,
-						    GList *list);
 static void rb_static_playlist_source_row_inserted (GtkTreeModel *model,
 						    GtkTreePath *path,
 						    GtkTreeIter *iter,
@@ -127,11 +124,6 @@ enum
 	PROP_SHOW_BROWSER
 };
 
-G_DEFINE_TYPE (RBStaticPlaylistSource, rb_static_playlist_source, RB_TYPE_PLAYLIST_SOURCE)
-#define RB_STATIC_PLAYLIST_SOURCE_GET_PRIVATE(object) (G_TYPE_INSTANCE_GET_PRIVATE ((object), \
-								RB_TYPE_STATIC_PLAYLIST_SOURCE, \
-								RBStaticPlaylistSourcePrivate))
-
 typedef struct
 {
 	RhythmDBQueryModel *base_model;
@@ -146,6 +138,10 @@ typedef struct
 	GAction *search_action;
 
 } RBStaticPlaylistSourcePrivate;
+
+G_DEFINE_TYPE_WITH_PRIVATE (RBStaticPlaylistSource, rb_static_playlist_source, RB_TYPE_PLAYLIST_SOURCE)
+#define RB_STATIC_PLAYLIST_SOURCE_GET_PRIVATE(object) (rb_static_playlist_source_get_instance_private (RB_STATIC_PLAYLIST_SOURCE (object)))
+
 
 static void
 rb_static_playlist_source_class_init (RBStaticPlaylistSourceClass *klass)
@@ -183,7 +179,6 @@ rb_static_playlist_source_class_init (RBStaticPlaylistSourceClass *klass)
 					  PROP_SHOW_BROWSER,
 					  "show-browser");
 
-	g_type_class_add_private (klass, sizeof (RBStaticPlaylistSourcePrivate));
 }
 
 static void
@@ -231,7 +226,7 @@ rb_static_playlist_source_constructed (GObject *object)
 	RBEntryView *songs;
 	RBShell *shell;
 	RhythmDBEntryType *entry_type;
-	GtkAccelGroup *accel_group;
+	gpointer accel_group;
 	GtkWidget *grid;
 	GtkWidget *paned;
 	GMenu *section;
@@ -270,8 +265,7 @@ rb_static_playlist_source_constructed (GObject *object)
 		g_object_unref (entry_type);
 	}
 
-	gtk_paned_pack1 (GTK_PANED (paned), GTK_WIDGET (priv->browser), TRUE, FALSE);
-	gtk_widget_set_no_show_all (GTK_WIDGET (priv->browser), TRUE);
+	gtk_paned_set_start_child (GTK_PANED (paned), GTK_WIDGET (priv->browser));
 	g_signal_connect_object (priv->browser, "notify::output-model",
 				 G_CALLBACK (rb_static_playlist_source_browser_changed_cb),
 				 source, 0);
@@ -282,8 +276,8 @@ rb_static_playlist_source_constructed (GObject *object)
 	/* reparent the entry view */
 	songs = rb_source_get_entry_view (RB_SOURCE (source));
 	g_object_ref (songs);
-	gtk_container_remove (GTK_CONTAINER (source), GTK_WIDGET (songs));
-	gtk_paned_pack2 (GTK_PANED (paned), GTK_WIDGET (songs), TRUE, FALSE);
+	gtk_box_remove (GTK_BOX (source), GTK_WIDGET (songs));
+	gtk_paned_set_end_child (GTK_PANED (paned), GTK_WIDGET (songs));
 
 	/* set up search box / toolbar */
 	priv->toolbar = rb_source_toolbar_new (RB_DISPLAY_PAGE (source), accel_group);
@@ -319,7 +313,7 @@ rb_static_playlist_source_constructed (GObject *object)
 	gtk_widget_set_margin_top (GTK_WIDGET (grid), 6);
 	gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (priv->toolbar), 0, 0, 1, 1);
 	gtk_grid_attach (GTK_GRID (grid), paned, 0, 1, 1, 1);
-	gtk_container_add (GTK_CONTAINER (source), grid);
+	gtk_box_append (GTK_BOX (source), grid);
 
 	rb_source_bind_settings (RB_SOURCE (source), GTK_WIDGET (songs), paned, GTK_WIDGET (priv->browser), FALSE);
 	g_object_unref (songs);
@@ -340,7 +334,7 @@ rb_static_playlist_source_constructed (GObject *object)
 				 G_CALLBACK (rb_static_playlist_source_rows_reordered),
 				 source, 0);
 
-	gtk_widget_show_all (GTK_WIDGET (source));
+	gtk_widget_show (GTK_WIDGET (source));
 }
 
 /**
@@ -629,28 +623,10 @@ rb_static_playlist_source_browser_changed_cb (RBLibraryBrowser *browser,
 }
 
 static gboolean
-impl_receive_drag (RBDisplayPage *page, GtkSelectionData *data)
+impl_receive_drag (RBDisplayPage *page, gpointer data)
 {
-	GdkAtom type;
-	GList *list;
-	RBStaticPlaylistSource *source = RB_STATIC_PLAYLIST_SOURCE (page);
-
-	type = gtk_selection_data_get_data_type (data);
-
-        if (type == gdk_atom_intern ("text/uri-list", TRUE) ||
-	    type == gdk_atom_intern ("application/x-rhythmbox-entry", TRUE)) {
-		list = rb_uri_list_parse ((char *)gtk_selection_data_get_data (data));
-		if (list == NULL)
-			return FALSE;
-
-		if (type == gdk_atom_intern ("text/uri-list", TRUE))
-			rb_static_playlist_source_add_uri_list (source, list);
-		else
-			rb_static_playlist_source_add_id_list (source, list);
-		rb_list_deep_free (list);
-	}
-
-        return TRUE;
+	/* TODO: reimplement for GTK4 DnD */
+	return FALSE;
 }
 
 static void
@@ -683,66 +659,7 @@ impl_save_contents_to_xml (RBPlaylistSource *source,
 	} while (gtk_tree_model_iter_next (GTK_TREE_MODEL (priv->base_model), &iter));
 }
 
-static void
-rb_static_playlist_source_add_id_list (RBStaticPlaylistSource *source,
-				       GList *list)
-{
-	RBPlaylistSource *psource = RB_PLAYLIST_SOURCE (source);
-	GList *i;
-	gint id;
-
-	g_return_if_fail (list != NULL);
-
-	for (i = list; i != NULL; i = i->next) {
-		RhythmDBEntry *entry;
-
-		id = strtoul ((const char *)i->data, NULL, 0);
-		if (id == 0)
-			continue;
-
-		entry = rhythmdb_entry_lookup_by_id (rb_playlist_source_get_db (psource), id);
-		if (entry == NULL) {
-			rb_debug ("received id %d, but can't find the entry", id);
-			continue;
-		}
-
-		rb_static_playlist_source_add_entry (source, entry, -1);
-	}
-}
-
-static void
-rb_static_playlist_source_add_uri_list (RBStaticPlaylistSource *source,
-					GList *list)
-{
-	GList *i, *uri_list = NULL;
-	RBPlaylistSource *psource = RB_PLAYLIST_SOURCE (source);
-	RhythmDBEntry *entry;
-
-	g_return_if_fail (list != NULL);
-
-	for (i = list; i != NULL; i = g_list_next (i)) {
-		char *uri = (char *) i->data;
-		uri_list = g_list_prepend (uri_list, rb_canonicalise_uri (uri));
-	}
-
-	uri_list = g_list_reverse (uri_list);
-	if (uri_list == NULL)
-		return;
-
-	for (i = uri_list; i != NULL; i = i->next) {
-		char *uri = i->data;
-		if (uri != NULL) {
-			entry = rhythmdb_entry_lookup_by_location (rb_playlist_source_get_db (psource), uri);
-			if (entry == NULL)
-				rhythmdb_add_uri (rb_playlist_source_get_db (psource), uri);
-
-			rb_static_playlist_source_add_location (source, uri, -1);
-		}
-
-		g_free (uri);
-	}
-	g_list_free (uri_list);
-}
+/* TODO: reimplement DnD for GTK4 GtkDropTarget */
 
 static void
 rb_static_playlist_source_add_location_internal (RBStaticPlaylistSource *source,

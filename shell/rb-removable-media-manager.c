@@ -137,8 +137,8 @@ typedef struct
 #endif
 } RBRemovableMediaManagerPrivate;
 
-G_DEFINE_TYPE (RBRemovableMediaManager, rb_removable_media_manager, G_TYPE_OBJECT)
-#define GET_PRIVATE(o)   (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_REMOVABLE_MEDIA_MANAGER, RBRemovableMediaManagerPrivate))
+G_DEFINE_TYPE_WITH_PRIVATE (RBRemovableMediaManager, rb_removable_media_manager, G_TYPE_OBJECT)
+#define GET_PRIVATE(o)   (rb_removable_media_manager_get_instance_private (RB_REMOVABLE_MEDIA_MANAGER (o)))
 
 enum
 {
@@ -283,7 +283,6 @@ rb_removable_media_manager_class_init (RBRemovableMediaManagerClass *klass)
 			      RB_TYPE_SOURCE,
 			      2, G_TYPE_MOUNT, MPID_TYPE_DEVICE);
 
-	g_type_class_add_private (klass, sizeof (RBRemovableMediaManagerPrivate));
 }
 
 static guint

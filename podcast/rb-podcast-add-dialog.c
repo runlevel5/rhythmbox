@@ -36,7 +36,6 @@
 #include "rb-podcast-add-dialog.h"
 #include "rb-podcast-search.h"
 #include "rb-podcast-entry-types.h"
-#include "rb-builder-helpers.h"
 #include "rb-debug.h"
 #include "rb-util.h"
 #include "rb-cut-and-paste-code.h"
@@ -117,7 +116,7 @@ static const char *podcast_uri_prefixes[] = {
 
 static guint signals[LAST_SIGNAL] = {0,};
 
-G_DEFINE_TYPE (RBPodcastAddDialog, rb_podcast_add_dialog, GTK_TYPE_BOX);
+G_DEFINE_TYPE_WITH_PRIVATE (RBPodcastAddDialog, rb_podcast_add_dialog, GTK_TYPE_BOX);
 
 
 static gboolean
@@ -208,7 +207,7 @@ image_file_read_cb (GObject *file, GAsyncResult *result, RBPodcastAddDialog *dia
 				if (feedfile == G_FILE (file)) {
 					gtk_list_store_set (dialog->priv->feed_model,
 							    &iter,
-							    FEED_COLUMN_IMAGE, g_object_ref (pixbuf),
+							    FEED_COLUMN_IMAGE, pixbuf,
 							    -1);
 					break;
 				}
@@ -702,7 +701,7 @@ set_paned_position (GtkWidget *paned)
 }
 
 static void
-paned_size_allocate_cb (GtkWidget *widget, GdkRectangle *allocation, RBPodcastAddDialog *dialog)
+paned_map_cb (GtkWidget *widget, RBPodcastAddDialog *dialog)
 {
 	if (dialog->priv->paned_size_set == FALSE) {
 		dialog->priv->paned_size_set = TRUE;
@@ -724,10 +723,12 @@ static void
 impl_constructed (GObject *object)
 {
 	RBPodcastAddDialog *dialog;
-	GtkBuilder *builder;
-	GtkWidget *widget;
+	GtkWidget *label;
+	GtkWidget *search_row;
+	GtkWidget *close_button;
 	GtkWidget *paned;
 	GtkWidget *overlay;
+	GtkWidget *scrolled;
 	GtkTreeViewColumn *column;
 	GtkCellRenderer *renderer;
 	RBEntryView *episodes;
@@ -735,48 +736,73 @@ impl_constructed (GObject *object)
 	RhythmDBQuery *query;
 	RhythmDBQueryModel *query_model;
 	const char *episode_strings[3];
-	int xpad, ypad;
 
 	RB_CHAIN_GOBJECT_METHOD (rb_podcast_add_dialog_parent_class, constructed, object);
 	dialog = RB_PODCAST_ADD_DIALOG (object);
 
 	g_object_get (dialog->priv->podcast_mgr, "db", &dialog->priv->db, NULL);
 
-	builder = rb_builder_load ("podcast-add-dialog.ui", NULL);
-
+	/* info bar for error messages (hidden by default) */
 	dialog->priv->info_bar_message = gtk_label_new ("");
 	dialog->priv->info_bar = gtk_info_bar_new ();
-	g_object_set (dialog->priv->info_bar, "spacing", 0, NULL);
-	gtk_container_add (GTK_CONTAINER (gtk_info_bar_get_content_area (GTK_INFO_BAR (dialog->priv->info_bar))),
-			   dialog->priv->info_bar_message);
-	gtk_widget_set_no_show_all (dialog->priv->info_bar, TRUE);
-	gtk_box_pack_start (GTK_BOX (dialog), dialog->priv->info_bar, FALSE, FALSE, 0);
-	gtk_widget_show (dialog->priv->info_bar_message);
+	gtk_info_bar_add_child (GTK_INFO_BAR (dialog->priv->info_bar),
+			       dialog->priv->info_bar_message);
+	gtk_box_append (GTK_BOX (dialog), dialog->priv->info_bar);
+	gtk_widget_set_visible (dialog->priv->info_bar, FALSE);
 
-	dialog->priv->subscribe_button = GTK_WIDGET (gtk_builder_get_object (builder, "subscribe-button"));
+	/* instructional label */
+	label = gtk_label_new (_("Search for podcasts or enter a podcast feed URL.\n"
+				 "Subscribe to podcasts to download new episodes as they are published."));
+	gtk_label_set_justify (GTK_LABEL (label), GTK_JUSTIFY_CENTER);
+	gtk_box_append (GTK_BOX (dialog), label);
+
+	/* search row: search entry + subscribe button + close button */
+	search_row = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_widget_set_halign (search_row, GTK_ALIGN_CENTER);
+	gtk_widget_set_valign (search_row, GTK_ALIGN_CENTER);
+
+	dialog->priv->search_entry = rb_search_entry_new (FALSE);
+	gtk_widget_set_size_request (GTK_WIDGET (dialog->priv->search_entry), 400, -1);
+	g_object_set (dialog->priv->search_entry, "explicit-mode", TRUE, NULL);
+	g_signal_connect (dialog->priv->search_entry, "search", G_CALLBACK (search_cb), dialog);
+	g_signal_connect (dialog->priv->search_entry, "activate", G_CALLBACK (search_cb), dialog);
+	gtk_box_append (GTK_BOX (search_row), GTK_WIDGET (dialog->priv->search_entry));
+
+	dialog->priv->subscribe_button = gtk_button_new_with_label (_("Subscribe"));
 	g_signal_connect_object (dialog->priv->subscribe_button, "clicked", G_CALLBACK (subscribe_clicked_cb), dialog, 0);
 	gtk_widget_set_sensitive (dialog->priv->subscribe_button, FALSE);
+	gtk_box_append (GTK_BOX (search_row), dialog->priv->subscribe_button);
 
-	dialog->priv->feed_view = GTK_WIDGET (gtk_builder_get_object (builder, "feed-view"));
+	close_button = gtk_button_new_with_label (_("Close"));
+	g_signal_connect (close_button, "clicked", G_CALLBACK (close_clicked_cb), dialog);
+	gtk_box_append (GTK_BOX (search_row), close_button);
+
+	gtk_box_append (GTK_BOX (dialog), search_row);
+
+	/* feed tree view */
+	dialog->priv->feed_view = gtk_tree_view_new ();
 	g_signal_connect (dialog->priv->feed_view, "row-activated", G_CALLBACK (feed_activated_cb), dialog);
 	g_signal_connect (gtk_tree_view_get_selection (GTK_TREE_VIEW (dialog->priv->feed_view)),
 			  "changed",
 			  G_CALLBACK (feed_selection_changed_cb),
 			  dialog);
 
-	dialog->priv->search_entry = rb_search_entry_new (FALSE);
-	gtk_widget_set_size_request (GTK_WIDGET (dialog->priv->search_entry), 400, -1);
-	g_object_set (dialog->priv->search_entry,"explicit-mode", TRUE, NULL);
-	g_signal_connect (dialog->priv->search_entry, "search", G_CALLBACK (search_cb), dialog);
-	g_signal_connect (dialog->priv->search_entry, "activate", G_CALLBACK (search_cb), dialog);
-	gtk_container_add (GTK_CONTAINER (gtk_builder_get_object (builder, "search-entry-box")),
-			   GTK_WIDGET (dialog->priv->search_entry));
+	/* GTK4's GtkCellRendererPixbuf renders through GtkIconHelper which
+	 * clamps the image to the CSS -gtk-icon-size (default 16px).
+	 * Override it so podcast artwork renders at the intended size. */
+	{
+		GtkCssProvider *css_provider = gtk_css_provider_new ();
+		gtk_css_provider_load_from_string (css_provider,
+			"#podcast-feed-view .image { -gtk-icon-size: 50px; }");
+		gtk_style_context_add_provider_for_display (
+			gtk_widget_get_display (GTK_WIDGET (dialog)),
+			GTK_STYLE_PROVIDER (css_provider),
+			GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+		g_object_unref (css_provider);
+	}
+	gtk_widget_set_name (dialog->priv->feed_view, "podcast-feed-view");
 
-	g_signal_connect (gtk_builder_get_object (builder, "close-button"),
-			  "clicked",
-			  G_CALLBACK (close_clicked_cb),
-			  dialog);
-
+	/* feed list store */
 	dialog->priv->feed_model = gtk_list_store_new (7,
 						       G_TYPE_STRING,	/* name */
 						       G_TYPE_STRING,	/* author */
@@ -787,27 +813,37 @@ impl_constructed (GObject *object)
 						       G_TYPE_ULONG);	/* date */
 	gtk_tree_view_set_model (GTK_TREE_VIEW (dialog->priv->feed_view), GTK_TREE_MODEL (dialog->priv->feed_model));
 
+	/* title column (image + text) */
 	renderer = gtk_cell_renderer_pixbuf_new ();
-	gtk_cell_renderer_get_padding (renderer, &xpad, &ypad);
-	gtk_cell_renderer_set_fixed_size (renderer, PODCAST_IMAGE_SIZE + (xpad * 2), PODCAST_IMAGE_SIZE + (ypad * 2));
+	g_object_set (renderer,
+		      "ypad", (guint) 2,
+		      "xpad", (guint) 2,
+		      NULL);
 
-	column = gtk_tree_view_column_new_with_attributes (_("Title"), renderer, "pixbuf", FEED_COLUMN_IMAGE, NULL);
+	column = gtk_tree_view_column_new ();
+	gtk_tree_view_column_set_title (column, _("Title"));
+	gtk_tree_view_column_pack_start (column, renderer, FALSE);
+	gtk_tree_view_column_add_attribute (column, renderer, "pixbuf", FEED_COLUMN_IMAGE);
+
 	renderer = gtk_cell_renderer_text_new ();
 	g_object_set (renderer, "ellipsize", PANGO_ELLIPSIZE_END, NULL);
 	gtk_tree_view_column_pack_start (column, renderer, TRUE);
-	gtk_tree_view_column_set_attributes (column, renderer, "text", FEED_COLUMN_TITLE, NULL);
+	gtk_tree_view_column_add_attribute (column, renderer, "text", FEED_COLUMN_TITLE);
 
 	gtk_tree_view_column_set_expand (column, TRUE);
 	gtk_tree_view_append_column (GTK_TREE_VIEW (dialog->priv->feed_view), column);
 
+	/* author column */
 	renderer = gtk_cell_renderer_text_new ();
 	g_object_set (renderer, "ellipsize", PANGO_ELLIPSIZE_END, NULL);
 	column = gtk_tree_view_column_new_with_attributes (_("Author"), renderer, "text", FEED_COLUMN_AUTHOR, NULL);
 	gtk_tree_view_column_set_expand (column, TRUE);
 	gtk_tree_view_append_column (GTK_TREE_VIEW (dialog->priv->feed_view), column);
 
+	/* episodes column */
 	renderer = gtk_cell_renderer_text_new ();
 	column = gtk_tree_view_column_new_with_attributes (_("Episodes"), renderer, NULL);
+	gtk_tree_view_column_set_sizing (column, GTK_TREE_VIEW_COLUMN_FIXED);
 	gtk_tree_view_column_set_cell_data_func (column, renderer, episode_count_column_cell_data_func, NULL, NULL);
 	episode_strings[0] = "0000";
 	episode_strings[1] = _("Episodes");
@@ -815,16 +851,25 @@ impl_constructed (GObject *object)
 	rb_set_tree_view_column_fixed_width (dialog->priv->feed_view, column, renderer, episode_strings, 6);
 	gtk_tree_view_append_column (GTK_TREE_VIEW (dialog->priv->feed_view), column);
 
-	overlay = GTK_WIDGET (gtk_builder_get_object (builder, "overlay"));
-	gtk_widget_add_events (overlay, GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK);
+	/* feed scrolled window inside overlay */
+	scrolled = gtk_scrolled_window_new ();
+	gtk_widget_set_hexpand (scrolled, TRUE);
+	gtk_widget_set_vexpand (scrolled, TRUE);
+	gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (scrolled), dialog->priv->feed_view);
+
+	overlay = gtk_overlay_new ();
+	gtk_overlay_set_child (GTK_OVERLAY (overlay), scrolled);
+
 	dialog->priv->feed_status = nautilus_floating_bar_new (NULL, NULL, FALSE);
-	gtk_widget_set_no_show_all (dialog->priv->feed_status, TRUE);
 	gtk_widget_set_halign (dialog->priv->feed_status, GTK_ALIGN_END);
 	gtk_widget_set_valign (dialog->priv->feed_status, GTK_ALIGN_END);
 	gtk_overlay_add_overlay (GTK_OVERLAY (overlay), dialog->priv->feed_status);
 
-	widget = GTK_WIDGET (gtk_builder_get_object (builder, "podcast-add-dialog"));
-	gtk_box_pack_start (GTK_BOX (dialog), widget, TRUE, TRUE, 0);
+	/* vertical paned: top = feed view overlay, bottom = episode view */
+	paned = gtk_paned_new (GTK_ORIENTATION_VERTICAL);
+	gtk_widget_set_vexpand (paned, TRUE);
+	gtk_paned_set_start_child (GTK_PANED (paned), overlay);
+	g_signal_connect (paned, "map", G_CALLBACK (paned_map_cb), dialog);
 
 	/* set up episode view */
 	g_object_get (dialog->priv->shell, "shell-player", &shell_player, NULL);
@@ -879,15 +924,11 @@ impl_constructed (GObject *object)
 
 	g_object_unref (query_model);
 
-	paned = GTK_WIDGET (gtk_builder_get_object (builder, "paned"));
-	g_signal_connect (paned, "size-allocate", G_CALLBACK (paned_size_allocate_cb), dialog);
-	gtk_paned_pack2 (GTK_PANED (paned),
-			 GTK_WIDGET (episodes),
-			 TRUE,
-			 FALSE);
+	gtk_paned_set_end_child (GTK_PANED (paned), GTK_WIDGET (episodes));
 
-	gtk_widget_show_all (GTK_WIDGET (dialog));
-	g_object_unref (builder);
+	gtk_box_append (GTK_BOX (dialog), paned);
+
+	gtk_widget_set_visible (GTK_WIDGET (dialog), TRUE);
 }
 
 static void
@@ -940,9 +981,20 @@ impl_get_property (GObject *object, guint prop_id, GValue *value, GParamSpec *ps
 static void
 rb_podcast_add_dialog_init (RBPodcastAddDialog *dialog)
 {
-	dialog->priv = G_TYPE_INSTANCE_GET_PRIVATE (dialog,
-						    RB_TYPE_PODCAST_ADD_DIALOG,
-						    RBPodcastAddDialogPrivate);
+	GtkShortcutTrigger *trigger;
+	GtkShortcutAction *action;
+	GtkShortcut *shortcut;
+	GtkEventController *controller;
+
+	dialog->priv = rb_podcast_add_dialog_get_instance_private (dialog);
+
+	controller = gtk_shortcut_controller_new ();
+	gtk_shortcut_controller_set_scope (GTK_SHORTCUT_CONTROLLER (controller), GTK_SHORTCUT_SCOPE_MANAGED);
+	trigger = gtk_keyval_trigger_new (GDK_KEY_Escape, 0);
+	action = gtk_signal_action_new ("close");
+	shortcut = gtk_shortcut_new (trigger, action);
+	gtk_shortcut_controller_add_shortcut (GTK_SHORTCUT_CONTROLLER (controller), shortcut);
+	gtk_widget_add_controller (GTK_WIDGET (dialog), controller);
 }
 
 static void
@@ -989,13 +1041,8 @@ rb_podcast_add_dialog_class_init (RBPodcastAddDialogClass *klass)
 					G_TYPE_NONE,
 					0);
 
-	g_type_class_add_private (object_class, sizeof (RBPodcastAddDialogPrivate));
 
-	gtk_binding_entry_add_signal (gtk_binding_set_by_class (klass),
-				      GDK_KEY_Escape,
-				      0,
-				      "close",
-				      0);
+
 }
 
 void

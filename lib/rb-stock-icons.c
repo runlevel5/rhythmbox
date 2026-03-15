@@ -37,7 +37,7 @@
 #include "rb-file-helpers.h"
 #include "rb-stock-icons.h"
 
-const char RB_APP_ICON[] = "org.gnome.Rhythmbox3";
+const char RB_APP_ICON[] = "org.gnome.Rhythmbox";
 const char RB_STOCK_SET_STAR[] = "rhythmbox-set-star";
 const char RB_STOCK_UNSET_STAR[] = "rhythmbox-unset-star";
 const char RB_STOCK_NO_STAR[] = "rhythmbox-no-star";
@@ -52,15 +52,15 @@ const char RB_STOCK_MISSING_ARTWORK[] = "rhythmbox-missing-artwork";
 void
 rb_stock_icons_init (void)
 {
-	GtkIconTheme *theme = gtk_icon_theme_get_default ();
+	GtkIconTheme *theme = gtk_icon_theme_get_for_display (gdk_display_get_default ());
 	char *dot_icon_dir;
 
 	/* add our icon search paths */
 	dot_icon_dir = g_build_filename (rb_user_data_dir (), "icons", NULL);
-	gtk_icon_theme_append_search_path (theme, dot_icon_dir);
+	gtk_icon_theme_add_search_path (theme, dot_icon_dir);
 	g_free (dot_icon_dir);
 
-	gtk_icon_theme_append_search_path (theme, SHARE_DIR G_DIR_SEPARATOR_S "icons");
+	gtk_icon_theme_add_search_path (theme, SHARE_DIR G_DIR_SEPARATOR_S "icons");
 
 	/* add resource icons */
 	gtk_icon_theme_add_resource_path (theme, "/org/gnome/Rhythmbox/icons/hicolor");

@@ -5,7 +5,7 @@ authors = "Rhythmbox contributors"
 license = "GPL-2.0-or-later"
 browse_url = "https://gitlab.gnome.org/GNOME/rhythmbox"
 repository_url = "https://gitlab.gnome.org/GNOME/rhythmbox.git"
-logo_url = "../org.gnome.Rhythmbox3.svg"
+logo_url = "../org.gnome.Rhythmbox.svg"
 website_url = "https://gnome.pages.gitlab.gnome.org/rhythmbox/"
 dependencies = [
   "Gio-2.0",

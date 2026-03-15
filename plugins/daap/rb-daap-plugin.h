@@ -28,7 +28,7 @@
 #ifndef __RB_DAAP_PLUGIN_H
 #define __RB_DAAP_PLUGIN_H
 
-#include <libpeas/peas.h>
+#include <libpeas.h>
 #include <libdmapsharing/dmap.h>
 
 #include "rb-daap-source.h"

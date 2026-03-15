@@ -9,9 +9,9 @@ vala_deps = [
   dependency('gobject-2.0'),
   meson.get_compiler('vala').find_library('rhythmdb', dirs: vapi_dir),
   meson.get_compiler('vala').find_library('rb', dirs: vapi_dir),
-  dependency('gtk+-3.0'),
+  dependency('gtk4'),
   dependency('gstreamer-1.0'),
-  dependency('libpeas-1.0')
+  dependency('libpeas-2')
 ]
 
 shared_module('sample-vala',

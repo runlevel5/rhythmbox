@@ -43,6 +43,7 @@
 
 /* test utils */
 gboolean waiting, signaled;
+static GMainLoop *bench_loop;
 char *sig_name;
 
 
@@ -55,7 +56,7 @@ mark_signal (void)
 		rb_debug ("got signal '%s'", sig_name);
 		signaled = TRUE;
 		if (waiting)
-			gtk_main_quit ();
+			g_main_loop_quit (bench_loop);
 	}
 }
 
@@ -73,7 +74,10 @@ static void wait_for_signal (void)
 	if (!signaled) {
 		rb_debug ("waiting for signal '%s'", sig_name);
 		waiting = TRUE;
-		gtk_main ();
+		bench_loop = g_main_loop_new (NULL, FALSE);
+		g_main_loop_run (bench_loop);
+		g_main_loop_unref (bench_loop);
+		bench_loop = NULL;
 	} else {
 		rb_debug ("no need to wait for signal '%s', already received", sig_name);
 	}
@@ -101,7 +105,7 @@ main (int argc, char **argv)
 
 	rb_threads_init ();
 	setlocale (LC_ALL, "");
-	gtk_init (&argc, &argv);
+	gtk_init ();
 	rb_debug_init (FALSE);
 	rb_refstring_system_init ();
 	rb_file_helpers_init ();

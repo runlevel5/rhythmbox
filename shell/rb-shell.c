@@ -57,8 +57,8 @@
 #include <girepository.h>
 #endif
 
-#include <libpeas/peas.h>
-#include <libpeas-gtk/peas-gtk.h>
+#include <libpeas.h>
+#include "rb-peas-compat.h"
 
 #include <gst/gst.h>
 
@@ -113,6 +113,7 @@
 static void rb_shell_class_init (RBShellClass *klass);
 static void rb_shell_init (RBShell *shell);
 static void rb_shell_constructed (GObject *object);
+static void rb_shell_dispose (GObject *object);
 static void rb_shell_finalize (GObject *object);
 static void rb_shell_set_property (GObject *object,
 				   guint prop_id,
@@ -123,18 +124,19 @@ static void rb_shell_get_property (GObject *object,
 				   GValue *value,
 				   GParamSpec *pspec);
 static gboolean rb_shell_get_visibility (RBShell *shell);
-static gboolean rb_shell_window_state_cb (GtkWidget *widget,
-					  GdkEventWindowState *event,
+static void rb_shell_window_notify_maximized_cb (GObject *object,
+						  GParamSpec *pspec,
+						  RBShell *shell);
+static void rb_shell_window_notify_size_cb (GObject *object,
+						 GParamSpec *pspec,
+						 RBShell *shell);
+static gboolean rb_shell_window_close_request_cb (GtkWindow *window,
+						    RBShell *shell);
+static gboolean rb_shell_key_pressed_cb (GtkEventControllerKey *controller,
+					  guint keyval,
+					  guint keycode,
+					  GdkModifierType state,
 					  RBShell *shell);
-static gboolean rb_shell_window_configure_cb (GtkWidget *win,
-					      GdkEventConfigure*event,
-					      RBShell *shell);
-static gboolean rb_shell_window_delete_cb (GtkWidget *win,
-			                   GdkEventAny *event,
-			                   RBShell *shell);
-static gboolean rb_shell_key_press_event_cb (GtkWidget *win,
-					     GdkEventKey *event,
-					     RBShell *shell);
 static void rb_shell_sync_window_state (RBShell *shell, gboolean dont_maximise);
 static void rb_shell_sync_paned (RBShell *shell);
 static void rb_shell_select_page (RBShell *shell, RBDisplayPage *display_page);
@@ -171,11 +173,13 @@ static void rb_shell_set_visibility (RBShell *shell,
 				     gboolean visible);
 static void display_page_tree_drag_received_cb (RBDisplayPageTree *display_page_tree,
 						RBDisplayPage *page,
-						GtkSelectionData *data,
+						gpointer data,
 						RBShell *shell);
 
 static void paned_size_allocate_cb (GtkWidget *widget,
-				    GtkAllocation *allocation,
+				    int width,
+				    int height,
+				    int baseline,
 				    RBShell *shell);
 
 static void jump_to_playing_action_cb (GSimpleAction *, GVariant *, gpointer);
@@ -226,17 +230,16 @@ enum
 
 static guint rb_shell_signals[LAST_SIGNAL] = { 0 };
 
-G_DEFINE_TYPE (RBShell, rb_shell, G_TYPE_OBJECT)
-
 struct _RBShellPrivate
 {
 	RBApplication *application;
 	GtkWidget *window;
 	gboolean iconified;
 
-	GtkAccelGroup *accel_group;
+	gpointer accel_group;
 
 	GtkWidget *main_vbox;
+	GtkWidget *toolbar_view;
 	GtkWidget *paned;
 	GtkWidget *right_paned;
 	RBDisplayPageTree *display_page_tree;
@@ -305,13 +308,14 @@ struct _RBShellPrivate
 	RBTaskList *task_list;
 };
 
+G_DEFINE_TYPE_WITH_PRIVATE (RBShell, rb_shell, G_TYPE_OBJECT)
+
+
 static GMountOperation *
 rb_shell_create_mount_op_cb (RhythmDB *db, RBShell *shell)
 {
 	/* we don't want the operation to be modal, so we don't associate it with the window. */
-	GMountOperation *op = gtk_mount_operation_new (NULL);
-	gtk_mount_operation_set_screen (GTK_MOUNT_OPERATION (op),
-					gtk_window_get_screen (GTK_WINDOW (shell->priv->window)));
+	GMountOperation *op = gtk_mount_operation_new (GTK_WINDOW (shell->priv->window));
 	return op;
 }
 
@@ -504,27 +508,33 @@ construct_widgets (RBShell *shell)
 	rb_profile_start ("constructing widgets");
 
 	/* initialize UI */
-	win = GTK_WINDOW (gtk_application_window_new (GTK_APPLICATION (shell->priv->application)));
+	win = GTK_WINDOW (adw_application_window_new (GTK_APPLICATION (shell->priv->application)));
 	gtk_window_set_title (win, _("Rhythmbox"));
 
 	shell->priv->window = GTK_WIDGET (win);
 	shell->priv->iconified = FALSE;
-	g_signal_connect_object (G_OBJECT (win), "window-state-event",
-				 G_CALLBACK (rb_shell_window_state_cb),
+	g_signal_connect_object (G_OBJECT (win), "notify::maximized",
+				 G_CALLBACK (rb_shell_window_notify_maximized_cb),
 				 shell, 0);
 
-	g_signal_connect_object (G_OBJECT (win), "configure-event",
-				 G_CALLBACK (rb_shell_window_configure_cb),
+	g_signal_connect_object (G_OBJECT (win), "notify::default-width",
+				 G_CALLBACK (rb_shell_window_notify_size_cb),
+				 shell, 0);
+	g_signal_connect_object (G_OBJECT (win), "notify::default-height",
+				 G_CALLBACK (rb_shell_window_notify_size_cb),
 				 shell, 0);
 
 	/* connect after, so that things can affect behaviour */
-	g_signal_connect_object (G_OBJECT (win), "delete_event",
-				 G_CALLBACK (rb_shell_window_delete_cb),
+	g_signal_connect_object (G_OBJECT (win), "close-request",
+				 G_CALLBACK (rb_shell_window_close_request_cb),
 				 shell, G_CONNECT_AFTER);
 
-	gtk_widget_add_events (GTK_WIDGET (win), GDK_KEY_PRESS_MASK);
-	g_signal_connect_object (G_OBJECT(win), "key_press_event",
-				 G_CALLBACK (rb_shell_key_press_event_cb), shell, 0);
+	{
+		GtkEventController *key_controller = gtk_event_controller_key_new ();
+		g_signal_connect_object (key_controller, "key-pressed",
+					 G_CALLBACK (rb_shell_key_pressed_cb), shell, 0);
+		gtk_widget_add_controller (GTK_WIDGET (win), key_controller);
+	}
 
 	rb_debug ("shell: initializing shell services");
 
@@ -534,8 +544,7 @@ construct_widgets (RBShell *shell)
 
 	shell->priv->podcast_manager = rb_podcast_manager_new (shell->priv->db);
 	shell->priv->track_transfer_queue = rb_track_transfer_queue_new (shell);
-	shell->priv->accel_group = gtk_accel_group_new ();
-	gtk_window_add_accel_group (win, shell->priv->accel_group);
+	shell->priv->accel_group = NULL; /* accel groups removed in GTK4 */
 
 	shell->priv->player_shell = rb_shell_player_new (shell->priv->db);
 	g_signal_connect_object (shell->priv->player_shell,
@@ -561,7 +570,7 @@ construct_widgets (RBShell *shell)
 	shell->priv->clipboard_shell = rb_shell_clipboard_new (shell->priv->db);
 
 	shell->priv->display_page_tree = rb_display_page_tree_new (shell);
-	gtk_widget_show_all (GTK_WIDGET (shell->priv->display_page_tree));
+	gtk_widget_show (GTK_WIDGET (shell->priv->display_page_tree));
 	g_signal_connect_object (shell->priv->display_page_tree, "drop-received",
 				 G_CALLBACK (display_page_tree_drag_received_cb), shell, 0);
 	g_object_get (shell->priv->display_page_tree, "model", &shell->priv->display_page_model, NULL);
@@ -590,8 +599,7 @@ construct_widgets (RBShell *shell)
 	g_object_set (shell->priv->clipboard_shell, "queue-source", shell->priv->queue_source, NULL);
 	rb_shell_append_display_page (shell, RB_DISPLAY_PAGE (shell->priv->queue_source), RB_DISPLAY_PAGE_GROUP_LIBRARY);
 	g_object_get (shell->priv->queue_source, "sidebar", &shell->priv->queue_sidebar, NULL);
-	gtk_widget_show_all (shell->priv->queue_sidebar);
-	gtk_widget_set_no_show_all (shell->priv->queue_sidebar, TRUE);
+	gtk_widget_show (shell->priv->queue_sidebar);
 
 	/* places for plugins to put UI */
 	shell->priv->top_container = GTK_BOX (gtk_box_new (GTK_ORIENTATION_VERTICAL, 0));
@@ -605,53 +613,30 @@ construct_widgets (RBShell *shell)
 	context = gtk_widget_get_style_context (shell->priv->paned);
 	gtk_style_context_add_class (context, "sidebar-paned");
 	shell->priv->right_paned = gtk_paned_new (GTK_ORIENTATION_HORIZONTAL);
-	gtk_widget_show_all (shell->priv->right_paned);
+	gtk_widget_show (shell->priv->right_paned);
 	g_signal_connect_object (G_OBJECT (shell->priv->right_paned),
 				 "size-allocate",
 				 G_CALLBACK (paned_size_allocate_cb),
 				 shell, 0);
-	gtk_widget_set_no_show_all (shell->priv->right_paned, TRUE);
 	{
 		GtkWidget *vbox2 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
 
 		shell->priv->queue_paned = gtk_paned_new (GTK_ORIENTATION_VERTICAL);
-		gtk_paned_pack1 (GTK_PANED (shell->priv->queue_paned),
-				 GTK_WIDGET (shell->priv->display_page_tree),
-				 FALSE, TRUE);
-		gtk_paned_pack2 (GTK_PANED (shell->priv->queue_paned),
-				 shell->priv->queue_sidebar,
-				 TRUE, TRUE);
-		gtk_container_child_set (GTK_CONTAINER (shell->priv->queue_paned),
-					 GTK_WIDGET (shell->priv->display_page_tree),
-					 "resize", FALSE,
-					 NULL);
+		gtk_paned_set_start_child (GTK_PANED (shell->priv->queue_paned), GTK_WIDGET (shell->priv->display_page_tree));
+		gtk_paned_set_end_child (GTK_PANED (shell->priv->queue_paned), shell->priv->queue_sidebar);
+		gtk_paned_set_resize_start_child (GTK_PANED (shell->priv->queue_paned), FALSE);
 
-		gtk_box_pack_start (GTK_BOX (vbox2),
-				    shell->priv->notebook,
-				    TRUE, TRUE, 0);
-		gtk_box_pack_start (GTK_BOX (vbox2),
-				    GTK_WIDGET (shell->priv->bottom_container),
-				    FALSE, FALSE, 0);
-		gtk_box_pack_start (GTK_BOX (vbox2),
-				    GTK_WIDGET (shell->priv->task_list_display),
-				    FALSE, FALSE, 0);
+		gtk_box_append (GTK_BOX (vbox2), shell->priv->notebook);
+		gtk_box_append (GTK_BOX (vbox2), GTK_WIDGET (shell->priv->bottom_container));
+		gtk_box_append (GTK_BOX (vbox2), GTK_WIDGET (shell->priv->task_list_display));
 
-		gtk_paned_pack1 (GTK_PANED (shell->priv->right_paned),
-				 vbox2, TRUE, TRUE);
-		gtk_paned_pack2 (GTK_PANED (shell->priv->right_paned),
-				 GTK_WIDGET (shell->priv->right_sidebar_container),
-				 FALSE, FALSE);
+		gtk_paned_set_start_child (GTK_PANED (shell->priv->right_paned), vbox2);
+		gtk_paned_set_end_child (GTK_PANED (shell->priv->right_paned), GTK_WIDGET (shell->priv->right_sidebar_container));
 		gtk_widget_hide (GTK_WIDGET(shell->priv->right_sidebar_container));
 
-		gtk_box_pack_start (shell->priv->sidebar_container,
-				    shell->priv->queue_paned,
-				    TRUE, TRUE, 0);
-		gtk_paned_pack1 (GTK_PANED (shell->priv->paned),
-				 GTK_WIDGET (shell->priv->sidebar_container),
-				 FALSE, TRUE);
-		gtk_paned_pack2 (GTK_PANED (shell->priv->paned),
-				 shell->priv->right_paned,
-				 TRUE, TRUE);
+		gtk_box_append (GTK_BOX (shell->priv->sidebar_container), shell->priv->queue_paned);
+		gtk_paned_set_start_child (GTK_PANED (shell->priv->paned), GTK_WIDGET (shell->priv->sidebar_container));
+		gtk_paned_set_end_child (GTK_PANED (shell->priv->paned), shell->priv->right_paned);
 		gtk_widget_show (vbox2);
 	}
 
@@ -662,13 +647,18 @@ construct_widgets (RBShell *shell)
 	gtk_widget_show (shell->priv->paned);
 
 	shell->priv->main_vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-	gtk_container_set_border_width (GTK_CONTAINER (shell->priv->main_vbox), 0);
 
-	gtk_box_pack_start (GTK_BOX (shell->priv->main_vbox), GTK_WIDGET (shell->priv->top_container), FALSE, TRUE, 0);
-	gtk_box_pack_start (GTK_BOX (shell->priv->main_vbox), shell->priv->paned, TRUE, TRUE, 0);
-	gtk_widget_show_all (shell->priv->main_vbox);
+	gtk_box_append (GTK_BOX (shell->priv->main_vbox), GTK_WIDGET (shell->priv->top_container));
+	gtk_box_append (GTK_BOX (shell->priv->main_vbox), shell->priv->paned);
+	gtk_widget_show (shell->priv->main_vbox);
 
-	gtk_container_add (GTK_CONTAINER (win), shell->priv->main_vbox);
+	{
+		GtkWidget *toolbar_view = adw_toolbar_view_new ();
+		adw_toolbar_view_set_top_bar_style (ADW_TOOLBAR_VIEW (toolbar_view), ADW_TOOLBAR_RAISED);
+		adw_toolbar_view_set_content (ADW_TOOLBAR_VIEW (toolbar_view), shell->priv->main_vbox);
+		shell->priv->toolbar_view = toolbar_view;
+		adw_application_window_set_content (ADW_APPLICATION_WINDOW (win), toolbar_view);
+	}
 
 	rb_profile_end ("constructing widgets");
 }
@@ -711,11 +701,13 @@ static void
 construct_load_ui (RBShell *shell)
 {
 	GApplication *app = g_application_get_default ();
+	GtkWidget *headerbar;
 	GtkWidget *toolbar;
+	GtkWidget *playback_box;
+	GtkWidget *playorder_box;
+	GtkWidget *volume_button;
 	GtkBuilder *builder;
-	GtkToolItem *tool_item;
 	GtkWidget *menu_button;
-	GtkWidget *image;
 	GMenuModel *model;
 
 	rb_debug ("shell: loading ui");
@@ -725,6 +717,8 @@ construct_load_ui (RBShell *shell)
 	toolbar = GTK_WIDGET (gtk_builder_get_object (builder, "main-toolbar"));
 
 	shell->priv->play_button = GTK_WIDGET (gtk_builder_get_object (builder, "play-button"));
+	playback_box = GTK_WIDGET (gtk_builder_get_object (builder, "playback"));
+	playorder_box = GTK_WIDGET (gtk_builder_get_object (builder, "playorder"));
 
 	/* this seems a bit unnecessary */
 	gtk_actionable_set_action_target_value (GTK_ACTIONABLE (gtk_builder_get_object (builder, "shuffle-button")),
@@ -732,60 +726,139 @@ construct_load_ui (RBShell *shell)
 	gtk_actionable_set_action_target_value (GTK_ACTIONABLE (gtk_builder_get_object (builder, "repeat-button")),
 						g_variant_new_boolean (TRUE));
 
-	gtk_style_context_add_class (gtk_widget_get_style_context (toolbar),
-				     GTK_STYLE_CLASS_PRIMARY_TOOLBAR);
-	gtk_box_pack_start (GTK_BOX (shell->priv->main_vbox), toolbar, FALSE, FALSE, 0);
-	gtk_box_reorder_child (GTK_BOX (shell->priv->main_vbox), toolbar, 1);
+	/* reparent playback and playorder boxes out of the builder toolbar */
+	g_object_ref (playback_box);
+	gtk_box_remove (GTK_BOX (toolbar), playback_box);
+	g_object_ref (playorder_box);
+	gtk_box_remove (GTK_BOX (toolbar), playorder_box);
 
 	g_object_unref (builder);
 
-	tool_item = gtk_tool_item_new ();
-	gtk_tool_item_set_expand (tool_item, TRUE);
-	gtk_container_add (GTK_CONTAINER (tool_item), GTK_WIDGET (shell->priv->header));
-	gtk_widget_show_all (GTK_WIDGET (tool_item));
-	gtk_toolbar_insert (GTK_TOOLBAR (toolbar), tool_item, -1);
+	/* build the header bar */
+	headerbar = adw_header_bar_new ();
+	adw_header_bar_set_show_title (ADW_HEADER_BAR (headerbar), FALSE);
 
+	/* pack playback and playorder buttons on the start side */
+	adw_header_bar_pack_start (ADW_HEADER_BAR (headerbar), playback_box);
+	g_object_unref (playback_box);
+	adw_header_bar_pack_start (ADW_HEADER_BAR (headerbar), playorder_box);
 
-	/* menu tool button */
+	/* separator between controls and album art (matches original GTK3 look) */
+	{
+		GtkWidget *sep = gtk_separator_new (GTK_ORIENTATION_VERTICAL);
+		adw_header_bar_pack_start (ADW_HEADER_BAR (headerbar), sep);
+	}
+
+	/* album art */
+	{
+		GtkWidget *image = rb_header_get_image (shell->priv->header);
+		gtk_widget_set_margin_start (image, 6);
+		adw_header_bar_pack_start (ADW_HEADER_BAR (headerbar), image);
+	}
+	g_object_unref (playorder_box);
+
+	/* set RBHeader as the title widget */
+	adw_header_bar_pack_start (ADW_HEADER_BAR (headerbar), GTK_WIDGET (shell->priv->header));
+
+	/* menu button (pack_end adds right-to-left, so menu goes first = rightmost) */
 	menu_button = gtk_menu_button_new ();
+	gtk_widget_set_valign (menu_button, GTK_ALIGN_CENTER);
 	model = rb_application_get_shared_menu (RB_APPLICATION (app), "app-menu");
 	gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (menu_button), model);
-	gtk_style_context_add_class (gtk_widget_get_style_context (menu_button), GTK_STYLE_CLASS_RAISED);
-	gtk_widget_set_valign (menu_button, GTK_ALIGN_CENTER);
-
-	gtk_widget_add_accelerator (menu_button,
-				    "activate",
-				    shell->priv->accel_group,
-				    GDK_KEY_F10,
-				    0,
-				    GTK_ACCEL_VISIBLE);
+	gtk_menu_button_set_icon_name (GTK_MENU_BUTTON (menu_button), "open-menu-symbolic");
 	rb_application_set_menu_accelerators (shell->priv->application, model, TRUE);
+	shell->priv->menu_button = menu_button;
+	adw_header_bar_pack_end (ADW_HEADER_BAR (headerbar), menu_button);
 
-	image = gtk_image_new_from_icon_name ("open-menu-symbolic", GTK_ICON_SIZE_SMALL_TOOLBAR);
-	gtk_container_add (GTK_CONTAINER (menu_button), image);
+	/* add custom check buttons for View submenu items so the popover
+	 * stays open when toggling them */
+	{
+		GtkPopoverMenu *popover;
+		GtkWidget *check;
+		GtkCssProvider *css_provider;
+		struct {
+			const char *id;
+			const char *label;
+			const char *settings_key;
+		} view_items[] = {
+			{ "view-side-pane",        N_("Side Pane"),               "display-page-tree-visible" },
+			{ "view-queue-sidebar",    N_("Play Queue in Side Pane"), "queue-as-sidebar" },
+			{ "view-position-slider",  N_("Song Position Slider"),    "show-song-position-slider" },
+			{ "view-album-art",        N_("Album Art"),               "show-album-art" },
+			{ "view-follow-playing",   N_("Follow Playing Track"),    "follow-playing" },
+		};
 
-	shell->priv->menu_button = GTK_WIDGET (gtk_tool_item_new ());
-	gtk_container_add (GTK_CONTAINER (shell->priv->menu_button), menu_button);
-	gtk_widget_show_all (shell->priv->menu_button);
-	gtk_toolbar_insert (GTK_TOOLBAR (toolbar), GTK_TOOL_ITEM (shell->priv->menu_button), -1);
+		popover = GTK_POPOVER_MENU (gtk_menu_button_get_popover (GTK_MENU_BUTTON (menu_button)));
+
+		css_provider = gtk_css_provider_new ();
+		gtk_css_provider_load_from_string (css_provider,
+			".view-menu-check {"
+			"  padding: 4px 12px;"
+			"  border-radius: 6px;"
+			"}"
+			".view-menu-check:hover {"
+			"  background-color: alpha(currentColor, 0.08);"
+			"}");
+		gtk_style_context_add_provider_for_display (
+			gdk_display_get_default (),
+			GTK_STYLE_PROVIDER (css_provider),
+			GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+		g_object_unref (css_provider);
+
+		for (int i = 0; i < G_N_ELEMENTS (view_items); i++) {
+			check = gtk_check_button_new_with_label (_(view_items[i].label));
+			gtk_widget_add_css_class (check, "view-menu-check");
+			g_settings_bind (shell->priv->settings, view_items[i].settings_key,
+					 check, "active",
+					 G_SETTINGS_BIND_DEFAULT);
+			gtk_popover_menu_add_child (popover, check, view_items[i].id);
+		}
+	}
+
+	/* register accelerators for View items (no longer in the menu model) */
+	rb_application_add_accelerator (RB_APPLICATION (app), "F9", "win.display-page-tree-visible", NULL);
+	rb_application_add_accelerator (RB_APPLICATION (app), "<Primary>k", "win.queue-as-sidebar", NULL);
+
+	/* volume button (next to menu button) */
+	volume_button = rb_header_get_volume_button (shell->priv->header);
+	adw_header_bar_pack_end (ADW_HEADER_BAR (headerbar), volume_button);
+
+	/* seek slider (adjacent to volume button) */
+	{
+		GtkWidget *scale = rb_header_get_scale (shell->priv->header);
+		gtk_widget_set_hexpand (scale, FALSE);
+		gtk_widget_set_size_request (scale, 200, -1);
+		adw_header_bar_pack_end (ADW_HEADER_BAR (headerbar), scale);
+	}
+
+	/* time display (adjacent to slider) */
+	{
+		GtkWidget *timebutton = rb_header_get_timebutton (shell->priv->header);
+		gtk_widget_set_valign (timebutton, GTK_ALIGN_CENTER);
+		adw_header_bar_pack_end (ADW_HEADER_BAR (headerbar), timebutton);
+	}
+
+	/* add header bar as the top bar */
+	adw_toolbar_view_add_top_bar (ADW_TOOLBAR_VIEW (shell->priv->toolbar_view), headerbar);
 
 	rb_application_add_accelerator (RB_APPLICATION (app), "<Primary>q", "app.quit", NULL);
+	rb_application_add_accelerator (RB_APPLICATION (app), "F10", "win.show-menu", NULL);
 
 	rb_profile_end ("loading ui");
 }
 
 static void
-extension_added_cb (PeasExtensionSet *set, PeasPluginInfo *info, PeasExtension *extension, RBShell *shell)
+extension_added_cb (PeasExtensionSet *set, PeasPluginInfo *info, GObject *extension, RBShell *shell)
 {
 	rb_debug ("activating extension %s", peas_plugin_info_get_name (info));
-	peas_extension_call (extension, "activate");
+	peas_activatable_activate (PEAS_ACTIVATABLE (extension));
 }
 
 static void
-extension_removed_cb (PeasExtensionSet *set, PeasPluginInfo *info, PeasExtension *extension, RBShell *shell)
+extension_removed_cb (PeasExtensionSet *set, PeasPluginInfo *info, GObject *extension, RBShell *shell)
 {
 	rb_debug ("deactivating extension %s", peas_plugin_info_get_name (info));
-	peas_extension_call (extension, "deactivate");
+	peas_activatable_deactivate (PEAS_ACTIVATABLE (extension));
 }
 
 static void
@@ -796,22 +869,18 @@ construct_plugins (RBShell *shell)
 	char *plugindatadir;
 	char **seen_plugins;
 	GPtrArray *new_plugins = NULL;
-	const GList *plugins;
-	const GList *l;
 	GError *error = NULL;
 
 	if (shell->priv->disable_plugins) {
 		return;
 	}
 
-	g_type_ensure (PEAS_GTK_TYPE_PLUGIN_MANAGER);
-
 	rb_profile_start ("loading plugins");
 	shell->priv->plugin_settings = g_settings_new ("org.gnome.rhythmbox.plugins");
 
 	shell->priv->plugin_engine = peas_engine_new ();
 	/* need an #ifdef for this? */
-	peas_engine_enable_loader (shell->priv->plugin_engine, "python3");
+	peas_engine_enable_loader (shell->priv->plugin_engine, "python");
 
 	typelib_dir = g_build_filename (LIBDIR,
 					"girepository-1.0",
@@ -835,13 +904,8 @@ construct_plugins (RBShell *shell)
 	}
 	g_free (typelib_dir);
 
-	if (g_irepository_require (g_irepository_get_default (), "Peas", "1.0", 0, &error) == FALSE) {
+	if (g_irepository_require (g_irepository_get_default (), "Peas", "2", 0, &error) == FALSE) {
 		g_warning ("Could not load Peas typelib: %s", error->message);
-		g_clear_error (&error);
-	}
-
-	if (g_irepository_require (g_irepository_get_default (), "PeasGtk", "1.0", 0, &error) == FALSE) {
-		g_warning ("Could not load PeasGtk typelib: %s", error->message);
 		g_clear_error (&error);
 	}
 
@@ -876,9 +940,11 @@ construct_plugins (RBShell *shell)
 			 G_SETTINGS_BIND_DEFAULT);
 
 	seen_plugins = g_settings_get_strv (shell->priv->plugin_settings, "seen-plugins");
-	plugins = peas_engine_get_plugin_list (shell->priv->plugin_engine);
-	for (l = plugins; l != NULL; l = l->next) {
-		PeasPluginInfo *info = PEAS_PLUGIN_INFO (l->data);
+	{
+	guint i;
+	guint n_plugins = g_list_model_get_n_items (G_LIST_MODEL (shell->priv->plugin_engine));
+	for (i = 0; i < n_plugins; i++) {
+		PeasPluginInfo *info = PEAS_PLUGIN_INFO (g_list_model_get_item (G_LIST_MODEL (shell->priv->plugin_engine), i));
 		char *kf_name;
 		char *kf_path;
 		GKeyFile *keyfile;
@@ -889,11 +955,13 @@ construct_plugins (RBShell *shell)
 		if (peas_plugin_info_is_builtin (info) &&
 		    g_strcmp0 (peas_plugin_info_get_module_name (info), "rb") != 0) {
 			peas_engine_load_plugin (shell->priv->plugin_engine, info);
+			g_object_unref (info);
 			continue;
 		}
 
 		/* have we seen this plugin before? */
 		if (rb_str_in_strv (peas_plugin_info_get_module_name (info), (const char **)seen_plugins)) {
+			g_object_unref (info);
 			continue;
 		}
 		if (new_plugins == NULL) {
@@ -919,6 +987,7 @@ construct_plugins (RBShell *shell)
 		}
 		g_free (kf_path);
 		g_key_file_free (keyfile);
+		g_object_unref (info);
 	}
 
 	if (new_plugins != NULL) {
@@ -940,6 +1009,7 @@ construct_plugins (RBShell *shell)
 		g_ptr_array_free (update, TRUE);
 	}
 
+	}
 	g_strfreev (seen_plugins);
 
 	rb_profile_end ("loading plugins");
@@ -973,7 +1043,8 @@ rb_shell_class_init (RBShellClass *klass)
 
 	object_class->set_property = rb_shell_set_property;
 	object_class->get_property = rb_shell_get_property;
-        object_class->finalize = rb_shell_finalize;
+	object_class->dispose = rb_shell_dispose;
+	object_class->finalize = rb_shell_finalize;
 	object_class->constructed = rb_shell_constructed;
 
 	klass->visibility_changing = rb_shell_visibility_changing;
@@ -1078,14 +1149,14 @@ rb_shell_class_init (RBShellClass *klass)
 	/**
 	 * RBShell:accel-group:
 	 *
-	 * A #GtkAccelGroup instance to use for additional accelerator keys
+	 * A #gpointer instance to use for additional accelerator keys
 	 */
 	g_object_class_install_property (object_class,
 					 PROP_ACCEL_GROUP,
 					 g_param_spec_object ("accel-group",
-							      "GtkAccelGroup",
-							      "GtkAccelGroup object",
-							      GTK_TYPE_ACCEL_GROUP,
+							      "gpointer",
+							      "gpointer object",
+							      G_TYPE_OBJECT,
 							      G_PARAM_READABLE));
 	/**
 	 * RBShell:clipboard:
@@ -1381,13 +1452,12 @@ rb_shell_class_init (RBShellClass *klass)
 			      G_TYPE_NONE,
 			      5,
 			      G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_BOOLEAN);
-	g_type_class_add_private (klass, sizeof (RBShellPrivate));
 }
 
 static void
 rb_shell_init (RBShell *shell)
 {
-	shell->priv = G_TYPE_INSTANCE_GET_PRIVATE (shell, RB_TYPE_SHELL, RBShellPrivate);
+	shell->priv = rb_shell_get_instance_private (shell);
 }
 
 static void
@@ -1490,17 +1560,8 @@ rb_shell_get_property (GObject *object,
 		g_value_set_object (value, shell->priv->window);
 		break;
 	case PROP_PREFS:
-		/* create the preferences window the first time we need it */
-		if (shell->priv->prefs == NULL) {
-			GtkWidget *content;
-
-			shell->priv->prefs = rb_shell_preferences_new (shell->priv->sources);
-
-			gtk_window_set_transient_for (GTK_WINDOW (shell->priv->prefs),
-						      GTK_WINDOW (shell->priv->window));
-			content = gtk_dialog_get_content_area (GTK_DIALOG (shell->priv->prefs));
-			gtk_widget_show_all (content);
-		}
+		/* AdwDialog destroys itself on close, so create a fresh one each time */
+		shell->priv->prefs = rb_shell_preferences_new (shell->priv->sources);
 		g_value_set_object (value, shell->priv->prefs);
 		break;
 	case PROP_QUEUE_SOURCE:
@@ -1570,83 +1631,78 @@ idle_save_playlist_manager (RBShell *shell)
 }
 
 static void
-rb_shell_finalize (GObject *object)
+rb_shell_dispose (GObject *object)
 {
-        RBShell *shell = RB_SHELL (object);
+	RBShell *shell = RB_SHELL (object);
 
-	rb_debug ("Finalizing shell");
-
-	rb_shell_player_stop (shell->priv->player_shell);
-
-	if (shell->priv->settings != NULL) {
-		rb_settings_delayed_sync (shell->priv->settings, NULL, NULL, NULL);
-		g_object_unref (shell->priv->settings);
-	}
-
-	g_free (shell->priv->cached_title);
+	rb_debug ("Disposing shell");
 
 	if (shell->priv->save_playlist_id > 0) {
 		g_source_remove (shell->priv->save_playlist_id);
 		shell->priv->save_playlist_id = 0;
 	}
 
-	if (shell->priv->queue_sidebar != NULL) {
-		g_object_unref (shell->priv->queue_sidebar);
+	/* disconnect signals connected with g_signal_connect (not _object) */
+	if (shell->priv->art_store != NULL) {
+		g_signal_handlers_disconnect_by_data (shell->priv->art_store, shell);
+	}
+	if (shell->priv->activatable != NULL) {
+		g_signal_handlers_disconnect_by_data (shell->priv->activatable, shell);
+	}
+	if (shell->priv->settings != NULL) {
+		g_signal_handlers_disconnect_by_data (shell->priv->settings, shell);
+		rb_settings_delayed_sync (shell->priv->settings, NULL, NULL, NULL);
+	}
+
+	if (shell->priv->player_shell != NULL) {
+		rb_shell_player_stop (shell->priv->player_shell);
 	}
 
 	if (shell->priv->playlist_manager != NULL) {
 		rb_debug ("shutting down playlist manager");
 		rb_playlist_manager_shutdown (shell->priv->playlist_manager);
-
-		rb_debug ("unreffing playlist manager");
-		g_object_unref (shell->priv->playlist_manager);
 	}
 
-	if (shell->priv->removable_media_manager != NULL) {
-		rb_debug ("unreffing removable media manager");
-		g_object_unref (shell->priv->removable_media_manager);
-		g_object_unref (shell->priv->track_transfer_queue);
+	g_clear_object (&shell->priv->queue_sidebar);
+	g_clear_object (&shell->priv->playlist_manager);
+	g_clear_object (&shell->priv->removable_media_manager);
+	g_clear_object (&shell->priv->track_transfer_queue);
+	g_clear_object (&shell->priv->podcast_manager);
+	g_clear_object (&shell->priv->clipboard_shell);
+	g_clear_object (&shell->priv->settings);
+	g_clear_object (&shell->priv->art_store);
+
+	if (shell->priv->db != NULL) {
+		rb_debug ("shutting down DB");
+		rhythmdb_shutdown (shell->priv->db);
+	}
+	g_clear_object (&shell->priv->db);
+
+	if (shell->priv->window != NULL) {
+		rb_debug ("destroying window");
+		gtk_window_destroy (GTK_WINDOW (shell->priv->window));
+		shell->priv->window = NULL;
 	}
 
-	if (shell->priv->podcast_manager != NULL) {
-		rb_debug ("unreffing podcast manager");
-		g_object_unref (shell->priv->podcast_manager);
-	}
+	G_OBJECT_CLASS (rb_shell_parent_class)->dispose (object);
+}
 
-	if (shell->priv->clipboard_shell != NULL) {
-		rb_debug ("unreffing clipboard shell");
-		g_object_unref (shell->priv->clipboard_shell);
-	}
+static void
+rb_shell_finalize (GObject *object)
+{
+        RBShell *shell = RB_SHELL (object);
 
-	if (shell->priv->prefs != NULL) {
-		rb_debug ("destroying prefs");
-		gtk_widget_destroy (shell->priv->prefs);
-	}
+	rb_debug ("Finalizing shell");
 
+	g_free (shell->priv->cached_title);
 	g_free (shell->priv->rhythmdb_file);
-
 	g_free (shell->priv->playlists_file);
-
-	rb_debug ("destroying window");
-	gtk_widget_destroy (shell->priv->window);
 
 	g_list_free (shell->priv->sources);
 	shell->priv->sources = NULL;
 
 	if (shell->priv->sources_hash != NULL) {
 		g_hash_table_destroy (shell->priv->sources_hash);
-	}
-
-	if (shell->priv->db != NULL) {
-		rb_debug ("shutting down DB");
-		rhythmdb_shutdown (shell->priv->db);
-
-		rb_debug ("unreffing DB");
-		g_object_unref (shell->priv->db);
-	}
-	if (shell->priv->art_store != NULL) {
-		g_object_unref (shell->priv->art_store);
-		shell->priv->art_store = NULL;
 	}
 
         G_OBJECT_CLASS (rb_shell_parent_class)->finalize (object);
@@ -1668,7 +1724,7 @@ rb_shell_constructed (GObject *object)
 	};
 
 	/* need this? */
-	gtk_init (NULL, NULL);
+	gtk_init ();
 
 	RB_CHAIN_GOBJECT_METHOD (rb_shell_parent_class, constructed, object);
 
@@ -1763,7 +1819,6 @@ rb_shell_constructed (GObject *object)
 	/* set initial visibility */
 	rb_shell_set_visibility (shell, TRUE, TRUE);
 
-	gdk_notify_startup_complete ();
 
 	view = rb_source_get_entry_view (RB_SOURCE (shell->priv->library_source));
 	if (view != NULL) {
@@ -1773,34 +1828,24 @@ rb_shell_constructed (GObject *object)
 	rb_profile_end ("constructing shell");
 }
 
-static gboolean
-rb_shell_window_state_cb (GtkWidget *widget,
-			  GdkEventWindowState *event,
-			  RBShell *shell)
+static void
+rb_shell_window_notify_maximized_cb (GObject *object,
+				      GParamSpec *pspec,
+				      RBShell *shell)
 {
-	shell->priv->iconified = ((event->new_window_state & GDK_WINDOW_STATE_ICONIFIED) != 0);
-
-	if (event->changed_mask & (GDK_WINDOW_STATE_WITHDRAWN | GDK_WINDOW_STATE_ICONIFIED)) {
-		g_signal_emit (shell, rb_shell_signals[VISIBILITY_CHANGED], 0,
-			       rb_shell_get_visibility (shell));
-	}
+	gboolean maximised;
 
 	/* don't save maximized state when is hidden */
 	if (!gtk_widget_get_visible (shell->priv->window))
-		return FALSE;
+		return;
 
-	if (event->changed_mask & GDK_WINDOW_STATE_MAXIMIZED) {
-		gboolean maximised = ((event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED) != 0);
-
-		if (maximised != g_settings_get_boolean (shell->priv->settings, "maximized")) {
-			g_settings_set_boolean (shell->priv->settings,
-						"maximized",
-						maximised);
-		}
-		rb_shell_sync_paned (shell);
+	maximised = gtk_window_is_maximized (GTK_WINDOW (shell->priv->window));
+	if (maximised != g_settings_get_boolean (shell->priv->settings, "maximized")) {
+		g_settings_set_boolean (shell->priv->settings,
+					"maximized",
+					maximised);
 	}
-
-	return FALSE;
+	rb_shell_sync_paned (shell);
 }
 
 static gboolean
@@ -1812,15 +1857,11 @@ rb_shell_visibility_changing (RBShell *shell, gboolean initial, gboolean visible
 static gboolean
 rb_shell_get_visibility (RBShell *shell)
 {
-	GdkWindowState state;
-
 	if (!gtk_widget_get_realized (shell->priv->window))
 		return FALSE;
 	if (shell->priv->iconified)
 		return FALSE;
-
-	state = gdk_window_get_state (gtk_widget_get_window (GTK_WIDGET (shell->priv->window)));
-	if (state & (GDK_WINDOW_STATE_WITHDRAWN | GDK_WINDOW_STATE_ICONIFIED))
+	if (!gtk_widget_get_visible (shell->priv->window))
 		return FALSE;
 
 	return TRUE;
@@ -1848,18 +1889,18 @@ rb_shell_set_visibility (RBShell *shell,
 		rb_shell_sync_window_state (shell, FALSE);
 
 		gtk_widget_show (GTK_WIDGET (shell->priv->window));
-		gtk_window_deiconify (GTK_WINDOW (shell->priv->window));
+		gtk_window_unminimize (GTK_WINDOW (shell->priv->window));
 
 		if (gtk_widget_get_realized (GTK_WIDGET (shell->priv->window)))
-			rb_shell_present (shell, gtk_get_current_event_time (), NULL);
+			rb_shell_present (shell, GDK_CURRENT_TIME, NULL);
 		else
-			gtk_widget_show_all (GTK_WIDGET (shell->priv->window));
+			gtk_widget_show (GTK_WIDGET (shell->priv->window));
 
 		g_signal_emit (shell, rb_shell_signals[VISIBILITY_CHANGED], 0, visible);
 	} else {
 		rb_debug ("hiding main window");
 		shell->priv->iconified = TRUE;
-		gtk_window_iconify (GTK_WINDOW (shell->priv->window));
+		gtk_window_minimize (GTK_WINDOW (shell->priv->window));
 
 		g_signal_emit (shell, rb_shell_signals[VISIBILITY_CHANGED], 0, FALSE);
 	}
@@ -1872,11 +1913,10 @@ sync_window_settings (GSettings *settings, RBShell *shell)
 {
 	int width, height;
 	int oldwidth, oldheight;
-	int oldx, oldy;
-	int x, y;
+
 	int pos;
 
-	gtk_window_get_size (GTK_WINDOW (shell->priv->window), &width, &height);
+	gtk_window_get_default_size (GTK_WINDOW (shell->priv->window), &width, &height);
 
 	g_settings_get (shell->priv->settings, "size", "(ii)", &oldwidth, &oldheight);
 	if ((width != oldwidth) || (height != oldheight)) {
@@ -1884,12 +1924,7 @@ sync_window_settings (GSettings *settings, RBShell *shell)
 		g_settings_set (shell->priv->settings, "size", "(ii)", width, height);
 	}
 
-	gtk_window_get_position (GTK_WINDOW(shell->priv->window), &x, &y);
-	g_settings_get (shell->priv->settings, "position", "(ii)", &oldx, &oldy);
-	if ((x != oldx) || (y != oldy)) {
-		rb_debug ("storing window position of %d:%d", x, y);
-		g_settings_set (shell->priv->settings, "position", "(ii)", x, y);
-	}
+	/* window position not available in GTK4 (Wayland) */
 
 	pos = gtk_paned_get_position (GTK_PANED (shell->priv->paned));
 	rb_debug ("paned position %d", pos);
@@ -1913,40 +1948,39 @@ sync_window_settings (GSettings *settings, RBShell *shell)
 	}
 }
 
-static gboolean
-rb_shell_window_configure_cb (GtkWidget *win,
-			      GdkEventConfigure *event,
-			      RBShell *shell)
+static void
+rb_shell_window_notify_size_cb (GObject *object,
+				 GParamSpec *pspec,
+				 RBShell *shell)
 {
 	if (g_settings_get_boolean (shell->priv->settings, "maximized") || shell->priv->iconified)
-		return FALSE;
+		return;
 
 	rb_settings_delayed_sync (shell->priv->settings,
 				  (RBDelayedSyncFunc) sync_window_settings,
 				  g_object_ref (shell),
 				  g_object_unref);
-	return FALSE;
 }
 
 static gboolean
-rb_shell_window_delete_cb (GtkWidget *win,
-			   GdkEventAny *event,
-			   RBShell *shell)
+rb_shell_window_close_request_cb (GtkWindow *window,
+				   RBShell *shell)
 {
 	rb_shell_quit (shell, NULL);
 	return TRUE;
 }
 
 static gboolean
-rb_shell_key_press_event_cb (GtkWidget *win,
-			     GdkEventKey *event,
-			     RBShell *shell)
+rb_shell_key_pressed_cb (GtkEventControllerKey *controller,
+			  guint keyval,
+			  guint keycode,
+			  GdkModifierType state,
+			  RBShell *shell)
 {
-	GtkWindow *window = GTK_WINDOW (win);
 	gboolean handled = FALSE;
 
 #ifdef HAVE_MMKEYS
-	switch (event->keyval) {
+	switch (keyval) {
 	case XF86XK_Back:
 		rb_shell_player_do_previous (shell->priv->player_shell, NULL);
 		handled = TRUE;
@@ -1961,31 +1995,16 @@ rb_shell_key_press_event_cb (GtkWidget *win,
 #endif
 
 	if (!handled)
-		handled = gtk_window_activate_key (window, event);
+		handled = rb_application_activate_key (shell->priv->application, keyval, state);
 
-	if (!handled)
-		handled = gtk_window_propagate_key_event (window, event);
-
-	if (!handled)
-		handled = rb_application_activate_key (shell->priv->application, event);
-
-	if (!handled) {
-		GObjectClass *object_class;
-		object_class = G_OBJECT_GET_CLASS (win);
-		handled = GTK_WIDGET_CLASS (g_type_class_peek_parent (object_class))->key_press_event (win, event);
-	}
-
-	/* we're completely replacing the default window handling, so always return TRUE */
-	return TRUE;
+	return handled;
 }
 
 static void
 rb_shell_sync_window_state (RBShell *shell,
 			    gboolean dont_maximise)
 {
-	GdkGeometry hints;
 	int width, height;
-	int x, y;
 
 	rb_profile_start ("syncing window state");
 
@@ -1997,16 +2016,9 @@ rb_shell_sync_window_state (RBShell *shell,
 	}
 
 	g_settings_get (shell->priv->settings, "size", "(ii)", &width, &height);
-
 	gtk_window_set_default_size (GTK_WINDOW (shell->priv->window), width, height);
-	gtk_window_resize (GTK_WINDOW (shell->priv->window), width, height);
-	gtk_window_set_geometry_hints (GTK_WINDOW (shell->priv->window),
-					NULL,
-					&hints,
-					0);
 
-	g_settings_get (shell->priv->settings, "position", "(ii)", &x, &y);
-	gtk_window_move (GTK_WINDOW (shell->priv->window), x, y);
+	/* window position not available in GTK4 (Wayland) */
 	rb_profile_end ("syncing window state");
 }
 
@@ -2261,7 +2273,7 @@ rb_shell_playing_changed_cb (RBShellPlayer *player, gboolean playing, RBShell *s
 	const char *icon_name;
 	GtkWidget *image;
 
-	image = gtk_button_get_image (GTK_BUTTON (shell->priv->play_button));
+	image = gtk_button_get_child (GTK_BUTTON (shell->priv->play_button));
 	if (playing) {
 		if (rb_source_can_pause (rb_shell_player_get_playing_source (shell->priv->player_shell))) {
 			icon_name = "media-playback-pause-symbolic";
@@ -2420,7 +2432,7 @@ static gboolean
 quit_timeout (gpointer dummy)
 {
 	rb_debug ("quit damn you");
-	gtk_main_quit ();
+	g_application_quit (g_application_get_default ());
 	return FALSE;
 }
 
@@ -2447,7 +2459,7 @@ rb_shell_quit (RBShell *shell,
 
 	rb_debug ("Quitting");
 	display = gtk_widget_get_display (shell->priv->window);
-	gtk_widget_hide (shell->priv->window);
+	gtk_widget_set_visible (shell->priv->window, FALSE);
 	gdk_display_sync (display);
 
 	rb_shell_player_stop (shell->priv->player_shell);
@@ -2456,26 +2468,30 @@ rb_shell_quit (RBShell *shell,
 
 	rb_shell_sync_state (shell);
 
+	if (shell->priv->activatable != NULL) {
+		g_signal_handlers_disconnect_by_data (shell->priv->activatable, shell);
+		g_clear_object (&shell->priv->activatable);
+	}
 	if (shell->priv->plugin_engine != NULL) {
 		g_object_unref (shell->priv->plugin_engine);
 		shell->priv->plugin_engine = NULL;
-	}
-	if (shell->priv->activatable != NULL) {
-		g_object_unref (shell->priv->activatable);
-		shell->priv->activatable = NULL;
 	}
 	if (shell->priv->plugin_settings != NULL) {
 		g_object_unref (shell->priv->plugin_settings);
 		shell->priv->plugin_settings = NULL;
 	}
-	/* or maybe just _quit */
-	/* g_application_release (G_APPLICATION (shell->priv->application)); */
 
 	/* deselect the current page so it drops mnemonics etc. */
 	rb_display_page_deselected (shell->priv->selected_page);
 
 	rb_settings_delayed_sync (shell->priv->settings, NULL, NULL, NULL);
-	gtk_widget_destroy (GTK_WIDGET (shell->priv->window));
+
+	/* destroy the window so GApplication sees no windows and begins
+	 * shutdown, which will eventually unref the shell and run dispose */
+	if (shell->priv->window != NULL) {
+		gtk_window_destroy (GTK_WINDOW (shell->priv->window));
+		shell->priv->window = NULL;
+	}
 
 	g_timeout_add_seconds (10, quit_timeout, NULL);
 	return TRUE;
@@ -2529,8 +2545,10 @@ rb_shell_sync_paned (RBShell *shell)
 
 static void
 paned_size_allocate_cb (GtkWidget *widget,
-			GtkAllocation *allocation,
-		        RBShell *shell)
+			int width,
+			int height,
+			int baseline,
+			RBShell *shell)
 {
 	rb_settings_delayed_sync (shell->priv->settings,
 				  (RBDelayedSyncFunc) sync_window_settings,
@@ -2541,7 +2559,7 @@ paned_size_allocate_cb (GtkWidget *widget,
 static void
 display_page_tree_drag_received_cb (RBDisplayPageTree *display_page_tree,
 				    RBDisplayPage *page,
-				    GtkSelectionData *data,
+				    gpointer data,
 				    RBShell *shell)
 {
         if (page == NULL) {
@@ -2997,7 +3015,6 @@ rb_shell_present (RBShell *shell,
 	rb_debug ("presenting with timestamp %u", timestamp);
 	gtk_widget_show (GTK_WIDGET (shell->priv->window));
 	gtk_window_present_with_time (GTK_WINDOW (shell->priv->window), timestamp);
-	gtk_window_set_skip_taskbar_hint (GTK_WINDOW (shell->priv->window), FALSE);
 
 	rb_profile_end ("presenting shell");
 
@@ -3212,7 +3229,7 @@ rb_shell_add_widget (RBShell *shell, GtkWidget *widget, RBShellUILocation locati
 		box = rb_shell_get_box_for_ui_location (shell, location);
 		g_return_if_fail (box != NULL);
 
-		gtk_box_pack_start (box, widget, expand, fill, 0);
+		gtk_box_append (box, widget);
 		break;
 	}
 }
@@ -3239,7 +3256,7 @@ rb_shell_remove_widget (RBShell *shell, GtkWidget *widget, RBShellUILocation loc
 		box = rb_shell_get_box_for_ui_location (shell, location);
 		g_return_if_fail (box != NULL);
 
-		gtk_container_remove (GTK_CONTAINER (box), widget);
+		gtk_box_remove (GTK_BOX (box), widget);
 		break;
 	}
 }

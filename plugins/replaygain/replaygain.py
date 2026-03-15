@@ -26,13 +26,13 @@
 #
 
 import rb
-from gi.repository import GObject, Peas
+from gi.repository import GObject
 from gi.repository import RB
 
 from config import ReplayGainConfig
 from player import ReplayGainPlayer
 
-class ReplayGainPlugin(GObject.Object, Peas.Activatable):
+class ReplayGainPlugin(GObject.Object, RB.PeasActivatable):
 	__gtype_name__ = 'ReplayGainPlugin'
 	object = GObject.property (type=GObject.Object)
 

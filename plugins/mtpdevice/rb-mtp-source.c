@@ -174,7 +174,7 @@ G_DEFINE_DYNAMIC_TYPE_EXTENDED(
 	G_IMPLEMENT_INTERFACE_DYNAMIC (RB_TYPE_DEVICE_SOURCE, rb_mtp_device_source_init)
 	G_IMPLEMENT_INTERFACE_DYNAMIC (RB_TYPE_TRANSFER_TARGET, rb_mtp_source_transfer_target_init))
 
-#define MTP_SOURCE_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_MTP_SOURCE, RBMtpSourcePrivate))
+#define MTP_SOURCE_GET_PRIVATE(o) (rb_mtp_source_get_instance_private (o))
 
 enum
 {
@@ -241,7 +241,6 @@ rb_mtp_source_class_init (RBMtpSourceClass *klass)
 #endif
 	g_object_class_override_property (object_class, PROP_DEVICE_SERIAL, "serial");
 
-	g_type_class_add_private (klass, sizeof (RBMtpSourcePrivate));
 }
 
 static void

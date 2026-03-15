@@ -11,6 +11,8 @@ lib_headers = files(
   'rb-task-progress.h',
   'rb-task-progress-simple.h',
   'rb-util.h',
+  'rb-peas-compat.h',
+  'rb-peas-gtk-configurable.h',
 )
 
 install_headers(lib_headers, subdir: 'rhythmbox/lib')
@@ -32,6 +34,8 @@ lib_sources = files(
   'rb-task-progress.c',
   'rb-text-helpers.c',
   'rb-tree-dnd.c',
+  'rb-peas-compat.c',
+  'rb-peas-gtk-configurable.c',
   'rb-util.c',
 )
 

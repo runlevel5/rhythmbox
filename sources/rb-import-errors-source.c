@@ -82,7 +82,7 @@ struct _RBImportErrorsSourcePrivate
 	GMenuModel *popup;
 };
 
-G_DEFINE_TYPE (RBImportErrorsSource, rb_import_errors_source, RB_TYPE_SOURCE);
+G_DEFINE_TYPE_WITH_PRIVATE (RBImportErrorsSource, rb_import_errors_source, RB_TYPE_SOURCE);
 
 /**
  * SECTION:rbimporterrorssource
@@ -150,13 +150,12 @@ rb_import_errors_source_class_init (RBImportErrorsSourceClass *klass)
 							      RHYTHMDB_TYPE_ENTRY_TYPE,
 							      G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
-	g_type_class_add_private (klass, sizeof (RBImportErrorsSourcePrivate));
 }
 
 static void
 rb_import_errors_source_init (RBImportErrorsSource *source)
 {
-	source->priv = G_TYPE_INSTANCE_GET_PRIVATE (source, RB_TYPE_IMPORT_ERRORS_SOURCE, RBImportErrorsSourcePrivate);
+	source->priv = rb_import_errors_source_get_instance_private (source);
 }
 
 static void
@@ -237,18 +236,17 @@ rb_import_errors_source_constructed (GObject *object)
 				 source, 0);
 
 	label = gtk_label_new (_("Additional software is required to play some of these files."));
-	gtk_label_set_line_wrap (GTK_LABEL (label), TRUE);
-	gtk_container_add (GTK_CONTAINER (gtk_info_bar_get_content_area (GTK_INFO_BAR (source->priv->infobar))),
-			   label);
+	gtk_label_set_wrap (GTK_LABEL (label), TRUE);
+	gtk_info_bar_add_child (GTK_INFO_BAR (source->priv->infobar), label);
 
 	g_object_unref (entry_type);
 
 	box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
-	gtk_box_pack_start (GTK_BOX (box), GTK_WIDGET (source->priv->view), TRUE, TRUE, 0);
-	gtk_box_pack_start (GTK_BOX (box), source->priv->infobar, FALSE, FALSE, 0);
+	gtk_box_append (GTK_BOX (box), GTK_WIDGET (source->priv->view));
+	gtk_box_append (GTK_BOX (box), source->priv->infobar);
 
-	gtk_container_add (GTK_CONTAINER (source), box);
-	gtk_widget_show_all (GTK_WIDGET (source));
+	gtk_box_append (GTK_BOX (source), box);
+	gtk_widget_show (GTK_WIDGET (source));
 	gtk_widget_hide (source->priv->infobar);
 
 	/* show the info bar when there are missing plugin entries */
@@ -389,7 +387,6 @@ rb_import_errors_source_songs_show_popup_cb (RBEntryView *view,
 					     gboolean over_entry,
 					     RBImportErrorsSource *source)
 {
-	GtkWidget *menu;
 	GtkBuilder *builder;
 
 	if (over_entry == FALSE)
@@ -402,15 +399,7 @@ rb_import_errors_source_songs_show_popup_cb (RBEntryView *view,
 		g_object_unref (builder);
 	}
 
-	menu = gtk_menu_new_from_model (source->priv->popup);
-	gtk_menu_attach_to_widget (GTK_MENU (menu), GTK_WIDGET (source), NULL);
-	gtk_menu_popup (GTK_MENU (menu),
-			NULL,
-			NULL,
-			NULL,
-			NULL,
-			3,
-			gtk_get_current_event_time ());
+	rb_entry_view_popup_menu (view, source->priv->popup);
 }
 
 static void

@@ -91,16 +91,12 @@
 #include "rb-text-helpers.h"
 #include "rhythmdb.h"
 #include "rhythmdb-query-model.h"
-#include "rb-cell-renderer-pixbuf.h"
 #include "rb-cell-renderer-rating.h"
 #include "rb-shell-player.h"
 #include "rb-cut-and-paste-code.h"
 #include "nautilus-floating-bar.h"
 
-static const GtkTargetEntry rb_entry_view_drag_types[] = {
-	{ "application/x-rhythmbox-entry", 0, 0 },
-	{ "text/uri-list", 0, 1 }
-};
+/* TODO: GTK4 DnD content types */
 
 struct RBEntryViewColumnSortData
 {
@@ -130,7 +126,7 @@ static void rb_entry_view_get_property (GObject *object,
 				       GParamSpec *pspec);
 static void rb_entry_view_selection_changed_cb (GtkTreeSelection *selection,
 				               RBEntryView *view);
-static void rb_entry_view_grab_focus (GtkWidget *widget);
+static gboolean rb_entry_view_grab_focus (GtkWidget *widget);
 static void rb_entry_view_row_activated_cb (GtkTreeView *treeview,
 			                   GtkTreePath *path,
 			                   GtkTreeViewColumn *column,
@@ -152,14 +148,13 @@ static void rb_entry_view_rated_cb (RBCellRendererRating *cellrating,
 				   const char *path,
 				   double rating,
 				   RBEntryView *view);
-static void rb_entry_view_pixbuf_clicked_cb (RBEntryView *view,
-					     const char *path,
-					     RBCellRendererPixbuf *cellpixbuf);
 static void rb_entry_view_playing_column_clicked_cb (GtkTreeViewColumn *column,
 						     RBEntryView *view);
-static gboolean rb_entry_view_button_press_cb (GtkTreeView *treeview,
-					      GdkEventButton *event,
-					      RBEntryView *view);
+static void rb_entry_view_button_press_cb (GtkGestureClick *gesture,
+					    int n_press,
+					    double x,
+					    double y,
+					    RBEntryView *view);
 static gboolean rb_entry_view_popup_menu_cb (GtkTreeView *treeview,
 					     RBEntryView *view);
 static void rb_entry_view_entry_is_visible (RBEntryView *view, RhythmDBEntry *entry,
@@ -204,6 +199,9 @@ struct RBEntryViewPrivate
 
 	gboolean have_selection, have_complete_selection;
 
+	double last_click_x;
+	double last_click_y;
+
 	GHashTable *column_key_map;
 
 	GHashTable *propid_column_map;
@@ -236,7 +234,7 @@ enum
 	PROP_VISIBLE_COLUMNS
 };
 
-G_DEFINE_TYPE (RBEntryView, rb_entry_view, GTK_TYPE_BOX)
+G_DEFINE_TYPE_WITH_PRIVATE (RBEntryView, rb_entry_view, GTK_TYPE_BOX)
 
 static guint rb_entry_view_signals[LAST_SIGNAL] = { 0 };
 
@@ -506,7 +504,6 @@ rb_entry_view_class_init (RBEntryViewClass *klass)
 			      1,
 			      G_TYPE_BOOLEAN);
 
-	g_type_class_add_private (klass, sizeof (RBEntryViewPrivate));
 
 	rb_entry_view_column_always_visible = g_quark_from_static_string ("rb_entry_view_column_always_visible");
 }
@@ -514,7 +511,7 @@ rb_entry_view_class_init (RBEntryViewClass *klass)
 static void
 rb_entry_view_init (RBEntryView *view)
 {
-	view->priv = G_TYPE_INSTANCE_GET_PRIVATE (view, RB_TYPE_ENTRY_VIEW, RBEntryViewPrivate);
+	view->priv = rb_entry_view_get_instance_private (view);
 
 	view->priv->propid_column_map = g_hash_table_new (NULL, NULL);
 	view->priv->column_sort_data_map = g_hash_table_new_full (NULL, NULL, NULL, g_free);
@@ -1543,7 +1540,7 @@ rb_entry_view_append_column (RBEntryView *view,
 		propid = RHYTHMDB_PROP_RATING;
 		sort_func = (GCompareDataFunc) rhythmdb_query_model_double_ceiling_sort_func;
 
-		gtk_icon_size_lookup (GTK_ICON_SIZE_MENU, &column_width, NULL);
+		column_width = 16;
 		column_width = column_width * 5 + 5;
 		resizable = FALSE;
 		title = _("Rating");
@@ -1820,18 +1817,15 @@ rb_entry_view_constructed (GObject *object)
 	view->priv->overlay = gtk_overlay_new ();
 	gtk_widget_set_vexpand (view->priv->overlay, TRUE);
 	gtk_widget_set_hexpand (view->priv->overlay, TRUE);
-	gtk_container_add (GTK_CONTAINER (view), view->priv->overlay);
+	gtk_box_append (GTK_BOX (view), view->priv->overlay);
 	gtk_widget_show (view->priv->overlay);
 
-	/* NautilusFloatingBar needs enter and leavy notify events */
-	gtk_widget_add_events (view->priv->overlay, GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK);
 
-	view->priv->scrolled_window = gtk_scrolled_window_new (NULL, NULL);
+	view->priv->scrolled_window = gtk_scrolled_window_new ();
 	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (view->priv->scrolled_window),
 					GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-	gtk_scrolled_window_set_shadow_type (GTK_SCROLLED_WINDOW (view->priv->scrolled_window), GTK_SHADOW_NONE);
 	gtk_widget_show (view->priv->scrolled_window);
-	gtk_container_add (GTK_CONTAINER (view->priv->overlay), view->priv->scrolled_window);
+	gtk_overlay_set_child (GTK_OVERLAY (view->priv->overlay), view->priv->scrolled_window);
 
 	view->priv->treeview = gtk_tree_view_new ();
 	gtk_tree_view_set_fixed_height_mode (GTK_TREE_VIEW (view->priv->treeview), TRUE);
@@ -1840,11 +1834,15 @@ rb_entry_view_constructed (GObject *object)
 					     type_ahead_search_func,
 					     view, NULL);
 
-	g_signal_connect_object (view->priv->treeview,
-			         "button_press_event",
-			         G_CALLBACK (rb_entry_view_button_press_cb),
-			         view,
-				 0);
+	{
+		GtkGesture *click = gtk_gesture_click_new ();
+		gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (click), 3);
+		gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (click),
+							    GTK_PHASE_CAPTURE);
+		g_signal_connect (click, "pressed",
+				  G_CALLBACK (rb_entry_view_button_press_cb), view);
+		gtk_widget_add_controller (view->priv->treeview, GTK_EVENT_CONTROLLER (click));
+	}
 	g_signal_connect_object (view->priv->treeview,
 			         "row_activated",
 			         G_CALLBACK (rb_entry_view_row_activated_cb),
@@ -1867,22 +1865,14 @@ rb_entry_view_constructed (GObject *object)
 	gtk_tree_selection_set_mode (view->priv->selection, GTK_SELECTION_MULTIPLE);
 
 	if (view->priv->is_drag_source) {
-		rb_tree_dnd_add_drag_source_support (GTK_TREE_VIEW (view->priv->treeview),
-						     GDK_BUTTON1_MASK,
-						     rb_entry_view_drag_types,
-						     G_N_ELEMENTS (rb_entry_view_drag_types),
-						     GDK_ACTION_COPY);
+		/* TODO: set up GtkDragSource */
 	}
 
 	if (view->priv->is_drag_dest) {
-		rb_tree_dnd_add_drag_dest_support (GTK_TREE_VIEW (view->priv->treeview),
-						   RB_TREE_DEST_CAN_DROP_BETWEEN | RB_TREE_DEST_EMPTY_VIEW_DROP,
-						   rb_entry_view_drag_types,
-						   G_N_ELEMENTS (rb_entry_view_drag_types),
-						   GDK_ACTION_COPY | GDK_ACTION_MOVE);
+		/* TODO: set up GtkDropTarget */
 	}
 
-	gtk_container_add (GTK_CONTAINER (view->priv->scrolled_window), view->priv->treeview);
+	gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (view->priv->scrolled_window), view->priv->treeview);
 
 	{
 		GtkTreeViewColumn *column;
@@ -1891,11 +1881,7 @@ rb_entry_view_constructed (GObject *object)
 
 		/* Playing icon column */
 		column = GTK_TREE_VIEW_COLUMN (gtk_tree_view_column_new ());
-		renderer = rb_cell_renderer_pixbuf_new ();
-		g_object_set (renderer, "stock-size", GTK_ICON_SIZE_MENU, NULL);
-		if (gtk_check_version (3, 16, 0) != NULL) {
-			g_object_set (renderer, "follow-state", TRUE, NULL);
-		}
+		renderer = gtk_cell_renderer_pixbuf_new ();
 
 		gtk_tree_view_column_pack_start (column, renderer, TRUE);
 		gtk_tree_view_column_set_cell_data_func (column, renderer,
@@ -1904,16 +1890,12 @@ rb_entry_view_constructed (GObject *object)
 							 view,
 							 NULL);
 
-		image_widget = gtk_image_new_from_icon_name ("audio-volume-high-symbolic", GTK_ICON_SIZE_MENU);
+		image_widget = gtk_image_new_from_icon_name ("audio-volume-high-symbolic");
 		gtk_tree_view_column_set_widget (column, image_widget);
-		gtk_widget_show_all (image_widget);
+		gtk_widget_show (image_widget);
 
 		gtk_tree_view_column_set_sizing (column, GTK_TREE_VIEW_COLUMN_FIXED);
 		gtk_tree_view_append_column (GTK_TREE_VIEW (view->priv->treeview), column);
-		g_signal_connect_swapped (renderer,
-					  "pixbuf-clicked",
-					  G_CALLBACK (rb_entry_view_pixbuf_clicked_cb),
-					  view);
 
 		gtk_widget_set_tooltip_text (gtk_tree_view_column_get_widget (column),
 					     _("Now Playing"));
@@ -1930,7 +1912,7 @@ rb_entry_view_constructed (GObject *object)
 	g_object_unref (query_model);
 
 	view->priv->status = nautilus_floating_bar_new (NULL, NULL, FALSE);
-	gtk_widget_set_no_show_all (view->priv->status, TRUE);
+	/* removed: no_show_all not needed in GTK4 */
 	gtk_widget_set_halign (view->priv->status, GTK_ALIGN_END);
 	gtk_widget_set_valign (view->priv->status, GTK_ALIGN_END);
 	gtk_overlay_add_overlay (GTK_OVERLAY (view->priv->overlay), view->priv->status);
@@ -1963,29 +1945,6 @@ rb_entry_view_rated_cb (RBCellRendererRating *cellrating,
 	rhythmdb_entry_unref (entry);
 }
 
-static void
-rb_entry_view_pixbuf_clicked_cb (RBEntryView          *view,
-				 const char           *path_string,
-				 RBCellRendererPixbuf *cellpixbuf)
-{
-	GtkTreePath *path;
-	RhythmDBEntry *entry;
-	const gchar *error;
-
-	g_return_if_fail (path_string != NULL);
-
-	path = gtk_tree_path_new_from_string (path_string);
-	entry = rhythmdb_query_model_tree_path_to_entry (view->priv->model, path);
-
-	gtk_tree_path_free (path);
-
-	error = rhythmdb_entry_get_string (entry, RHYTHMDB_PROP_PLAYBACK_ERROR);
-	if (error) {
-		rb_error_dialog (NULL, _("Playback Error"), "%s", error);
-	}
-
-	rhythmdb_entry_unref (entry);
-}
 
 static void
 rb_entry_view_playing_column_clicked_cb (GtkTreeViewColumn *column,
@@ -2069,34 +2028,43 @@ rb_entry_view_get_selected_entries (RBEntryView *view)
 	return list;
 }
 
-static gboolean
-rb_entry_view_button_press_cb (GtkTreeView *treeview,
-			       GdkEventButton *event,
+static void
+rb_entry_view_button_press_cb (GtkGestureClick *gesture,
+			       int n_press,
+			       double x,
+			       double y,
 			       RBEntryView *view)
 {
-	if (event->button == 3) {
-		GtkTreePath *path;
-		RhythmDBEntry *entry;
+	GtkTreeView *treeview = GTK_TREE_VIEW (view->priv->treeview);
+	GtkTreePath *path;
+	RhythmDBEntry *entry;
+	int bx, by;
 
-		gtk_tree_view_get_path_at_pos (treeview, event->x, event->y, &path, NULL, NULL, NULL);
-		if (path != NULL) {
-			GList *selected;
-			entry = rhythmdb_query_model_tree_path_to_entry (view->priv->model, path);
+	view->priv->last_click_x = x;
+	view->priv->last_click_y = y;
 
-			selected = rb_entry_view_get_selected_entries (view);
+	/* Claim the gesture immediately so GtkTreeView's internal click
+	 * handler does not change the selection.  Our capture-phase gesture
+	 * runs before TreeView sees the event, so claiming it here prevents
+	 * the default single-row-select behaviour on right-click. */
+	gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_CLAIMED);
 
-			if (!g_list_find (selected, entry))
-				rb_entry_view_select_entry (view, entry);
+	gtk_tree_view_convert_widget_to_bin_window_coords (treeview, (int)x, (int)y, &bx, &by);
+	gtk_tree_view_get_path_at_pos (treeview, bx, by, &path, NULL, NULL, NULL);
+	if (path != NULL) {
+		GList *selected;
+		entry = rhythmdb_query_model_tree_path_to_entry (view->priv->model, path);
 
-			g_list_free (selected);
+		selected = rb_entry_view_get_selected_entries (view);
 
-			rhythmdb_entry_unref (entry);
-		}
-		g_signal_emit (G_OBJECT (view), rb_entry_view_signals[SHOW_POPUP], 0, (path != NULL));
-		return TRUE;
+		if (!g_list_find (selected, entry))
+			rb_entry_view_select_entry (view, entry);
+
+		g_list_free (selected);
+
+		rhythmdb_entry_unref (entry);
 	}
-
-	return FALSE;
+	g_signal_emit (G_OBJECT (view), rb_entry_view_signals[SHOW_POPUP], 0, (path != NULL));
 }
 
 static gboolean
@@ -2108,6 +2076,65 @@ rb_entry_view_popup_menu_cb (GtkTreeView *treeview,
 
 	g_signal_emit (G_OBJECT (view), rb_entry_view_signals[SHOW_POPUP], 0);
 	return TRUE;
+}
+
+/**
+ * rb_entry_view_popup_menu:
+ * @view: a #RBEntryView
+ * @menu_model: the menu model to display
+ *
+ * Creates a #GtkPopoverMenu from the menu model and displays it
+ * at the position of the last right-click in the entry view.
+ */
+static gboolean
+popup_menu_unparent_idle (gpointer data)
+{
+	GtkWidget *menu = GTK_WIDGET (data);
+	gtk_widget_unparent (menu);
+	return G_SOURCE_REMOVE;
+}
+
+static void
+popup_menu_closed_cb (GtkPopover *popover, gpointer user_data)
+{
+	g_idle_add (popup_menu_unparent_idle, popover);
+}
+
+void
+rb_entry_view_popup_menu (RBEntryView *view, GMenuModel *menu_model)
+{
+	GtkWidget *menu;
+	GdkRectangle rect;
+	double tx, ty;
+
+	menu = gtk_popover_menu_new_from_model (menu_model);
+
+	/* Parent the popover to the RBEntryView (GtkBox) rather than the
+	 * GtkTreeView directly.  GtkTreeView has an internal CSS node structure
+	 * that interferes with popover child CSS matching, which breaks hover
+	 * highlighting on menu items.  We translate the click coordinates from
+	 * treeview-relative to RBEntryView-relative so the popup still appears
+	 * at the right spot. */
+	if (gtk_widget_translate_coordinates (view->priv->treeview,
+	                                     GTK_WIDGET (view),
+	                                     view->priv->last_click_x,
+	                                     view->priv->last_click_y,
+	                                     &tx, &ty)) {
+		rect.x = (int) tx;
+		rect.y = (int) ty;
+	} else {
+		rect.x = (int) view->priv->last_click_x;
+		rect.y = (int) view->priv->last_click_y;
+	}
+	rect.width = 1;
+	rect.height = 1;
+
+	gtk_widget_set_parent (menu, GTK_WIDGET (view));
+	gtk_popover_set_has_arrow (GTK_POPOVER (menu), FALSE);
+	gtk_popover_set_pointing_to (GTK_POPOVER (menu), &rect);
+
+	g_signal_connect (menu, "closed", G_CALLBACK (popup_menu_closed_cb), NULL);
+	gtk_popover_popup (GTK_POPOVER (menu));
 }
 
 static gboolean
@@ -2460,9 +2487,7 @@ rb_entry_view_enable_drag_source (RBEntryView *view,
 {
 	g_return_if_fail (view != NULL);
 
-	rb_tree_dnd_add_drag_source_support (GTK_TREE_VIEW (view->priv->treeview),
-					 GDK_BUTTON1_MASK | GDK_BUTTON3_MASK,
-					 targets, n_targets, GDK_ACTION_COPY);
+	/* TODO: set up GtkDragSource */
 }
 
 static void
@@ -2521,12 +2546,12 @@ rb_entry_view_set_state (RBEntryView *view,
 	g_object_set (view, "playing-state", state, NULL);
 }
 
-static void
+static gboolean
 rb_entry_view_grab_focus (GtkWidget *widget)
 {
 	RBEntryView *view = RB_ENTRY_VIEW (widget);
 
-	gtk_widget_grab_focus (GTK_WIDGET (view->priv->treeview));
+	return gtk_widget_grab_focus (GTK_WIDGET (view->priv->treeview));
 }
 
 static gboolean

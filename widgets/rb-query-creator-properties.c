@@ -288,13 +288,13 @@ stringCriteriaCreateWidget (gboolean *constrain)
 static void
 stringCriteriaSetWidgetData (GtkWidget *widget, GValue *val)
 {
-	gtk_entry_set_text (GTK_ENTRY (widget), g_value_get_string (val));
+	gtk_editable_set_text (GTK_EDITABLE (widget), g_value_get_string (val));
 }
 
 static void
 stringCriteriaGetWidgetData (GtkWidget *widget, GValue *val)
 {
-	const char* text = gtk_entry_get_text (GTK_ENTRY (widget));
+	const char* text = gtk_editable_get_text (GTK_EDITABLE (widget));
 
 	g_value_init (val, G_TYPE_STRING);
 	g_value_set_string (val, text);
@@ -306,14 +306,14 @@ static void
 escapedStringCriteriaSetWidgetData (GtkWidget *widget, GValue *val)
 {
 	char *text = g_uri_unescape_string (g_value_get_string (val), NULL);
-	gtk_entry_set_text (GTK_ENTRY (widget), text);
+	gtk_editable_set_text (GTK_EDITABLE (widget), text);
 	g_free (text);
 }
 
 static void
 escapedStringCriteriaGetWidgetData (GtkWidget *widget, GValue *val)
 {
-	char *text = g_uri_escape_string (gtk_entry_get_text (GTK_ENTRY (widget)), G_URI_RESERVED_CHARS_ALLOWED_IN_PATH, TRUE);
+	char *text = g_uri_escape_string (gtk_editable_get_text (GTK_EDITABLE (widget)), G_URI_RESERVED_CHARS_ALLOWED_IN_PATH, TRUE);
 
 	g_value_init (val, G_TYPE_STRING);
 	g_value_set_string (val, text);
@@ -487,15 +487,15 @@ durationCriteriaCreateWidget (gboolean *constrain)
 	box = GTK_BOX (gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 3));
 
 	minutesSpin = gtk_spin_button_new_with_range (0.0, (double)((G_MAXINT - 59) / 60), 1.0);
-	gtk_box_pack_start (box, minutesSpin, FALSE, FALSE, 0);
+	gtk_box_append (box, minutesSpin);
 
 	minutesLabel = gtk_label_new (":");
-	gtk_box_pack_start (box, minutesLabel, FALSE, FALSE, 0);
+	gtk_box_append (box, minutesLabel);
 
 	secondsSpin = gtk_spin_button_new_with_range (0.0, 59.0, 1.0);
-	gtk_box_pack_start (box, secondsSpin, FALSE, FALSE, 0);
+	gtk_box_append (box, secondsSpin);
 
-	gtk_widget_show_all (GTK_WIDGET (box));
+	gtk_widget_show (GTK_WIDGET (box));
 	return GTK_WIDGET (box);
 }
 
@@ -565,17 +565,17 @@ relativeTimeCriteriaCreateWidget (gboolean *constrain)
 	box = GTK_BOX (gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6));
 
 	timeSpin = gtk_spin_button_new_with_range (1.0, G_MAXINT, 1.0);
-	gtk_box_pack_start (box, timeSpin, TRUE, TRUE, 0);
+	gtk_box_append (box, timeSpin);
 
 	timeOption = create_time_unit_option_menu (time_unit_options, G_N_ELEMENTS (time_unit_options));
 	gtk_combo_box_set_active (GTK_COMBO_BOX (timeOption), time_unit_options_default);
-	gtk_box_pack_start (box, timeOption, TRUE, TRUE, 0);
+	gtk_box_append (box, timeOption);
 
 	g_signal_connect_object (timeOption, "changed",
 				 G_CALLBACK (update_time_unit_limits),
 				 timeSpin, 0);
 
-	gtk_widget_show_all (GTK_WIDGET (box));
+	gtk_widget_show (GTK_WIDGET (box));
 	return GTK_WIDGET (box);
 }
 

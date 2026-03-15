@@ -617,9 +617,9 @@ rate_song (GDBusProxy *mpris, gdouble song_rating)
 	g_variant_builder_add (&props, "{sv}", "rating", g_variant_new_double (song_rating));
 
 	g_dbus_connection_call_sync (g_dbus_proxy_get_connection (mpris),
-				     "org.gnome.Rhythmbox3",
-				     "/org/gnome/Rhythmbox3/RhythmDB",
-				     "org.gnome.Rhythmbox3.RhythmDB",
+				     "org.gnome.Rhythmbox",
+				     "/org/gnome/Rhythmbox/RhythmDB",
+				     "org.gnome.Rhythmbox.RhythmDB",
 				     "SetEntryProperties",
 				     g_variant_new ("(sa{sv})", g_variant_get_string (v, NULL), &props),
 				     NULL,
@@ -1056,8 +1056,8 @@ main (int argc, char **argv)
 	if (no_start || check_running || quit) {
 		GDBusProxy *app_proxy;
 		app_proxy = g_dbus_proxy_new_sync (bus, G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START, NULL,
-						   "org.gnome.Rhythmbox3",
-						   "/org/gnome/Rhythmbox3",
+						   "org.gnome.Rhythmbox",
+						   "/org/gnome/Rhythmbox",
 						   "org.gtk.Actions",
 						   NULL,
 						   &error);
@@ -1074,7 +1074,7 @@ main (int argc, char **argv)
 		g_object_unref (app_proxy);
 	}
 
-	app = g_application_new ("org.gnome.Rhythmbox3", G_APPLICATION_IS_LAUNCHER);
+	app = g_application_new ("org.gnome.Rhythmbox", G_APPLICATION_IS_LAUNCHER);
 	if (g_application_register (app, NULL, &error) == FALSE) {
 		if (check_running) {
 			rb_debug ("no running instance found");
@@ -1101,7 +1101,7 @@ main (int argc, char **argv)
 
 		rb_debug ("waiting for app startup");
 		mainloop = g_main_loop_new (NULL, FALSE);
-		group = g_dbus_action_group_get (bus, "org.gnome.Rhythmbox3", "/org/gnome/Rhythmbox3");
+		group = g_dbus_action_group_get (bus, "org.gnome.Rhythmbox", "/org/gnome/Rhythmbox");
 		/* make sure the group gets initialised and put in strict mode */
 		g_action_group_has_action (G_ACTION_GROUP (group), "load-uri");
 		g_signal_connect (group, "action-state-changed", G_CALLBACK (state_changed_cb), NULL);
@@ -1135,9 +1135,9 @@ main (int argc, char **argv)
 	queue = g_dbus_proxy_new_sync (bus,
 				       G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START,
 				       NULL,
-				       "org.gnome.Rhythmbox3",
-				       "/org/gnome/Rhythmbox3/PlayQueue",
-				       "org.gnome.Rhythmbox3.PlayQueue",
+				       "org.gnome.Rhythmbox",
+				       "/org/gnome/Rhythmbox/PlayQueue",
+				       "org.gnome.Rhythmbox.PlayQueue",
 				       NULL,
 				       &error);
 	if (queue == NULL || proxy_has_name_owner (queue) == FALSE) {

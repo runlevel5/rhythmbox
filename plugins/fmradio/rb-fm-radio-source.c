@@ -87,7 +87,11 @@ struct _RBFMRadioSourcePrivate {
 	GMenuModel *popup;
 };
 
-G_DEFINE_DYNAMIC_TYPE (RBFMRadioSource, rb_fm_radio_source, RB_TYPE_SOURCE);
+G_DEFINE_DYNAMIC_TYPE_EXTENDED (RBFMRadioSource,
+	rb_fm_radio_source,
+	RB_TYPE_SOURCE,
+	0,
+	G_ADD_PRIVATE_DYNAMIC (RBFMRadioSource));
 
 G_DEFINE_DYNAMIC_TYPE (RBFMRadioEntryType, rb_fm_radio_entry_type, RHYTHMDB_TYPE_ENTRY_TYPE);
 
@@ -131,7 +135,6 @@ rb_fm_radio_source_class_init (RBFMRadioSourceClass *class)
 	source_class->delete_selected = impl_delete_selected;
 	source_class->get_entry_view = impl_get_entry_view;
 
-	g_type_class_add_private (class, sizeof (RBFMRadioSourcePrivate));
 }
 
 static void
@@ -142,8 +145,7 @@ rb_fm_radio_source_class_finalize (RBFMRadioSourceClass *class)
 static void
 rb_fm_radio_source_init (RBFMRadioSource *self)
 {
-	self->priv = G_TYPE_INSTANCE_GET_PRIVATE (
-		self, RB_TYPE_FM_RADIO_SOURCE, RBFMRadioSourcePrivate);
+	self->priv = rb_fm_radio_source_get_instance_private (self);
 }
 
 static void
@@ -152,7 +154,7 @@ rb_fm_radio_source_constructed (GObject *object)
 	RBFMRadioSource *self;
 	RBShell *shell;
 	RBSourceToolbar *toolbar;
-	GtkAccelGroup *accel_group;
+	gpointer accel_group;
 	GtkWidget *grid;
 	GActionEntry actions[] = {
 		{ "fmradio-new-station", new_station_action_cb }
@@ -203,8 +205,8 @@ rb_fm_radio_source_constructed (GObject *object)
 	grid = gtk_grid_new ();
 	gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (toolbar), 0, 0, 1, 1);
 	gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (self->priv->stations), 0, 1, 1, 1);
-	gtk_container_add (GTK_CONTAINER (self), grid);
-	gtk_widget_show_all (GTK_WIDGET (self));
+	gtk_box_append (GTK_BOX (self), grid);
+	gtk_widget_show (GTK_WIDGET (self));
 
 	rb_fm_radio_source_do_query (self);
 
@@ -308,8 +310,6 @@ rb_fm_radio_source_songs_view_show_popup (RBEntryView *view,
 					  gboolean over_entry,
 					  RBFMRadioSource *source)
 {
-	GtkWidget *menu;
-
 	if (over_entry == FALSE)
 		return;
 
@@ -325,15 +325,7 @@ rb_fm_radio_source_songs_view_show_popup (RBEntryView *view,
 		g_object_unref (builder);
 	}
 
-	menu = gtk_menu_new_from_model (source->priv->popup);
-	gtk_menu_attach_to_widget (GTK_MENU (menu), GTK_WIDGET (source), NULL);
-	gtk_menu_popup (GTK_MENU (menu),
-			NULL,
-			NULL,
-			NULL,
-			NULL,
-			3,
-			gtk_get_current_event_time ());
+	rb_entry_view_popup_menu (view, source->priv->popup);
 }
 
 void
@@ -389,24 +381,17 @@ new_station_location_added (RBURIDialog *dialog, const char *frequency,
 }
 
 static void
-new_station_response_cb (GtkDialog *dialog, int response, gpointer meh)
-{
-	gtk_widget_destroy (GTK_WIDGET (dialog));
-}
-
-static void
 new_station_action_cb (GSimpleAction *action, GVariant *parameter, gpointer data)
 {
 	RBFMRadioSource *source = RB_FM_RADIO_SOURCE (data);
-	GtkWidget *dialog;
+	AdwDialog *dialog;
 
 	dialog = rb_uri_dialog_new (_("New FM Radio Station"),
 				    _("Frequency of radio station"));
 	g_signal_connect_object (dialog, "location-added",
 				 G_CALLBACK (new_station_location_added),
 				 source, 0);
-	g_signal_connect (dialog, "response", G_CALLBACK (new_station_response_cb), NULL);
-	gtk_widget_show_all (dialog);
+	adw_dialog_present (dialog, GTK_WIDGET (source));
 }
 
 static void

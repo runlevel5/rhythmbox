@@ -58,7 +58,7 @@ struct _RBAsyncCopyPrivate
 	GDestroyNotify destroy_progress_data;
 };
 
-G_DEFINE_TYPE (RBAsyncCopy, rb_async_copy, G_TYPE_OBJECT);
+G_DEFINE_TYPE_WITH_PRIVATE (RBAsyncCopy, rb_async_copy, G_TYPE_OBJECT)
 
 static void
 progress_cb (goffset current_num_bytes, goffset total_bytes, gpointer data)
@@ -223,7 +223,7 @@ impl_finalize (GObject *object)
 static void
 rb_async_copy_init (RBAsyncCopy *copy)
 {
-	copy->priv = G_TYPE_INSTANCE_GET_PRIVATE (copy, RB_TYPE_ASYNC_COPY, RBAsyncCopyPrivate);
+	copy->priv = rb_async_copy_get_instance_private (copy);
 }
 
 static void
@@ -233,5 +233,4 @@ rb_async_copy_class_init (RBAsyncCopyClass *klass)
 
 	object_class->finalize = impl_finalize;
 
-	g_type_class_add_private (klass, sizeof (RBAsyncCopyPrivate));
 }

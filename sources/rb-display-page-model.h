@@ -66,7 +66,7 @@ struct _RBDisplayPageModelClass
 	void (*drop_received) (RBDisplayPageModel *model,
 			       RBDisplayPage *target,
 			       GtkTreeViewDropPosition pos,
-			       GtkSelectionData *data);
+			       gpointer data);
 	void (*page_inserted) (RBDisplayPageModel *model,
 			       RBDisplayPage *page,
 			       GtkTreeIter *iter);

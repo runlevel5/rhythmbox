@@ -137,7 +137,6 @@ rb_daap_container_record_class_init (RBDAAPContainerRecordClass *klass)
 {
 	GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
 
-	g_type_class_add_private (klass, sizeof (RBDAAPContainerRecordPrivate));
 
 	gobject_class->set_property = rb_daap_container_record_set_property;
 	gobject_class->get_property = rb_daap_container_record_get_property;
@@ -168,6 +167,7 @@ G_DEFINE_DYNAMIC_TYPE_EXTENDED (RBDAAPContainerRecord,
 				rb_daap_container_record,
 				G_TYPE_OBJECT,
 				0,
+				G_ADD_PRIVATE_DYNAMIC (RBDAAPContainerRecord)
 				G_IMPLEMENT_INTERFACE_DYNAMIC (DMAP_TYPE_CONTAINER_RECORD,
 							       rb_daap_container_record_daap_iface_init))
 

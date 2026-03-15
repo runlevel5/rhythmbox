@@ -44,7 +44,7 @@ struct _RBObjectPropertyEditorPrivate
 	gulong notify_id;
 };
 
-G_DEFINE_TYPE (RBObjectPropertyEditor, rb_object_property_editor, GTK_TYPE_GRID);
+G_DEFINE_TYPE_WITH_PRIVATE (RBObjectPropertyEditor, rb_object_property_editor, GTK_TYPE_GRID);
 
 /**
  * SECTION:rbobjectpropertyeditor
@@ -347,9 +347,7 @@ impl_get_property (GObject *object, guint prop_id, GValue *value, GParamSpec *ps
 static void
 rb_object_property_editor_init (RBObjectPropertyEditor *editor)
 {
-	editor->priv = G_TYPE_INSTANCE_GET_PRIVATE (editor,
-						    RB_TYPE_OBJECT_PROPERTY_EDITOR,
-						    RBObjectPropertyEditorPrivate);
+	editor->priv = rb_object_property_editor_get_instance_private (editor);
 }
 
 
@@ -409,7 +407,6 @@ rb_object_property_editor_class_init (RBObjectPropertyEditorClass *klass)
 							     G_TYPE_STRV,
 							     G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
-	g_type_class_add_private (klass, sizeof (RBObjectPropertyEditorPrivate));
 }
 
 /**

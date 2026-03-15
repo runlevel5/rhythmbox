@@ -61,6 +61,7 @@
 #include <glib.h>
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
+#include <adwaita.h>
 
 #include "rb-application.h"
 #include "rb-property-view.h"
@@ -236,7 +237,7 @@ struct RBShellPlayerPrivate
 	guint error_idle_id;
 };
 
-#define RB_SHELL_PLAYER_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_SHELL_PLAYER, RBShellPlayerPrivate))
+#define RB_SHELL_PLAYER_GET_PRIVATE(o) (rb_shell_player_get_instance_private (o))
 
 enum
 {
@@ -274,7 +275,7 @@ enum
 
 static guint rb_shell_player_signals[LAST_SIGNAL] = { 0 };
 
-G_DEFINE_TYPE (RBShellPlayer, rb_shell_player, G_TYPE_OBJECT)
+G_DEFINE_TYPE_WITH_PRIVATE (RBShellPlayer, rb_shell_player, G_TYPE_OBJECT)
 
 static void
 volume_pre_unmount_cb (GVolumeMonitor *monitor,
@@ -3308,13 +3309,20 @@ rb_shell_player_init (RBShellPlayer *player)
 	player->priv->mmplayer = rb_player_new (g_settings_get_boolean (player->priv->settings, "use-xfade-backend"),
 					        &error);
 	if (error != NULL) {
-		GtkWidget *dialog;
-		dialog = gtk_message_dialog_new (NULL, GTK_DIALOG_MODAL,
-						 GTK_MESSAGE_ERROR,
-						 GTK_BUTTONS_CLOSE,
-						 _("Failed to create the player: %s"),
-						 error->message);
-		gtk_dialog_run (GTK_DIALOG (dialog));
+		AdwDialog *dialog;
+		char *body;
+		GtkWidget *parent_widget;
+
+		body = g_strdup_printf (_("Failed to create the player: %s"), error->message);
+		dialog = adw_alert_dialog_new (_("Player Error"), body);
+		g_free (body);
+		adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "close", _("_Close"));
+		adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "close");
+		adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "close");
+
+		parent_widget = GTK_WIDGET (gtk_application_get_active_window (GTK_APPLICATION (g_application_get_default ())));
+		if (parent_widget != NULL)
+			adw_dialog_present (dialog, parent_widget);
 		exit (1);
 	}
 
@@ -3768,7 +3776,6 @@ rb_shell_player_class_init (RBShellPlayerClass *klass)
 			      1,
 			      G_TYPE_INT64);
 
-	g_type_class_add_private (klass, sizeof (RBShellPlayerPrivate));
 }
 
 /**

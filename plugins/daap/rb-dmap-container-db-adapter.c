@@ -136,7 +136,6 @@ rb_dmap_container_db_adapter_init (RBDMAPContainerDbAdapter *db)
 static void
 rb_dmap_container_db_adapter_class_init (RBDMAPContainerDbAdapterClass *klass)
 {
-	g_type_class_add_private (klass, sizeof (RBDMAPContainerDbAdapterPrivate));
 }
 
 static void
@@ -160,6 +159,7 @@ G_DEFINE_DYNAMIC_TYPE_EXTENDED (RBDMAPContainerDbAdapter,
 				rb_dmap_container_db_adapter,
 				G_TYPE_OBJECT,
 				0,
+				G_ADD_PRIVATE_DYNAMIC (RBDMAPContainerDbAdapter)
 				G_IMPLEMENT_INTERFACE_DYNAMIC (DMAP_TYPE_CONTAINER_DB,
 							       rb_dmap_container_db_adapter_interface_init))
 

@@ -14,11 +14,12 @@ category on [GNOME Discourse](https://discourse.gnome.org/).
 
 Rhythmbox requires the following packages:
 
-- A working GNOME platform including glib 2.66, gtk+ 3.16, and libsoup 3
+- A working GNOME platform including glib 2.66, gtk4 4.21.6, and libadwaita 1.8
+- libsoup 3
 - meson 0.59 or newer
 - totem-plparser 3.2.0 or newer
-- GStreamer 1.4.0. or newer and associated plugin packages
-- libpeas 0.7.3 or newer
+- GStreamer 1.4.0 or newer and associated plugin packages
+- libpeas 2.0 or newer
 - json-glib
 - libxml2 2.7.8 or newer
 - tdb 1.2.6 or newer
@@ -26,7 +27,11 @@ Rhythmbox requires the following packages:
 
 Rhythmbox can also make use of the following packages:
 
-- pygobject 3.0.0 or newer (for python plugin support)
+- pygobject 3.53.0 or newer (for python plugin support)
+- libpeas python loader (e.g. `libpeas-loader-python` on Fedora) — runtime
+  dependency required for Python plugins such as Magnatune, Lyrics, ReplayGain,
+  and others. The build will succeed without it, but Python plugins will
+  silently fail to load at startup.
 - GUdev 143 or newer (for iPod and generic audio player support)
 - libgpod 0.7.92 or newer (for iPod support)
 - libnotify 0.7 or newer

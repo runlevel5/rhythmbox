@@ -91,7 +91,7 @@ struct RBImportDialogPrivate
 
 	GtkWidget *info_bar;
 	GtkWidget *info_bar_container;
-	GtkWidget *file_chooser;
+	GtkWidget *folder_button;
 	GtkWidget *copy_check;
 	GtkWidget *import_button;
 
@@ -110,7 +110,7 @@ struct RBImportDialogPrivate
 
 static guint signals[LAST_SIGNAL] = {0,};
 
-G_DEFINE_TYPE (RBImportDialog, rb_import_dialog, GTK_TYPE_GRID);
+G_DEFINE_TYPE_WITH_PRIVATE (RBImportDialog, rb_import_dialog, GTK_TYPE_GRID);
 
 static void
 rb_import_dialog_entry_type_class_init (RBImportDialogEntryTypeClass *klass)
@@ -175,7 +175,7 @@ static void
 clear_info_bar (RBImportDialog *dialog)
 {
 	if (dialog->priv->info_bar != NULL) {
-		gtk_container_remove (GTK_CONTAINER (dialog->priv->info_bar_container), dialog->priv->info_bar);
+		gtk_box_remove (GTK_BOX (dialog->priv->info_bar_container), dialog->priv->info_bar);
 		dialog->priv->info_bar = NULL;
 	}
 }
@@ -288,7 +288,7 @@ import_clicked_cb (GtkButton *button, RBImportDialog *dialog)
 	if (entries == NULL)
 		return;
 
-	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (dialog->priv->copy_check)) == FALSE) {
+	if (gtk_check_button_get_active (GTK_CHECK_BUTTON (dialog->priv->copy_check)) == FALSE) {
 		dialog->priv->add_entry_list = g_list_concat (dialog->priv->add_entry_list, entries);
 
 		if (dialog->priv->add_entries_id == 0) {
@@ -360,18 +360,46 @@ static void
 device_info_bar_response_cb (GtkInfoBar *bar, gint response, RBImportDialog *dialog)
 {
 	RBSource *source;
-	const char *uri;
 
 	hide_import_job (dialog);
 	g_signal_emit (dialog, signals[CLOSED], 0);
-	uri = gtk_file_chooser_get_uri (GTK_FILE_CHOOSER (dialog->priv->file_chooser));
-	source = rb_shell_guess_source_for_uri (dialog->priv->shell, uri);
+
+	source = rb_shell_guess_source_for_uri (dialog->priv->shell, dialog->priv->current_uri);
 	rb_shell_activate_source (dialog->priv->shell, source, FALSE, NULL);
 }
 
 
 static void
-current_folder_changed_cb (GtkFileChooser *chooser, RBImportDialog *dialog)
+update_folder_button_label (RBImportDialog *dialog)
+{
+	GtkWidget *box;
+	GtkWidget *icon;
+	GtkWidget *label;
+	const char *text;
+	char *basename = NULL;
+
+	if (dialog->priv->current_uri != NULL) {
+		GFile *file = g_file_new_for_uri (dialog->priv->current_uri);
+		basename = g_file_get_basename (file);
+		text = basename;
+		g_object_unref (file);
+	} else {
+		text = _("(None)");
+	}
+
+	box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+	icon = gtk_image_new_from_icon_name ("folder-symbolic");
+	label = gtk_label_new (text);
+	gtk_label_set_ellipsize (GTK_LABEL (label), PANGO_ELLIPSIZE_END);
+	gtk_box_append (GTK_BOX (box), icon);
+	gtk_box_append (GTK_BOX (box), label);
+	gtk_menu_button_set_child (GTK_MENU_BUTTON (dialog->priv->folder_button), box);
+
+	g_free (basename);
+}
+
+static void
+start_import_for_current_folder (RBImportDialog *dialog)
 {
 	GSettings *settings;
 	RBSource *source;
@@ -379,12 +407,10 @@ current_folder_changed_cb (GtkFileChooser *chooser, RBImportDialog *dialog)
 	const char *uri;
 	char **locations;
 	int i;
-	
-	uri = gtk_file_chooser_get_uri (chooser);
-	if (g_strcmp0 (uri, dialog->priv->current_uri) == 0)
+
+	uri = dialog->priv->current_uri;
+	if (uri == NULL)
 		return;
-	g_free (dialog->priv->current_uri);
-	dialog->priv->current_uri = g_strdup (uri);
 
 	if (dialog->priv->import_job != NULL) {
 		rhythmdb_import_job_cancel (dialog->priv->import_job);
@@ -397,7 +423,6 @@ current_folder_changed_cb (GtkFileChooser *chooser, RBImportDialog *dialog)
 		if (RB_IS_DEVICE_SOURCE (source)) {
 			char *msg;
 			char *name;
-			GtkWidget *content;
 
 			rhythmdb_entry_delete_by_type (dialog->priv->db, dialog->priv->entry_type);
 			rhythmdb_entry_delete_by_type (dialog->priv->db, dialog->priv->ignore_type);
@@ -412,8 +437,7 @@ current_folder_changed_cb (GtkFileChooser *chooser, RBImportDialog *dialog)
 			msg = g_strdup_printf (_("The location you have selected is on the device %s."), name);
 			label = gtk_label_new (msg);
 			g_free (msg);
-			content = gtk_info_bar_get_content_area (GTK_INFO_BAR (dialog->priv->info_bar));
-			gtk_container_add (GTK_CONTAINER (content), label);
+			gtk_info_bar_add_child (GTK_INFO_BAR (dialog->priv->info_bar), label);
 
 			msg = g_strdup_printf (_("Show %s"), name);
 			gtk_info_bar_add_button (GTK_INFO_BAR (dialog->priv->info_bar), msg, GTK_RESPONSE_ACCEPT);
@@ -421,8 +445,8 @@ current_folder_changed_cb (GtkFileChooser *chooser, RBImportDialog *dialog)
 
 			g_signal_connect (dialog->priv->info_bar, "response", G_CALLBACK (device_info_bar_response_cb), dialog);
 
-			gtk_widget_show_all (dialog->priv->info_bar);
-			gtk_container_add (GTK_CONTAINER (dialog->priv->info_bar_container), dialog->priv->info_bar);
+			gtk_widget_set_visible (dialog->priv->info_bar, TRUE);
+			gtk_box_append (GTK_BOX (dialog->priv->info_bar_container), dialog->priv->info_bar);
 			return;
 		}
 	}
@@ -449,6 +473,202 @@ current_folder_changed_cb (GtkFileChooser *chooser, RBImportDialog *dialog)
 	}
 }
 
+static void
+folder_dialog_cb (GObject *source_object, GAsyncResult *result, gpointer user_data)
+{
+	RBImportDialog *dialog = RB_IMPORT_DIALOG (user_data);
+	GtkFileDialog *file_dialog = GTK_FILE_DIALOG (source_object);
+	GFile *folder;
+	GError *error = NULL;
+	char *uri;
+
+	folder = gtk_file_dialog_select_folder_finish (file_dialog, result, &error);
+	if (folder == NULL) {
+		if (!g_error_matches (error, GTK_DIALOG_ERROR, GTK_DIALOG_ERROR_CANCELLED) &&
+		    !g_error_matches (error, GTK_DIALOG_ERROR, GTK_DIALOG_ERROR_DISMISSED)) {
+			rb_debug ("folder selection error: %s", error->message);
+		}
+		g_clear_error (&error);
+		return;
+	}
+
+	uri = g_file_get_uri (folder);
+	if (g_strcmp0 (uri, dialog->priv->current_uri) != 0) {
+		g_free (dialog->priv->current_uri);
+		dialog->priv->current_uri = g_strdup (uri);
+		update_folder_button_label (dialog);
+		start_import_for_current_folder (dialog);
+	}
+	g_free (uri);
+	g_object_unref (folder);
+}
+
+typedef struct {
+	GUserDirectory xdg_dir;
+	const char *label;
+	const char *icon_name;
+} FolderEntry;
+
+static const FolderEntry xdg_folders[] = {
+	{ G_USER_DIRECTORY_MUSIC,       N_("Music"),       "folder-music-symbolic" },
+	{ G_USER_DIRECTORY_DESKTOP,     N_("Desktop"),     "user-desktop-symbolic" },
+	{ G_USER_DIRECTORY_DOCUMENTS,   N_("Documents"),   "folder-documents-symbolic" },
+	{ G_USER_DIRECTORY_DOWNLOAD,    N_("Downloads"),   "folder-download-symbolic" },
+	{ G_USER_DIRECTORY_PICTURES,    N_("Pictures"),    "folder-pictures-symbolic" },
+	{ G_USER_DIRECTORY_VIDEOS,      N_("Videos"),      "folder-videos-symbolic" },
+};
+
+static void
+folder_row_activated_cb (GtkListBox *listbox, GtkListBoxRow *row, RBImportDialog *dialog)
+{
+	const char *uri;
+
+	uri = g_object_get_data (G_OBJECT (row), "folder-uri");
+	if (uri == NULL) {
+		/* "Other..." row — open GtkFileDialog */
+		GtkFileDialog *file_dialog;
+		GtkRoot *root;
+
+		file_dialog = gtk_file_dialog_new ();
+		gtk_file_dialog_set_title (file_dialog, _("Select Music Folder"));
+
+		if (dialog->priv->current_uri != NULL) {
+			GFile *current = g_file_new_for_uri (dialog->priv->current_uri);
+			gtk_file_dialog_set_initial_folder (file_dialog, current);
+			g_object_unref (current);
+		}
+
+		root = gtk_widget_get_root (GTK_WIDGET (dialog));
+		gtk_file_dialog_select_folder (file_dialog,
+					       GTK_WINDOW (root),
+					       NULL,
+					       folder_dialog_cb,
+					       dialog);
+		g_object_unref (file_dialog);
+	} else {
+		if (g_strcmp0 (uri, dialog->priv->current_uri) != 0) {
+			g_free (dialog->priv->current_uri);
+			dialog->priv->current_uri = g_strdup (uri);
+			update_folder_button_label (dialog);
+			start_import_for_current_folder (dialog);
+		}
+	}
+
+	/* dismiss the popover */
+	gtk_menu_button_popdown (GTK_MENU_BUTTON (dialog->priv->folder_button));
+}
+
+static GtkWidget *
+create_folder_row (const char *icon_name, const char *label_text, const char *uri)
+{
+	GtkWidget *row;
+	GtkWidget *box;
+	GtkWidget *icon;
+	GtkWidget *label;
+
+	box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 8);
+	gtk_widget_set_margin_start (box, 6);
+	gtk_widget_set_margin_end (box, 6);
+	gtk_widget_set_margin_top (box, 4);
+	gtk_widget_set_margin_bottom (box, 4);
+
+	icon = gtk_image_new_from_icon_name (icon_name);
+	label = gtk_label_new (label_text);
+	gtk_label_set_xalign (GTK_LABEL (label), 0.0);
+	gtk_widget_set_hexpand (label, TRUE);
+
+	gtk_box_append (GTK_BOX (box), icon);
+	gtk_box_append (GTK_BOX (box), label);
+
+	row = gtk_list_box_row_new ();
+	gtk_list_box_row_set_child (GTK_LIST_BOX_ROW (row), box);
+
+	if (uri != NULL) {
+		g_object_set_data_full (G_OBJECT (row), "folder-uri", g_strdup (uri), g_free);
+	}
+	/* uri == NULL means "Other..." row */
+
+	return row;
+}
+
+static GtkWidget *
+build_folder_popover (RBImportDialog *dialog)
+{
+	GtkWidget *popover;
+	GtkWidget *scrolled;
+	GtkWidget *listbox;
+	GtkWidget *separator;
+	GHashTable *seen_paths;
+
+	popover = gtk_popover_new ();
+
+	listbox = gtk_list_box_new ();
+	gtk_list_box_set_selection_mode (GTK_LIST_BOX (listbox), GTK_SELECTION_NONE);
+	g_signal_connect (listbox, "row-activated", G_CALLBACK (folder_row_activated_cb), dialog);
+
+	seen_paths = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+
+	/* add XDG directories that exist */
+	for (int i = 0; i < G_N_ELEMENTS (xdg_folders); i++) {
+		const char *path = g_get_user_special_dir (xdg_folders[i].xdg_dir);
+		if (path != NULL && !g_hash_table_contains (seen_paths, path)) {
+			char *uri = g_filename_to_uri (path, NULL, NULL);
+			if (uri != NULL) {
+				gtk_list_box_append (GTK_LIST_BOX (listbox),
+						    create_folder_row (xdg_folders[i].icon_name,
+								       _(xdg_folders[i].label),
+								       uri));
+				g_hash_table_add (seen_paths, g_strdup (path));
+				g_free (uri);
+			}
+		}
+	}
+
+	/* add Home directory */
+	{
+		const char *home = g_get_home_dir ();
+		if (home != NULL && !g_hash_table_contains (seen_paths, home)) {
+			char *uri = g_filename_to_uri (home, NULL, NULL);
+			if (uri != NULL) {
+				gtk_list_box_append (GTK_LIST_BOX (listbox),
+						    create_folder_row ("user-home-symbolic",
+								       _("Home"),
+								       uri));
+				g_free (uri);
+			}
+		}
+	}
+
+	g_hash_table_destroy (seen_paths);
+
+	/* separator before "Other..." */
+	{
+		GtkWidget *sep_row;
+		separator = gtk_separator_new (GTK_ORIENTATION_HORIZONTAL);
+		gtk_list_box_append (GTK_LIST_BOX (listbox), separator);
+		sep_row = gtk_widget_get_parent (separator);
+		gtk_list_box_row_set_activatable (GTK_LIST_BOX_ROW (sep_row), FALSE);
+		gtk_list_box_row_set_selectable (GTK_LIST_BOX_ROW (sep_row), FALSE);
+	}
+
+	/* "Other..." row — no uri data means it opens a file dialog */
+	gtk_list_box_append (GTK_LIST_BOX (listbox),
+			     create_folder_row ("folder-open-symbolic",
+						_("Other\xE2\x80\xA6"),
+						NULL));
+
+	scrolled = gtk_scrolled_window_new ();
+	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled),
+					GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+	gtk_scrolled_window_set_max_content_height (GTK_SCROLLED_WINDOW (scrolled), 320);
+	gtk_scrolled_window_set_propagate_natural_height (GTK_SCROLLED_WINDOW (scrolled), TRUE);
+	gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (scrolled), listbox);
+
+	gtk_popover_set_child (GTK_POPOVER (popover), scrolled);
+
+	return popover;
+}
+
 static gboolean
 update_status_idle (RBImportDialog *dialog)
 {
@@ -471,7 +691,7 @@ update_status_idle (RBImportDialog *dialog)
 	text = g_strdup_printf (fmt, count);
 	gtk_button_set_label (GTK_BUTTON (dialog->priv->import_button), text);
 	/* a new child label is created each time button label is set */
-	gtk_label_set_attributes (GTK_LABEL (gtk_bin_get_child (GTK_BIN (dialog->priv->import_button))),
+	gtk_label_set_attributes (GTK_LABEL (gtk_button_get_child (GTK_BUTTON (dialog->priv->import_button))),
 				  rb_text_numeric_get_pango_attr_list ());
 	g_free (text);
 
@@ -528,7 +748,6 @@ selection_changed_cb (RBEntryView *view, RBImportDialog *dialog)
 static void
 impl_constructed (GObject *object)
 {
-	GtkStyleContext *context;
 	RBImportDialog *dialog;
 	RhythmDBQuery *query;
 	GtkBuilder *builder;
@@ -559,8 +778,7 @@ impl_constructed (GObject *object)
 	builder = rb_builder_load ("import-dialog.ui", NULL);
 
 	dialog->priv->import_button = GTK_WIDGET (gtk_builder_get_object (builder, "import-button"));
-	context = gtk_widget_get_style_context (GTK_WIDGET (dialog->priv->import_button));
-	gtk_style_context_add_class (context, GTK_STYLE_CLASS_SUGGESTED_ACTION);
+	gtk_widget_add_css_class (GTK_WIDGET (dialog->priv->import_button), "suggested-action");
 	g_signal_connect_object (dialog->priv->import_button, "clicked", G_CALLBACK (import_clicked_cb), dialog, 0);
 	gtk_widget_set_sensitive (dialog->priv->import_button, FALSE);
 
@@ -571,8 +789,12 @@ impl_constructed (GObject *object)
 			  G_CALLBACK (close_clicked_cb),
 			  dialog);
 
-	dialog->priv->file_chooser = GTK_WIDGET (gtk_builder_get_object (builder, "file-chooser-button"));
-	
+	dialog->priv->folder_button = GTK_WIDGET (gtk_builder_get_object (builder, "folder-chooser-button"));
+	{
+		GtkWidget *popover = build_folder_popover (dialog);
+		gtk_menu_button_set_popover (GTK_MENU_BUTTON (dialog->priv->folder_button), popover);
+	}
+
 	/* select the first library location, since the default may be
 	 * the user's home dir or / or something that will take forever to scan.
 	 */
@@ -583,15 +805,9 @@ impl_constructed (GObject *object)
 	} else {
 		dialog->priv->current_uri = g_filename_to_uri (rb_music_dir (), NULL, NULL);
 	}
-	gtk_file_chooser_set_current_folder_uri (GTK_FILE_CHOOSER (dialog->priv->file_chooser),
-						 dialog->priv->current_uri);
+	update_folder_button_label (dialog);
 	g_strfreev (locations);
 	g_object_unref (settings);
-
-	g_signal_connect_object (dialog->priv->file_chooser, "selection-changed", G_CALLBACK (current_folder_changed_cb), dialog, 0);
-
-	/* not sure why we have to set this, it should be the default */
-	gtk_widget_set_vexpand (gtk_widget_get_parent (dialog->priv->file_chooser), FALSE);
 
 	dialog->priv->info_bar_container = GTK_WIDGET (gtk_builder_get_object (builder, "info-bar-container"));
 
@@ -624,7 +840,7 @@ impl_constructed (GObject *object)
 			  dialog);
 	rb_entry_view_set_sorting_order (dialog->priv->entry_view, "Album", GTK_SORT_ASCENDING);
 
-	gtk_container_add (GTK_CONTAINER (gtk_builder_get_object (builder, "entry-view-container")),
+	gtk_box_append (GTK_BOX (gtk_builder_get_object (builder, "entry-view-container")),
 			   GTK_WIDGET (dialog->priv->entry_view));
 
 	dialog->priv->query_model = rhythmdb_query_model_new_empty (dialog->priv->db);
@@ -638,9 +854,14 @@ impl_constructed (GObject *object)
 	g_signal_connect (dialog->priv->query_model, "post-entry-delete", G_CALLBACK (entry_deleted_cb), dialog);
 	g_signal_connect (dialog->priv->query_model, "row-inserted", G_CALLBACK (entry_inserted_cb), dialog);
 
-	gtk_container_add (GTK_CONTAINER (dialog), GTK_WIDGET (gtk_builder_get_object (builder, "import-dialog")));
+	{
+		GtkWidget *import_box = GTK_WIDGET (gtk_builder_get_object (builder, "import-dialog"));
+		gtk_widget_set_hexpand (import_box, TRUE);
+		gtk_widget_set_vexpand (import_box, TRUE);
+		gtk_grid_attach (GTK_GRID (dialog), import_box, 0, 0, 1, 1);
+	}
 
-	gtk_widget_show_all (GTK_WIDGET (dialog));
+	
 	g_object_unref (builder);
 }
 
@@ -679,6 +900,8 @@ impl_dispose (GObject *object)
 		dialog->priv->db = NULL;
 	}
 
+	g_clear_pointer (&dialog->priv->current_uri, g_free);
+
 	G_OBJECT_CLASS (rb_import_dialog_parent_class)->dispose (object);
 }
 
@@ -715,15 +938,14 @@ impl_get_property (GObject *object, guint prop_id, GValue *value, GParamSpec *ps
 static void
 rb_import_dialog_init (RBImportDialog *dialog)
 {
-	dialog->priv = G_TYPE_INSTANCE_GET_PRIVATE (dialog,
-						    RB_TYPE_IMPORT_DIALOG,
-						    RBImportDialogPrivate);
+	dialog->priv = rb_import_dialog_get_instance_private (dialog);
 }
 
 static void
 rb_import_dialog_class_init (RBImportDialogClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
+	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
 	object_class->constructed = impl_constructed;
 	object_class->dispose = impl_dispose;
@@ -757,22 +979,34 @@ rb_import_dialog_class_init (RBImportDialogClass *klass)
 					G_TYPE_NONE,
 					0);
 
-	g_type_class_add_private (object_class, sizeof (RBImportDialogPrivate));
 
-	gtk_binding_entry_add_signal (gtk_binding_set_by_class (klass),
-				      GDK_KEY_Escape,
-				      0,
-				      "close",
-				      0);
+	gtk_widget_class_add_binding_signal (widget_class,
+						    GDK_KEY_Escape, 0,
+						    "close", NULL);
 }
 
 void
 rb_import_dialog_reset (RBImportDialog *dialog)
 {
+	GSettings *settings;
+	char **locations;
+
 	g_free (dialog->priv->current_uri);
 	dialog->priv->current_uri = NULL;
 
-	current_folder_changed_cb (GTK_FILE_CHOOSER (dialog->priv->file_chooser), dialog);
+	/* re-select the first library location */
+	settings = g_settings_new ("org.gnome.rhythmbox.rhythmdb");
+	locations = g_settings_get_strv (settings, "locations");
+	if (locations[0] != NULL) {
+		dialog->priv->current_uri = g_strdup (locations[0]);
+	} else {
+		dialog->priv->current_uri = g_filename_to_uri (rb_music_dir (), NULL, NULL);
+	}
+	g_strfreev (locations);
+	g_object_unref (settings);
+
+	update_folder_button_label (dialog);
+	start_import_for_current_folder (dialog);
 }
 
 GtkWidget *

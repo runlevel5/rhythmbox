@@ -33,7 +33,7 @@
 #include "rb-library-source.h"
 #include "rb-debug.h"
 #include "rb-dialog.h"
-#include "rb-alert-dialog.h"
+#include <adwaita.h>
 #include "rb-gst-media-types.h"
 #include "rb-missing-plugins.h"
 
@@ -77,7 +77,7 @@ struct _RBTrackTransferQueuePrivate
 	time_t current_start_time;
 };
 
-G_DEFINE_TYPE (RBTrackTransferQueue, rb_track_transfer_queue, G_TYPE_OBJECT)
+G_DEFINE_TYPE_WITH_PRIVATE (RBTrackTransferQueue, rb_track_transfer_queue, G_TYPE_OBJECT)
 
 /**
  * SECTION:rbtracktransferqueue
@@ -100,42 +100,26 @@ rb_track_transfer_queue_new (RBShell *shell)
 }
 
 static void
-overwrite_response_cb (GtkDialog *dialog, int response, RBTrackTransferQueue *queue)
+overwrite_response_cb (AdwAlertDialog *dialog, const char *response, RBTrackTransferQueue *queue)
 {
-	gtk_widget_destroy (GTK_WIDGET (dialog));
-
-	switch (response) {
-	case GTK_RESPONSE_YES:
+	if (g_strcmp0 (response, "replace") == 0) {
 		rb_debug ("replacing existing file");
 		_rb_track_transfer_batch_continue (queue->priv->current, TRUE);
-		break;
-
-	case GTK_RESPONSE_NO:
+	} else if (g_strcmp0 (response, "skip") == 0) {
 		rb_debug ("skipping existing file");
 		_rb_track_transfer_batch_continue (queue->priv->current, FALSE);
-		break;
-
-	case GTK_RESPONSE_REJECT:
+	} else if (g_strcmp0 (response, "skip-all") == 0) {
 		rb_debug ("skipping all existing files");
 		queue->priv->overwrite_decision = OVERWRITE_NONE;
 		_rb_track_transfer_batch_continue (queue->priv->current, FALSE);
-		break;
-
-	case GTK_RESPONSE_ACCEPT:
+	} else if (g_strcmp0 (response, "replace-all") == 0) {
 		rb_debug ("replacing all existing files");
 		queue->priv->overwrite_decision = OVERWRITE_ALL;
 		_rb_track_transfer_batch_continue (queue->priv->current, TRUE);
-		break;
-
-	case GTK_RESPONSE_CANCEL:
-	case GTK_RESPONSE_DELETE_EVENT:		/* not sure what the user really wants here */
+	} else {
+		/* "cancel" or close */
 		rb_debug ("cancelling batch");
 		rb_track_transfer_queue_cancel_batch (queue, queue->priv->current);
-		break;
-
-	default:
-		g_assert_not_reached ();
-		break;
 	}
 }
 
@@ -146,7 +130,7 @@ overwrite_prompt (RBTrackTransferBatch *batch, const char *uri, RBTrackTransferQ
 	case OVERWRITE_PROMPT:
 	{
 		GtkWindow *window;
-		GtkWidget *dialog;
+		AdwDialog *dialog;
 		GFile *file;
 		GFileInfo *info;
 		char *text;
@@ -173,26 +157,25 @@ overwrite_prompt (RBTrackTransferBatch *batch, const char *uri, RBTrackTransferQ
 		g_object_get (queue->priv->shell, "window", &window, NULL);
 		text = g_strdup_printf (_("The file \"%s\" already exists. Do you want to replace it?"),
 					display_name);
-		dialog = rb_alert_dialog_new (window,
-					      0,
-					      GTK_MESSAGE_WARNING,
-					      GTK_BUTTONS_NONE,
-					      text,
-					      NULL);
-		g_object_unref (window);
+		dialog = adw_alert_dialog_new (text, NULL);
 		g_free (text);
 
-		rb_alert_dialog_set_details_label (RB_ALERT_DIALOG (dialog), NULL);
-		gtk_dialog_add_buttons (GTK_DIALOG (dialog),
-					_("_Cancel"), GTK_RESPONSE_CANCEL,
-					_("_Skip"), GTK_RESPONSE_NO,
-					_("_Replace"), GTK_RESPONSE_YES,
-					_("S_kip All"), GTK_RESPONSE_REJECT,
-					_("Replace _All"), GTK_RESPONSE_ACCEPT,
-					NULL);
+		adw_alert_dialog_add_responses (ADW_ALERT_DIALOG (dialog),
+						"cancel", _("_Cancel"),
+						"skip", _("_Skip"),
+						"replace", _("_Replace"),
+						"skip-all", _("S_kip All"),
+						"replace-all", _("Replace _All"),
+						NULL);
+		adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog),
+							  "replace", ADW_RESPONSE_DESTRUCTIVE);
+		adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog),
+							  "replace-all", ADW_RESPONSE_DESTRUCTIVE);
+		adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
 
 		g_signal_connect (dialog, "response", G_CALLBACK (overwrite_response_cb), queue);
-		gtk_widget_show (GTK_WIDGET (dialog));
+		adw_dialog_present (dialog, GTK_WIDGET (window));
+		g_object_unref (window);
 		g_free (free_name);
 		if (info != NULL) {
 			g_object_unref (info);
@@ -316,7 +299,7 @@ missing_plugins_retry_cb (gpointer inst, gboolean retry, RBTrackTransferQueue *q
 }
 
 static void
-missing_encoder_response_cb (GtkDialog *dialog, gint response, RBTrackTransferQueue *queue)
+missing_encoder_response_cb (AdwAlertDialog *dialog, const char *response, RBTrackTransferQueue *queue)
 {
 	GClosure *retry;
 	GstEncodingTarget *target;
@@ -325,25 +308,11 @@ missing_encoder_response_cb (GtkDialog *dialog, gint response, RBTrackTransferQu
 	const GList *l;
 	RBEncoder *encoder;
 
-	switch (response) {
-	case GTK_RESPONSE_YES:
+	if (g_strcmp0 (response, "continue") == 0) {
 		/* 'continue' -> start the batch */
 		rb_debug ("starting batch regardless of missing plugins");
 		actually_start_batch (queue);
-		break;
-
-	case GTK_RESPONSE_CANCEL:
-	case GTK_RESPONSE_DELETE_EVENT:
-		/* 'cancel' -> cancel the batch and start the next one */
-		rb_debug ("cancelling batch");
-		_rb_track_transfer_batch_cancel (queue->priv->current);
-		g_object_unref (queue->priv->current);
-		queue->priv->current = NULL;
-
-		start_next_batch (queue);
-		break;
-
-	case GTK_RESPONSE_ACCEPT:
+	} else if (g_strcmp0 (response, "install") == 0) {
 		/* 'install plugins' -> try to install encoder/muxer */
 
 		/* get profiles that need plugins installed */
@@ -367,7 +336,7 @@ missing_encoder_response_cb (GtkDialog *dialog, gint response, RBTrackTransferQu
 		if (profiles == NULL) {
 			rb_debug ("apparently we don't need any plugins any more");
 			actually_start_batch (queue);
-			break;
+			return;
 		}
 
 		rb_debug ("attempting plugin installation");
@@ -386,13 +355,15 @@ missing_encoder_response_cb (GtkDialog *dialog, gint response, RBTrackTransferQu
 		g_closure_sink (retry);
 		g_ptr_array_free (details, TRUE);
 		g_list_free (profiles);
-		break;
+	} else {
+		/* "cancel" or close */
+		rb_debug ("cancelling batch");
+		_rb_track_transfer_batch_cancel (queue->priv->current);
+		g_object_unref (queue->priv->current);
+		queue->priv->current = NULL;
 
-	default:
-		g_assert_not_reached ();
+		start_next_batch (queue);
 	}
-
-	gtk_widget_destroy (GTK_WIDGET (dialog));
 }
 
 static void
@@ -401,7 +372,7 @@ start_next_batch (RBTrackTransferQueue *queue)
 	int count;
 	int total;
 	gboolean can_continue;
-	GtkWidget *dialog;
+	AdwDialog *dialog;
 	GtkWindow *window;
 	GList *profiles = NULL;
 	char *message;
@@ -476,26 +447,23 @@ start_next_batch (RBTrackTransferQueue *queue)
 	}
 
 	g_object_get (queue->priv->shell, "window", &window, NULL);
-	dialog = rb_alert_dialog_new (window,
-				      0,
-				      GTK_MESSAGE_ERROR,
-				      GTK_BUTTONS_NONE,
-				      _("Unable to transfer tracks"),
-				      message);
-	g_object_unref (window);
+	dialog = adw_alert_dialog_new (_("Unable to transfer tracks"), message);
 	g_free (message);
 
-	gtk_dialog_add_button (GTK_DIALOG (dialog), _("_Cancel the transfer"), GTK_RESPONSE_CANCEL);
+	adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "cancel", _("_Cancel the transfer"));
 	if (can_continue) {
-		gtk_dialog_add_button (GTK_DIALOG (dialog), _("_Skip these files"), GTK_RESPONSE_YES);
+		adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "continue", _("_Skip these files"));
 	}
 	if (profiles != NULL && gst_install_plugins_supported ()) {
-		gtk_dialog_add_button (GTK_DIALOG (dialog), _("_Install"), GTK_RESPONSE_ACCEPT);
+		adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "install", _("_Install"));
+		adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog),
+							  "install", ADW_RESPONSE_SUGGESTED);
 	}
 
-	rb_alert_dialog_set_details_label (RB_ALERT_DIALOG (dialog), NULL);
+	adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
 	g_signal_connect_object (dialog, "response", G_CALLBACK (missing_encoder_response_cb), queue, 0);
-	gtk_widget_show (dialog);
+	adw_dialog_present (dialog, GTK_WIDGET (window));
+	g_object_unref (window);
 
 	if (profiles != NULL) {
 		g_list_free (profiles);
@@ -624,9 +592,7 @@ rb_track_transfer_queue_cancel_for_source (RBTrackTransferQueue *queue, RBSource
 static void
 rb_track_transfer_queue_init (RBTrackTransferQueue *queue)
 {
-	queue->priv = G_TYPE_INSTANCE_GET_PRIVATE (queue,
-						   RB_TYPE_TRACK_TRANSFER_QUEUE,
-						   RBTrackTransferQueuePrivate);
+	queue->priv = rb_track_transfer_queue_get_instance_private (queue);
 
 	queue->priv->batch_queue = g_queue_new ();
 }
@@ -772,5 +738,4 @@ rb_track_transfer_queue_class_init (RBTrackTransferQueueClass *klass)
 			      3,
 			      G_TYPE_STRV, G_TYPE_STRV, G_TYPE_CLOSURE);
 
-	g_type_class_add_private (klass, sizeof (RBTrackTransferQueuePrivate));
 }

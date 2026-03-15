@@ -84,7 +84,7 @@ struct RBMissingFilesSourcePrivate
 	GMenuModel *popup;
 };
 
-G_DEFINE_TYPE (RBMissingFilesSource, rb_missing_files_source, RB_TYPE_SOURCE);
+G_DEFINE_TYPE_WITH_PRIVATE (RBMissingFilesSource, rb_missing_files_source, RB_TYPE_SOURCE);
 
 static void
 rb_missing_files_source_class_init (RBMissingFilesSourceClass *klass)
@@ -116,13 +116,12 @@ rb_missing_files_source_class_init (RBMissingFilesSourceClass *klass)
 	source_class->try_playlist = (RBSourceFeatureFunc) rb_false_function;
 	source_class->can_pause = (RBSourceFeatureFunc) rb_false_function;
 
-	g_type_class_add_private (klass, sizeof (RBMissingFilesSourcePrivate));
 }
 
 static void
 rb_missing_files_source_init (RBMissingFilesSource *source)
 {
-	source->priv = G_TYPE_INSTANCE_GET_PRIVATE (source, RB_TYPE_MISSING_FILES_SOURCE, RBMissingFilesSourcePrivate);
+	source->priv = rb_missing_files_source_get_instance_private (source);
 }
 
 static void
@@ -183,13 +182,13 @@ rb_missing_files_source_constructed (GObject *object)
 
 	rb_entry_view_set_columns_clickable (source->priv->view, TRUE);
 
-	gtk_container_add (GTK_CONTAINER (source), GTK_WIDGET (source->priv->view));
+	gtk_box_append (GTK_BOX (source), GTK_WIDGET (source->priv->view));
 	g_signal_connect_object (source->priv->view, "show_popup",
 				 G_CALLBACK (rb_missing_files_source_songs_show_popup_cb), source, 0);
 	g_signal_connect_object (source->priv->view, "notify::sort-order",
 				 G_CALLBACK (rb_missing_files_source_songs_sort_order_changed_cb), source, 0);
 
-	gtk_widget_show_all (GTK_WIDGET (source));
+	gtk_widget_show (GTK_WIDGET (source));
 
 	g_object_set (source, "query-model", model, NULL);
 	g_object_unref (model);
@@ -286,7 +285,6 @@ rb_missing_files_source_songs_show_popup_cb (RBEntryView *view,
 					     gboolean over_entry,
 					     RBMissingFilesSource *source)
 {
-	GtkWidget *menu;
 	GtkBuilder *builder;
 
 	if (over_entry == FALSE)
@@ -299,15 +297,7 @@ rb_missing_files_source_songs_show_popup_cb (RBEntryView *view,
 		g_object_unref (builder);
 	}
 
-	menu = gtk_menu_new_from_model (source->priv->popup);
-	gtk_menu_attach_to_widget (GTK_MENU (menu), GTK_WIDGET (source), NULL);
-	gtk_menu_popup (GTK_MENU (menu),
-			NULL,
-			NULL,
-			NULL,
-			NULL,
-			3,
-			gtk_get_current_event_time ());
+	rb_entry_view_popup_menu (view, source->priv->popup);
 }
 
 static void
@@ -320,7 +310,7 @@ impl_song_properties (RBSource *asource)
 
 	song_info = rb_song_info_new (asource, NULL);
 	if (song_info)
-		gtk_widget_show_all (song_info);
+		adw_dialog_present (ADW_DIALOG (song_info), GTK_WIDGET (source));
 	else
 		rb_debug ("failed to create dialog, or no selection!");
 }

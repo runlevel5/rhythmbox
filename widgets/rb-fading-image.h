@@ -29,6 +29,7 @@
 #define RB_FADING_IMAGE_H
 
 #include <gtk/gtk.h>
+#include "rb-gtk4-compat.h"
 
 G_BEGIN_DECLS
 

@@ -25,7 +25,7 @@
  *
  */
 
-#include <gtk/gtk.h>
+#include <adwaita.h>
 
 #include <rhythmdb/rhythmdb.h>
 
@@ -45,14 +45,14 @@ typedef struct RBFeedPodcastPropertiesDialogPrivate RBFeedPodcastPropertiesDialo
 
 typedef struct
 {
-	GtkDialog parent;
+	AdwDialog parent;
 
 	RBFeedPodcastPropertiesDialogPrivate *priv;
 } RBFeedPodcastPropertiesDialog;
 
 typedef struct
 {
-	GtkDialogClass parent_class;
+	AdwDialogClass parent_class;
 } RBFeedPodcastPropertiesDialogClass;
 
 GType      rb_feed_podcast_properties_dialog_get_type (void);

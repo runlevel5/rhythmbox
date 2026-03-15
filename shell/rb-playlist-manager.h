@@ -104,7 +104,7 @@ RBSource *		rb_playlist_manager_new_playlist (RBPlaylistManager *mgr,
 							  const char *suggested_name,
 							  gboolean automatic);
 RBSource *		rb_playlist_manager_new_playlist_from_selection_data (RBPlaylistManager *mgr,
-                                                                              GtkSelectionData *data);
+                                                                              gpointer data);
 
 GList *			rb_playlist_manager_get_playlists (RBPlaylistManager *mgr);
 

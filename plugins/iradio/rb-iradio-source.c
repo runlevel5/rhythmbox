@@ -111,7 +111,7 @@ void rb_iradio_source_show_columns_changed_cb (GtkToggleButton *button,
 static void stations_view_drag_data_received_cb (GtkWidget *widget,
 						 GdkDragContext *dc,
 						 gint x, gint y,
-						 GtkSelectionData *data,
+						 gpointer data,
 						 guint info, guint time,
 						 RBIRadioSource *source);
 static void new_station_action_cb (GSimpleAction *, GVariant *, gpointer);
@@ -148,14 +148,15 @@ struct RBIRadioSourcePrivate
 	GMenuModel *popup;
 };
 
-#define RB_IRADIO_SOURCE_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), RB_TYPE_IRADIO_SOURCE, RBIRadioSourcePrivate))
+#define RB_IRADIO_SOURCE_GET_PRIVATE(o) (rb_iradio_source_get_instance_private (o))
 
-static const GtkTargetEntry stations_view_drag_types[] = {
-	{  "text/uri-list", 0, 0 },
-	{  "_NETSCAPE_URL", 0, 1 },
-};
+/* TODO: GTK4 DnD content types */
 
-G_DEFINE_DYNAMIC_TYPE (RBIRadioSource, rb_iradio_source, RB_TYPE_STREAMING_SOURCE);
+G_DEFINE_DYNAMIC_TYPE_EXTENDED (RBIRadioSource,
+	rb_iradio_source,
+	RB_TYPE_STREAMING_SOURCE,
+	0,
+	G_ADD_PRIVATE_DYNAMIC (RBIRadioSource));
 
 G_DEFINE_DYNAMIC_TYPE (RBIRadioEntryType, rb_iradio_entry_type, RHYTHMDB_TYPE_ENTRY_TYPE);
 
@@ -208,7 +209,6 @@ rb_iradio_source_class_init (RBIRadioSourceClass *klass)
 					  PROP_SHOW_BROWSER,
 					  "show-browser");
 
-	g_type_class_add_private (klass, sizeof (RBIRadioSourcePrivate));
 }
 
 static void
@@ -265,7 +265,7 @@ rb_iradio_source_constructed (GObject *object)
 	RBIRadioSource *source;
 	RBShell *shell;
 	GSettings *settings;
-	GtkAccelGroup *accel_group;
+	gpointer accel_group;
 	GtkWidget *grid;
 	GtkWidget *paned;
 	GActionEntry actions[] = {
@@ -318,10 +318,7 @@ rb_iradio_source_constructed (GObject *object)
 				 "drag_data_received",
 				 G_CALLBACK (stations_view_drag_data_received_cb),
 				 source, 0);
-	gtk_drag_dest_set (GTK_WIDGET (source->priv->stations),
-			   GTK_DEST_DEFAULT_ALL,
-			   stations_view_drag_types, 2,
-			   GDK_ACTION_COPY | GDK_ACTION_MOVE);
+	/* TODO: set up GtkDropTarget for GTK4 DnD */
 
 	g_signal_connect_object (source->priv->stations, "show_popup",
 				 G_CALLBACK (rb_iradio_source_songs_show_popup_cb), source, 0);
@@ -330,8 +327,8 @@ rb_iradio_source_constructed (GObject *object)
 	source->priv->genres = rb_property_view_new (source->priv->db,
 						     RHYTHMDB_PROP_GENRE,
 						     _("Genre"));
-	gtk_widget_show_all (GTK_WIDGET (source->priv->genres));
-	gtk_widget_set_no_show_all (GTK_WIDGET (source->priv->genres), TRUE);
+	gtk_widget_show (GTK_WIDGET (source->priv->genres));
+	gtk_widget_set_visible (GTK_WIDGET (source->priv->genres), TRUE);
 	g_signal_connect_object (source->priv->genres,
 				 "property-selected",
 				 G_CALLBACK (genre_selected_cb),
@@ -344,8 +341,12 @@ rb_iradio_source_constructed (GObject *object)
 	g_object_set (source->priv->genres, "vscrollbar_policy",
 		      GTK_POLICY_AUTOMATIC, NULL);
 
-	gtk_paned_pack1 (GTK_PANED (paned), GTK_WIDGET (source->priv->genres), FALSE, FALSE);
-	gtk_paned_pack2 (GTK_PANED (paned), GTK_WIDGET (source->priv->stations), TRUE, FALSE);
+	gtk_paned_set_start_child (GTK_PANED (paned), GTK_WIDGET (source->priv->genres));
+	gtk_paned_set_resize_start_child (GTK_PANED (paned), FALSE);
+	gtk_paned_set_shrink_start_child (GTK_PANED (paned), FALSE);
+	gtk_paned_set_end_child (GTK_PANED (paned), GTK_WIDGET (source->priv->stations));
+	gtk_paned_set_resize_end_child (GTK_PANED (paned), TRUE);
+	gtk_paned_set_shrink_end_child (GTK_PANED (paned), FALSE);
 
 	/* set up toolbar */
 	source->priv->toolbar = rb_source_toolbar_new (RB_DISPLAY_PAGE (source), accel_group);
@@ -358,7 +359,7 @@ rb_iradio_source_constructed (GObject *object)
 	gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (source->priv->toolbar), 0, 0, 1, 1);
 	gtk_grid_attach (GTK_GRID (grid), paned, 0, 1, 1, 1);
 
-	gtk_container_add (GTK_CONTAINER (source), grid);
+	gtk_box_append (GTK_BOX (source), grid);
 
 	rb_source_bind_settings (RB_SOURCE (source),
 				 GTK_WIDGET (source->priv->stations),
@@ -366,7 +367,7 @@ rb_iradio_source_constructed (GObject *object)
 				 GTK_WIDGET (source->priv->genres),
 				 TRUE);
 
-	gtk_widget_show_all (GTK_WIDGET (source));
+	gtk_widget_show (GTK_WIDGET (source));
 
 	g_signal_connect_object (source->priv->player, "playing-source-changed",
 				 G_CALLBACK (playing_source_changed_cb),
@@ -625,7 +626,7 @@ impl_song_properties (RBSource *asource)
 
 	rb_debug ("in song properties");
 	if (dialog)
-		gtk_widget_show_all (dialog);
+		adw_dialog_present (ADW_DIALOG (dialog), GTK_WIDGET (source));
 	else
 		rb_debug ("no selection!");
 }
@@ -685,8 +686,6 @@ rb_iradio_source_songs_show_popup_cb (RBEntryView *view,
 				      gboolean over_entry,
 				      RBIRadioSource *source)
 {
-	GtkWidget *menu;
-
 	if (over_entry == FALSE)
 		return;
 
@@ -702,15 +701,7 @@ rb_iradio_source_songs_show_popup_cb (RBEntryView *view,
 		g_object_unref (builder);
 	}
 
-	menu = gtk_menu_new_from_model (source->priv->popup);
-	gtk_menu_attach_to_widget (GTK_MENU (menu), GTK_WIDGET (source), NULL);
-	gtk_menu_popup (GTK_MENU (menu),
-			NULL,
-			NULL,
-			NULL,
-			NULL,
-			3,
-			gtk_get_current_event_time ());
+	rb_entry_view_popup_menu (view, source->priv->popup);
 }
 
 static void
@@ -901,7 +892,7 @@ stations_view_drag_data_received_cb (GtkWidget *widget,
 				     GdkDragContext *dc,
 				     gint x,
 				     gint y,
-				     GtkSelectionData *selection_data,
+				     gpointer selection_data,
 				     guint info,
 				     guint time,
 				     RBIRadioSource *source)
@@ -940,28 +931,18 @@ new_station_location_added (RBURIDialog    *dialog,
 }
 
 static void
-new_station_response_cb (GtkDialog *dialog, int response, gpointer meh)
-{
-	gtk_widget_destroy (GTK_WIDGET (dialog));
-}
-
-static void
 new_station_action_cb (GSimpleAction *action, GVariant *parameter, gpointer data)
 {
 	RBIRadioSource *source = RB_IRADIO_SOURCE (data);
-	GtkWidget *dialog;
+	AdwDialog *dialog;
 
 	rb_debug ("Got new station command");
-
-	/* should prevent multiple dialogs?  going to kill this nonsense anyway soon.. */
 
 	dialog = rb_uri_dialog_new (_("New Internet Radio Station"), _("URL of internet radio station:"));
 	g_signal_connect_object (dialog, "location-added",
 				 G_CALLBACK (new_station_location_added),
 				 source, 0);
-	g_signal_connect (dialog, "response", G_CALLBACK (new_station_response_cb), NULL);
-
-	gtk_widget_show_all (dialog);
+	adw_dialog_present (dialog, GTK_WIDGET (source));
 }
 
 static void

@@ -51,9 +51,11 @@ gboolean toggle_enabled = TRUE;
 guint64 toggle_labels_every = 2 * GB;
 guint64 toggle_reflection_every = 4 * GB;
 
+static gboolean quit_flag = FALSE;
+
 static void window_destroyed_cb (void)
 {
-    	gtk_main_quit ();
+	quit_flag = TRUE;
 }
 
 static gchar *value_formatter (gdouble percent, RBSyncBarData *data)
@@ -124,10 +126,10 @@ int main (int argc, char **argv)
 	RBSegmentedBar *bar;
 	RBSyncBarData *data;
 
-	gtk_init (&argc, &argv);
+	gtk_init ();
 
 	data = g_new0 (RBSyncBarData, 1);
-	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+	window = gtk_window_new ();
 	bar = RB_SEGMENTED_BAR (rb_segmented_bar_new ());
 
 	if (g_strcmp0 (argv [1], "--rtl") == 0)
@@ -151,12 +153,13 @@ int main (int argc, char **argv)
 	g_timeout_add (50, (GSourceFunc) update_segments, data);
 
 	g_object_set (G_OBJECT (bar), "margin", 18, NULL);
-	gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (bar));
-	gtk_window_set_position (GTK_WINDOW (window), GTK_WIN_POS_CENTER);
+	gtk_window_set_child (GTK_WINDOW (window), GTK_WIDGET (bar));
+	
 	gtk_window_set_default_size (GTK_WINDOW( window), 600, -1);
 	gtk_window_set_title (GTK_WINDOW( window), "SegmentedBar Widget Test");
-	gtk_widget_show_all (GTK_WIDGET (window));
-	gtk_main ();
+	gtk_widget_show (GTK_WIDGET (window));
+	while (!quit_flag)
+		g_main_context_iteration (NULL, TRUE);
 
 	g_free (data);
 

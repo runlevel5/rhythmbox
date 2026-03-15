@@ -1,14 +1,14 @@
-option('brasero', type: 'feature', value: 'auto',
+option('brasero', type: 'feature', value: 'disabled',
        description: 'Enable disc burning support using libbrasero-media')
 option('daap', type: 'feature', value: 'disabled',
        description: 'Enable DAAP sharing support using libdmapsharing')
 option('fm_radio', type: 'feature', value: 'auto',
        description: 'Enable FM radio support')
-option('grilo', type: 'feature', value: 'auto',
+option('grilo', type: 'feature', value: 'disabled',
        description: 'Enable Grilo support')
 option('gudev', type: 'feature', value: 'auto',
        description: 'Enable GUdev for hardware detection')
-option('ipod', type: 'feature', value: 'auto',
+option('ipod', type: 'feature', value: 'disabled',
        description: 'Enable iPod support')
 option('libnotify', type: 'feature', value: 'auto',
        description: 'Enable desktop notifications with libnotify')
@@ -16,7 +16,7 @@ option('libsecret', type: 'feature', value: 'auto',
        description: 'Enable keyring support using libsecret')
 option('lirc', type: 'feature', value: 'auto',
        description: 'Enable lirc support')
-option('mtp', type: 'feature', value: 'auto',
+option('mtp', type: 'feature', value: 'disabled',
        description: 'Enable MTP support')
 option('plugins_python', type: 'feature', value: 'auto',
        description: 'Enable Python plugins')

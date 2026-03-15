@@ -56,11 +56,11 @@ class LyricsTab (GObject.GObject):
         self.view       = view
         
         self.button.show()
-        self.button.set_relief (Gtk.ReliefStyle.NONE)
-        self.button.set_focus_on_click(False)
+        self.button.add_css_class("flat")
+        self.button.set_focusable(False)
         self.button.connect ('clicked', 
             lambda button: self.emit('switch-tab', 'lyrics'))
-        toolbar.pack_start (self.button, True, True, 0)
+        toolbar.append(self.button)
 
     def activate (self):
         print("activating Lyrics Tab")

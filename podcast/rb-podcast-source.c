@@ -40,6 +40,7 @@
 #include <glib.h>
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
+#include <adwaita.h>
 #include <libsoup/soup.h>
 
 #include "rb-podcast-source.h"
@@ -62,13 +63,10 @@
 #include "rb-static-playlist-source.h"
 #include "rb-cut-and-paste-code.h"
 #include "rb-source-search-basic.h"
-#include "rb-cell-renderer-pixbuf.h"
 #include "rb-podcast-add-dialog.h"
 #include "rb-source-toolbar.h"
 #include "rb-builder-helpers.h"
 #include "rb-application.h"
-
-#define RESPONSE_REMOVEFILEONLY 1
 
 static void podcast_add_action_cb (GSimpleAction *, GVariant *, gpointer);
 static void podcast_download_action_cb (GSimpleAction *, GVariant *, gpointer);
@@ -111,11 +109,7 @@ struct _RBPodcastSourcePrivate
 };
 
 
-static const GtkTargetEntry posts_view_drag_types[] = {
-	{  "text/uri-list", 0, 0 },
-	{  "_NETSCAPE_URL", 0, 1 },
-	{  "application/rss+xml", 0, 2 },
-};
+/* GtkTargetEntry removed - GTK4 uses GtkDropTarget */
 
 enum
 {
@@ -126,7 +120,7 @@ enum
 	PROP_SHOW_BROWSER
 };
 
-G_DEFINE_TYPE (RBPodcastSource, rb_podcast_source, RB_TYPE_SOURCE)
+G_DEFINE_TYPE_WITH_PRIVATE (RBPodcastSource, rb_podcast_source, RB_TYPE_SOURCE)
 
 static void
 podcast_posts_view_sort_order_changed_cb (GObject *object,
@@ -146,7 +140,6 @@ podcast_posts_show_popup_cb (RBEntryView *view,
 	GList *lst;
 	gboolean downloadable = FALSE;
 	gboolean cancellable = FALSE;
-	GtkWidget *menu;
 	GActionMap *map;
 
 	lst = rb_entry_view_get_selected_entries (view);
@@ -174,9 +167,7 @@ podcast_posts_show_popup_cb (RBEntryView *view,
 	action = g_action_map_lookup_action (map, "podcast-cancel-download");
 	g_simple_action_set_enabled (G_SIMPLE_ACTION (action), cancellable);
 
-	menu = gtk_menu_new_from_model (source->priv->episode_popup);
-	gtk_menu_attach_to_widget (GTK_MENU (menu), GTK_WIDGET (source), NULL);
-	gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL, 3, gtk_get_current_event_time ());
+	rb_entry_view_popup_menu (view, source->priv->episode_popup);
 }
 
 static void
@@ -187,7 +178,6 @@ podcast_feeds_show_popup_cb (RBPropertyView *view,
 	GAction *act_update;
 	GAction *act_properties;
 	GAction *act_delete;
-	GtkWidget *menu;
 	GList *lst;
 
 	lst = source->priv->selected_feeds;
@@ -201,9 +191,7 @@ podcast_feeds_show_popup_cb (RBPropertyView *view,
 	g_simple_action_set_enabled (G_SIMPLE_ACTION (act_properties), lst != NULL);
 	g_simple_action_set_enabled (G_SIMPLE_ACTION (act_delete), lst != NULL);
 
-	menu = gtk_menu_new_from_model (source->priv->feed_popup);
-	gtk_menu_attach_to_widget (GTK_MENU (menu), GTK_WIDGET (source), NULL);
-	gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL, 3, gtk_get_current_event_time ());
+	rb_property_view_popup_menu (view, source->priv->feed_popup);
 }
 
 static GPtrArray *
@@ -331,7 +319,7 @@ posts_view_drag_data_received_cb (GtkWidget *widget,
 				  GdkDragContext *dc,
 				  gint x,
 				  gint y,
-				  GtkSelectionData *selection_data,
+				  gpointer selection_data,
 				  guint info,
 				  guint time,
 				  RBPodcastSource *source)
@@ -350,17 +338,23 @@ podcast_add_dialog_closed_cb (RBPodcastAddDialog *dialog, RBPodcastSource *sourc
 }
 
 static void
-yank_clipboard_url (GtkClipboard *clipboard, const char *text, RBPodcastSource *source)
+yank_clipboard_url (GObject *source_object, GAsyncResult *result, gpointer user_data)
 {
+	RBPodcastSource *source = RB_PODCAST_SOURCE (user_data);
+	GdkClipboard *clipboard = GDK_CLIPBOARD (source_object);
+	char *text;
 	GUri *uri;
 	const char *scheme;
 
+	(void)clipboard;
+	text = gdk_clipboard_read_text_finish (clipboard, result, NULL);
 	if (text == NULL) {
 		return;
 	}
 
 	uri = g_uri_parse (text, SOUP_HTTP_URI_FLAGS, NULL);
 	if (uri == NULL) {
+		g_free (text);
 		return;
 	}
 
@@ -370,6 +364,7 @@ yank_clipboard_url (GtkClipboard *clipboard, const char *text, RBPodcastSource *
 	}
 
 	g_uri_unref (uri);
+	g_free (text);
 }
 
 static void
@@ -383,12 +378,16 @@ podcast_add_action_cb (GSimpleAction *action, GVariant *parameter, gpointer data
 	/* if we can get a url from the clipboard, populate the dialog with that,
 	 * since there's a good chance that's what the user wants to do anyway.
 	 */
-	gtk_clipboard_request_text (gtk_clipboard_get (GDK_SELECTION_CLIPBOARD),
-				    (GtkClipboardTextReceivedFunc) yank_clipboard_url,
-				    source);
-	gtk_clipboard_request_text (gtk_clipboard_get (GDK_SELECTION_PRIMARY),
-				    (GtkClipboardTextReceivedFunc) yank_clipboard_url,
-				    source);
+	{
+		GdkDisplay *display = gdk_display_get_default ();
+		GdkClipboard *clipboard;
+
+		clipboard = gdk_display_get_clipboard (display);
+		gdk_clipboard_read_text_async (clipboard, NULL, yank_clipboard_url, source);
+
+		clipboard = gdk_display_get_primary_clipboard (display);
+		gdk_clipboard_read_text_async (clipboard, NULL, yank_clipboard_url, source);
+	}
 
 	query_model = rhythmdb_query_model_new_empty (source->priv->db);
 	rb_entry_view_set_model (source->priv->posts, query_model);
@@ -479,13 +478,11 @@ podcast_download_cancel_action_cb (GSimpleAction *action, GVariant *parameter, g
 }
 
 static void
-podcast_remove_response_cb (GtkDialog *dialog, int response, RBPodcastSource *source)
+podcast_remove_response_cb (AdwAlertDialog *dialog, const char *response, RBPodcastSource *source)
 {
 	GList *feeds, *l;
 
-	gtk_widget_destroy (GTK_WIDGET (dialog));
-
-	if (response == GTK_RESPONSE_CANCEL || response == GTK_RESPONSE_DELETE_EVENT) {
+	if (g_strcmp0 (response, "cancel") == 0) {
 		return;
 	}
 
@@ -496,7 +493,7 @@ podcast_remove_response_cb (GtkDialog *dialog, int response, RBPodcastSource *so
 		rb_debug ("Removing podcast location: %s", location);
 		rb_podcast_manager_remove_feed (source->priv->podcast_mgr,
 						location,
-						(response == GTK_RESPONSE_YES));
+						(g_strcmp0 (response, "delete-all") == 0));
 	}
 
 	rb_list_deep_free (feeds);
@@ -506,8 +503,7 @@ static void
 podcast_feed_delete_action_cb (GSimpleAction *action, GVariant *parameter, gpointer data)
 {
 	RBPodcastSource *source = RB_PODCAST_SOURCE (data);
-	GtkWidget *dialog;
-	GtkWidget *button;
+	AdwDialog *dialog;
 	GtkWindow *window;
 	RBShell *shell;
 
@@ -517,36 +513,24 @@ podcast_feed_delete_action_cb (GSimpleAction *action, GVariant *parameter, gpoin
 	g_object_get (shell, "window", &window, NULL);
 	g_object_unref (shell);
 
-	dialog = gtk_message_dialog_new (window,
-			                 GTK_DIALOG_DESTROY_WITH_PARENT,
-					 GTK_MESSAGE_WARNING,
-					 GTK_BUTTONS_NONE,
-					 _("Delete the podcast feed and downloaded files?"));
+	dialog = adw_alert_dialog_new (_("Delete the podcast feed and downloaded files?"),
+				       _("If you choose to delete the feed and files, "
+					 "they will be permanently lost.  Please note that "
+					 "you can delete the feed but keep the downloaded "
+					 "files by choosing to delete the feed only."));
 
-	gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog),
-	                                          _("If you choose to delete the feed and files, "
-						    "they will be permanently lost.  Please note that "
-						    "you can delete the feed but keep the downloaded "
-						    "files by choosing to delete the feed only."));
+	adw_alert_dialog_add_responses (ADW_ALERT_DIALOG (dialog),
+					"cancel", _("_Cancel"),
+					"delete-feed", _("Delete _Feed Only"),
+					"delete-all", _("_Delete Feed And Files"),
+					NULL);
+	adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "delete-all", ADW_RESPONSE_DESTRUCTIVE);
+	adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "delete-feed", ADW_RESPONSE_DESTRUCTIVE);
+	adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "delete-all");
+	adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
 
-	gtk_window_set_title (GTK_WINDOW (dialog), "");
-
-	gtk_dialog_add_buttons (GTK_DIALOG (dialog),
-	                        _("Delete _Feed Only"),
-	                        GTK_RESPONSE_NO,
-	                        _("_Cancel"),
-	                        GTK_RESPONSE_CANCEL,
-	                        NULL);
-
-	button = gtk_dialog_add_button (GTK_DIALOG (dialog),
-	                                _("_Delete Feed And Files"),
-			                GTK_RESPONSE_YES);
-
-	gtk_window_set_focus (GTK_WINDOW (dialog), button);
-	gtk_dialog_set_default_response (GTK_DIALOG (dialog), GTK_RESPONSE_YES);
-
-	gtk_widget_show_all (dialog);
 	g_signal_connect (dialog, "response", G_CALLBACK (podcast_remove_response_cb), source);
+	adw_dialog_present (dialog, GTK_WIDGET (window));
 }
 
 static void
@@ -566,7 +550,7 @@ podcast_feed_properties_action_cb (GSimpleAction *action, GVariant *parameter, g
 		dialog = rb_feed_podcast_properties_dialog_new (entry);
 		rb_debug ("in feed properties");
 		if (dialog)
-			gtk_widget_show_all (dialog);
+			adw_dialog_present (ADW_DIALOG (dialog), GTK_WIDGET (source));
 		else
 			rb_debug ("no selection!");
 	}
@@ -938,41 +922,6 @@ podcast_entry_changed_cb (RhythmDB *db,
 	}
 }
 
-static void
-podcast_status_pixbuf_clicked_cb (RBCellRendererPixbuf *renderer,
-				  const char *path_string,
-				  RBPodcastSource *source)
-{
-	GtkTreePath *path;
-	GtkTreeIter iter;
-
-	g_return_if_fail (path_string != NULL);
-
-	path = gtk_tree_path_new_from_string (path_string);
-	if (gtk_tree_model_get_iter (GTK_TREE_MODEL (source->priv->feed_model), &iter, path)) {
-		RhythmDBEntry *entry;
-		char *feed_url;
-
-		gtk_tree_model_get (GTK_TREE_MODEL (source->priv->feed_model),
-				    &iter,
-				    RHYTHMDB_PROPERTY_MODEL_COLUMN_TITLE, &feed_url,
-				    -1);
-
-		entry = rhythmdb_entry_lookup_by_location (source->priv->db, feed_url);
-		if (entry != NULL) {
-			const gchar *error;
-
-			error = rhythmdb_entry_get_string (entry, RHYTHMDB_PROP_PLAYBACK_ERROR);
-			if (error) {
-				rb_error_dialog (NULL, _("Podcast Error"), "%s", error);
-			}
-		}
-
-		g_free (feed_url);
-	}
-
-	gtk_tree_path_free (path);
-}
 
 static void
 settings_changed_cb (GSettings *settings, const char *key, RBPodcastSource *source)
@@ -1040,14 +989,12 @@ impl_add_to_queue (RBSource *source, RBSource *queue)
 }
 
 static void
-delete_response_cb (GtkDialog *dialog, int response, RBPodcastSource *source)
+delete_response_cb (AdwAlertDialog *dialog, const char *response, RBPodcastSource *source)
 {
 	GList *entries;
 	GList *l;
 
-	gtk_widget_destroy (GTK_WIDGET (dialog));
-
-	if (response == GTK_RESPONSE_CANCEL || response == GTK_RESPONSE_DELETE_EVENT) {
+	if (g_strcmp0 (response, "cancel") == 0) {
 		return;
 	}
 
@@ -1056,11 +1003,11 @@ delete_response_cb (GtkDialog *dialog, int response, RBPodcastSource *source)
 		RhythmDBEntry *entry = l->data;
 
 		rb_podcast_manager_cancel_download (source->priv->podcast_mgr, entry);
-		if (response == GTK_RESPONSE_YES || response == RESPONSE_REMOVEFILEONLY) {
+		if (g_strcmp0 (response, "delete-all") == 0 || g_strcmp0 (response, "delete-file") == 0) {
 			rb_podcast_manager_delete_download (source->priv->podcast_mgr, entry);
 		}
 
-		if (response == RESPONSE_REMOVEFILEONLY) {
+		if (g_strcmp0 (response, "delete-file") == 0) {
 			/* set podcast entries download status to paused so that
 			 * they no longer appear as Downloaded and can then be
 			 * redownloaded if desired
@@ -1093,8 +1040,7 @@ static void
 impl_delete_selected (RBSource *asource)
 {
 	RBPodcastSource *source = RB_PODCAST_SOURCE (asource);
-	GtkWidget *dialog;
-	GtkWidget *button;
+	AdwDialog *dialog;
 	GtkWindow *window;
 	RBShell *shell;
 
@@ -1104,38 +1050,28 @@ impl_delete_selected (RBSource *asource)
 	g_object_get (shell, "window", &window, NULL);
 	g_object_unref (shell);
 
-	dialog = gtk_message_dialog_new (window,
-			                 GTK_DIALOG_DESTROY_WITH_PARENT,
-					 GTK_MESSAGE_WARNING,
-					 GTK_BUTTONS_NONE,
-					 _("Delete the podcast episode and downloaded file?"));
+	dialog = adw_alert_dialog_new (_("Delete the podcast episode and downloaded file?"),
+				       _("If you choose to delete the episode and file, "
+					 "they will be permanently lost.  Please note that "
+					 "you can delete the episode but keep the downloaded "
+					 "file by choosing to delete the episode only, or "
+					 "delete the downloaded file but keep the episode "
+					 "by choosing to delete the file only."));
 
-	gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog),
-	                                          _("If you choose to delete the episode and file, "
-						    "they will be permanently lost.  Please note that "
-						    "you can delete the episode but keep the downloaded "
-						    "file by choosing to delete the episode only, or "
-						    "delete the downloaded file but keep the episode "
-						    "by choosing to delete the file only."));
+	adw_alert_dialog_add_responses (ADW_ALERT_DIALOG (dialog),
+					"cancel", _("_Cancel"),
+					"delete-episode", _("Delete _Episode Only"),
+					"delete-file", _("Delete _File Only"),
+					"delete-all", _("_Delete Episode And File"),
+					NULL);
+	adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "delete-all", ADW_RESPONSE_DESTRUCTIVE);
+	adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "delete-episode", ADW_RESPONSE_DESTRUCTIVE);
+	adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "delete-file", ADW_RESPONSE_DESTRUCTIVE);
+	adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "delete-all");
+	adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
 
-	gtk_window_set_title (GTK_WINDOW (dialog), "");
-
-	gtk_dialog_add_buttons (GTK_DIALOG (dialog),
-	                        _("_Cancel"),
-	                        GTK_RESPONSE_CANCEL,
-	                        _("Delete _Episode Only"),
-	                        GTK_RESPONSE_NO,
-				_("Delete _File Only"),
-	                        RESPONSE_REMOVEFILEONLY,
-	                        NULL);
-	button = gtk_dialog_add_button (GTK_DIALOG (dialog),
-	                                _("_Delete Episode And File"),
-			                GTK_RESPONSE_YES);
-
-	gtk_window_set_focus (GTK_WINDOW (dialog), button);
-	gtk_dialog_set_default_response (GTK_DIALOG (dialog), GTK_RESPONSE_YES);
 	g_signal_connect (dialog, "response", G_CALLBACK (delete_response_cb), source);
-	gtk_widget_show_all (dialog);
+	adw_dialog_present (dialog, GTK_WIDGET (window));
 }
 
 static RBEntryView *
@@ -1160,28 +1096,12 @@ impl_handle_eos (RBSource *asource)
 
 
 static gboolean
-impl_receive_drag (RBDisplayPage *page, GtkSelectionData *selection_data)
+impl_receive_drag (RBDisplayPage *page, gpointer selection_data)
 {
-	GList *list, *i;
-	RBPodcastSource *source = RB_PODCAST_SOURCE (page);
-
-	list = rb_uri_list_parse ((const char *) gtk_selection_data_get_data (selection_data));
-
-	for (i = list; i != NULL; i = i->next) {
-		char *uri = NULL;
-
-		uri = i->data;
-		if ((uri != NULL) && (!rhythmdb_entry_lookup_by_location (source->priv->db, uri))) {
-			rb_podcast_manager_subscribe_feed (source->priv->podcast_mgr, uri, FALSE);
-		}
-
-		if (gtk_selection_data_get_data_type (selection_data) == gdk_atom_intern ("_NETSCAPE_URL", FALSE)) {
-			i = i->next;
-		}
-	}
-
-	rb_list_deep_free (list);
-	return TRUE;
+	/* TODO: implement GTK4 drag and drop via GtkDropTarget */
+	(void)selection_data;
+	(void)page;
+	return FALSE;
 }
 
 static void
@@ -1224,7 +1144,7 @@ impl_song_properties (RBSource *asource)
 	RBPodcastSource *source = RB_PODCAST_SOURCE (asource);
 	GtkWidget *dialog = rb_podcast_properties_dialog_new (source->priv->posts);
 	if (dialog)
-		gtk_widget_show_all (dialog);
+		adw_dialog_present (ADW_DIALOG (dialog), GTK_WIDGET (source));
 }
 
 static void
@@ -1338,7 +1258,7 @@ impl_constructed (GObject *object)
 	RBShellPlayer *shell_player;
 	GSettings *settings;
 	int position;
-	GtkAccelGroup *accel_group;
+	gpointer accel_group;
 	GtkBuilder *builder;
 	GMenu *section;
 	GApplication *app;
@@ -1355,6 +1275,35 @@ impl_constructed (GObject *object)
 	app = g_application_get_default ();
 	RB_CHAIN_GOBJECT_METHOD (rb_podcast_source_parent_class, constructed, object);
 	source = RB_PODCAST_SOURCE (object);
+
+	/* load icons for feed status display */
+	{
+		GtkIconTheme *icon_theme;
+		GtkIconPaintable *icon_paintable;
+
+		icon_theme = gtk_icon_theme_get_for_display (gdk_display_get_default ());
+		icon_paintable = gtk_icon_theme_lookup_icon (icon_theme,
+							    "dialog-error-symbolic",
+							    NULL, 16, 1,
+							    GTK_TEXT_DIR_NONE, 0);
+		if (icon_paintable) {
+			GFile *file = gtk_icon_paintable_get_file (icon_paintable);
+			source->priv->error_pixbuf = gdk_pixbuf_new_from_stream (G_INPUT_STREAM (g_file_read (file, NULL, NULL)), NULL, NULL);
+			g_object_unref (file);
+			g_object_unref (icon_paintable);
+		}
+
+		icon_paintable = gtk_icon_theme_lookup_icon (icon_theme,
+							    "view-refresh-symbolic",
+							    NULL, 16, 1,
+							    GTK_TEXT_DIR_NONE, 0);
+		if (icon_paintable) {
+			GFile *file = gtk_icon_paintable_get_file (icon_paintable);
+			source->priv->refresh_pixbuf = gdk_pixbuf_new_from_stream (G_INPUT_STREAM (g_file_read (file, NULL, NULL)), NULL, NULL);
+			g_object_unref (file);
+			g_object_unref (icon_paintable);
+		}
+	}
 
 	g_object_get (source, "shell", &shell, NULL);
 	g_object_get (shell,
@@ -1492,7 +1441,7 @@ impl_constructed (GObject *object)
 
 	/* status indicator column */
 	column = gtk_tree_view_column_new ();
-	renderer = rb_cell_renderer_pixbuf_new ();
+	renderer = gtk_cell_renderer_pixbuf_new ();
 	gtk_tree_view_column_pack_start (column, renderer, TRUE);
 	gtk_tree_view_column_set_cell_data_func (column, renderer,
 						 (GtkTreeCellDataFunc) podcast_feed_pixbuf_cell_data_func,
@@ -1502,10 +1451,6 @@ impl_constructed (GObject *object)
 	gtk_tree_view_column_set_reorderable (column, FALSE);
 	gtk_tree_view_column_set_visible (column, TRUE);
 	rb_property_view_append_column_custom (source->priv->feeds, column);
-	g_signal_connect_object (renderer,
-				 "pixbuf-clicked",
-				 G_CALLBACK (podcast_status_pixbuf_clicked_cb),
-				 source, 0);
 
 	/* redraw status when errors are set or cleared */
 	g_signal_connect_object (source->priv->db,
@@ -1549,20 +1494,14 @@ impl_constructed (GObject *object)
 				 G_CALLBACK (posts_view_drag_data_received_cb),
 				 source, 0);
 
-	gtk_drag_dest_set (GTK_WIDGET (source->priv->feeds),
-			   GTK_DEST_DEFAULT_ALL,
-			   posts_view_drag_types, 2,
-			   GDK_ACTION_COPY | GDK_ACTION_MOVE);
+	/* TODO: set up GtkDropTarget for drag and drop */
 
 	g_signal_connect_object (G_OBJECT (source->priv->posts),
 				 "drag_data_received",
 				 G_CALLBACK (posts_view_drag_data_received_cb),
 				 source, 0);
 
-	gtk_drag_dest_set (GTK_WIDGET (source->priv->posts),
-			   GTK_DEST_DEFAULT_ALL,
-			   posts_view_drag_types, 2,
-			   GDK_ACTION_COPY | GDK_ACTION_MOVE);
+	/* TODO: set up GtkDropTarget for drag and drop */
 
 	/* set up toolbar */
 	source->priv->toolbar = rb_source_toolbar_new (RB_DISPLAY_PAGE (source), accel_group);
@@ -1584,10 +1523,10 @@ impl_constructed (GObject *object)
 	rb_source_toolbar_add_search_entry_menu (source->priv->toolbar, source->priv->search_popup, source->priv->search_action);
 
 	/* pack the feed and post views into the source */
-	gtk_paned_pack1 (GTK_PANED (source->priv->paned),
-			 GTK_WIDGET (source->priv->feeds), FALSE, FALSE);
-	gtk_paned_pack2 (GTK_PANED (source->priv->paned),
-			 GTK_WIDGET (source->priv->posts), TRUE, FALSE);
+	gtk_paned_set_start_child (GTK_PANED (source->priv->paned),
+				   GTK_WIDGET (source->priv->feeds));
+	gtk_paned_set_end_child (GTK_PANED (source->priv->paned),
+				 GTK_WIDGET (source->priv->posts));
 
 	source->priv->grid = gtk_grid_new ();
 	gtk_widget_set_margin_top (GTK_WIDGET (source->priv->grid), 6);
@@ -1596,17 +1535,16 @@ impl_constructed (GObject *object)
 	gtk_grid_attach (GTK_GRID (source->priv->grid), GTK_WIDGET (source->priv->toolbar), 0, 0, 1, 1);
 	gtk_grid_attach (GTK_GRID (source->priv->grid), source->priv->paned, 0, 1, 1, 1);
 
-	gtk_container_add (GTK_CONTAINER (source), source->priv->grid);
+	gtk_box_append (GTK_BOX (source), source->priv->grid);
 
 	/* podcast add dialog */
 	source->priv->add_dialog = rb_podcast_add_dialog_new (shell, source->priv->podcast_mgr);
-	gtk_widget_show_all (source->priv->add_dialog);
+	gtk_widget_show (source->priv->add_dialog);
 	gtk_widget_set_margin_top (source->priv->add_dialog, 0);
 	gtk_grid_attach (GTK_GRID (source->priv->grid), GTK_WIDGET (source->priv->add_dialog), 0, 2, 1, 1);
-	gtk_widget_set_no_show_all (source->priv->add_dialog, TRUE);
 	g_signal_connect_object (source->priv->add_dialog, "closed", G_CALLBACK (podcast_add_dialog_closed_cb), source, 0);
 
-	gtk_widget_show_all (GTK_WIDGET (source));
+	gtk_widget_show (GTK_WIDGET (source));
 	gtk_widget_hide (source->priv->add_dialog);
 
 	g_object_get (source, "settings", &settings, NULL);
@@ -1673,24 +1611,9 @@ impl_finalize (GObject *object)
 static void
 rb_podcast_source_init (RBPodcastSource *source)
 {
-	GtkIconTheme *icon_theme;
-	source->priv = G_TYPE_INSTANCE_GET_PRIVATE (source,
-						    RB_TYPE_PODCAST_SOURCE,
-						    RBPodcastSourcePrivate);
+	source->priv = rb_podcast_source_get_instance_private (source);
 
 	source->priv->selected_feeds = NULL;
-
-	icon_theme = gtk_icon_theme_get_default ();
-	source->priv->error_pixbuf = gtk_icon_theme_load_icon (icon_theme,
-							       "dialog-error-symbolic",
-							       16,
-							       0,
-							       NULL);
-	source->priv->refresh_pixbuf = gtk_icon_theme_load_icon (icon_theme,
-								 "view-refresh-symbolic",
-								 16,
-								 0,
-								 NULL);
 }
 
 static void
@@ -1746,5 +1669,4 @@ rb_podcast_source_class_init (RBPodcastSourceClass *klass)
 
 	g_object_class_override_property (object_class, PROP_SHOW_BROWSER, "show-browser");
 
-	g_type_class_add_private (klass, sizeof (RBPodcastSourcePrivate));
 }
