@@ -27,10 +27,8 @@ data/ui/playlist-popup.ui
 data/ui/playlist-save.ui
 data/ui/playlist-toolbar.ui
 data/ui/podcast-add-dialog.ui
-data/ui/podcast-feed-properties.ui
 data/ui/podcast-popups.ui
 data/ui/podcast-prefs.ui
-data/ui/podcast-properties.ui
 data/ui/podcast-toolbar.ui
 data/ui/queue-popups.ui
 data/ui/queue-toolbar.ui

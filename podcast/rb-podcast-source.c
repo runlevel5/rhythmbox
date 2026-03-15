@@ -179,7 +179,6 @@ podcast_feeds_show_popup_cb (RBPropertyView *view,
 	GAction *act_update;
 	GAction *act_properties;
 	GAction *act_delete;
-	GtkWidget *menu;
 	GList *lst;
 
 	lst = source->priv->selected_feeds;
@@ -193,9 +192,7 @@ podcast_feeds_show_popup_cb (RBPropertyView *view,
 	g_simple_action_set_enabled (G_SIMPLE_ACTION (act_properties), lst != NULL);
 	g_simple_action_set_enabled (G_SIMPLE_ACTION (act_delete), lst != NULL);
 
-	menu = gtk_popover_menu_new_from_model (source->priv->feed_popup);
-	gtk_widget_set_parent (menu, GTK_WIDGET (source));
-	gtk_popover_popup (GTK_POPOVER (menu));
+	rb_property_view_popup_menu (view, source->priv->feed_popup);
 }
 
 static GPtrArray *
@@ -569,7 +566,7 @@ podcast_feed_properties_action_cb (GSimpleAction *action, GVariant *parameter, g
 		dialog = rb_feed_podcast_properties_dialog_new (entry);
 		rb_debug ("in feed properties");
 		if (dialog)
-			gtk_widget_show (dialog);
+			adw_dialog_present (ADW_DIALOG (dialog), GTK_WIDGET (source));
 		else
 			rb_debug ("no selection!");
 	}
@@ -1176,7 +1173,7 @@ impl_song_properties (RBSource *asource)
 	RBPodcastSource *source = RB_PODCAST_SOURCE (asource);
 	GtkWidget *dialog = rb_podcast_properties_dialog_new (source->priv->posts);
 	if (dialog)
-		gtk_widget_show (dialog);
+		adw_dialog_present (ADW_DIALOG (dialog), GTK_WIDGET (source));
 }
 
 static void
