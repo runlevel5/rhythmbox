@@ -65,8 +65,9 @@ def create_lyrics_view():
     sw = Gtk.ScrolledWindow()
     sw.set_child(tview)
     sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+    sw.set_vexpand(True)
 
-    vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+    vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, vexpand=True)
     vbox.append(sw)
 
     return (vbox, tview.get_buffer(), tview)
@@ -328,8 +329,12 @@ class LyricPane(object):
         self.entry_change_id = song_info.connect(
             "notify::current-entry", self.entry_changed
         )
-        nb = self.view.get_parent()
-        self.switch_page_id = nb.connect("switch-page", self.switch_page_cb)
+        # In GTK4 the song info dialog uses a GtkStack instead of a
+        # GtkNotebook, so "switch-page" no longer exists.  Use the
+        # map/unmap signals on the lyrics view to detect when the page
+        # becomes visible — the stack maps the child when it's selected.
+        self.view.connect("map", self.page_mapped_cb)
+        self.view.connect("unmap", self.page_unmapped_cb)
 
         # self.get_lyrics()
 
@@ -345,16 +350,14 @@ class LyricPane(object):
             self.build_path()
             self.get_lyrics()
 
-    def switch_page_cb(self, notebook, page, page_num):
-        if self.have_lyrics != 0:
-            return
-
-        if page_num != self.page_num:
-            self.visible = 0
-            return
-
+    def page_mapped_cb(self, widget):
         self.visible = 1
-        self.get_lyrics()
+        if self.have_lyrics == 0:
+            self.build_path()
+            self.get_lyrics()
+
+    def page_unmapped_cb(self, widget):
+        self.visible = 0
 
     def __got_lyrics(self, text):
         self.buffer.set_text(text, -1)
