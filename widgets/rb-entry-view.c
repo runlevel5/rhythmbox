@@ -1837,6 +1837,8 @@ rb_entry_view_constructed (GObject *object)
 	{
 		GtkGesture *click = gtk_gesture_click_new ();
 		gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (click), 3);
+		gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (click),
+							    GTK_PHASE_CAPTURE);
 		g_signal_connect (click, "pressed",
 				  G_CALLBACK (rb_entry_view_button_press_cb), view);
 		gtk_widget_add_controller (view->priv->treeview, GTK_EVENT_CONTROLLER (click));
@@ -2033,32 +2035,36 @@ rb_entry_view_button_press_cb (GtkGestureClick *gesture,
 			       double y,
 			       RBEntryView *view)
 {
-	{
-		GtkTreeView *treeview = GTK_TREE_VIEW (view->priv->treeview);
-		GtkTreePath *path;
-		RhythmDBEntry *entry;
-		int bx, by;
+	GtkTreeView *treeview = GTK_TREE_VIEW (view->priv->treeview);
+	GtkTreePath *path;
+	RhythmDBEntry *entry;
+	int bx, by;
 
-		view->priv->last_click_x = x;
-		view->priv->last_click_y = y;
+	view->priv->last_click_x = x;
+	view->priv->last_click_y = y;
 
-		gtk_tree_view_convert_widget_to_bin_window_coords (treeview, (int)x, (int)y, &bx, &by);
-		gtk_tree_view_get_path_at_pos (treeview, bx, by, &path, NULL, NULL, NULL);
-		if (path != NULL) {
-			GList *selected;
-			entry = rhythmdb_query_model_tree_path_to_entry (view->priv->model, path);
+	/* Claim the gesture immediately so GtkTreeView's internal click
+	 * handler does not change the selection.  Our capture-phase gesture
+	 * runs before TreeView sees the event, so claiming it here prevents
+	 * the default single-row-select behaviour on right-click. */
+	gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_CLAIMED);
 
-			selected = rb_entry_view_get_selected_entries (view);
+	gtk_tree_view_convert_widget_to_bin_window_coords (treeview, (int)x, (int)y, &bx, &by);
+	gtk_tree_view_get_path_at_pos (treeview, bx, by, &path, NULL, NULL, NULL);
+	if (path != NULL) {
+		GList *selected;
+		entry = rhythmdb_query_model_tree_path_to_entry (view->priv->model, path);
 
-			if (!g_list_find (selected, entry))
-				rb_entry_view_select_entry (view, entry);
+		selected = rb_entry_view_get_selected_entries (view);
 
-			g_list_free (selected);
+		if (!g_list_find (selected, entry))
+			rb_entry_view_select_entry (view, entry);
 
-			rhythmdb_entry_unref (entry);
-		}
-		g_signal_emit (G_OBJECT (view), rb_entry_view_signals[SHOW_POPUP], 0, (path != NULL));
+		g_list_free (selected);
+
+		rhythmdb_entry_unref (entry);
 	}
+	g_signal_emit (G_OBJECT (view), rb_entry_view_signals[SHOW_POPUP], 0, (path != NULL));
 }
 
 static gboolean
