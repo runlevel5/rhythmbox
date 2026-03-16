@@ -626,7 +626,7 @@ impl_song_properties (RBSource *asource)
 
 	rb_debug ("in song properties");
 	if (dialog)
-		gtk_widget_show (dialog);
+		adw_dialog_present (ADW_DIALOG (dialog), GTK_WIDGET (source));
 	else
 		rb_debug ("no selection!");
 }

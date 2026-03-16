@@ -116,7 +116,6 @@ plugins/iradio/iradio-popup.ui
 plugins/iradio/iradio-toolbar.ui
 plugins/iradio/rb-iradio-source.c
 plugins/iradio/rb-station-properties-dialog.c
-plugins/iradio/station-properties.ui
 plugins/lirc/rb-lirc-plugin.c
 plugins/lirc/rblirc.plugin.desktop.in
 plugins/listenbrainz/listenbrainz.plugin.desktop.in
