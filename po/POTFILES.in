@@ -203,7 +203,6 @@ sources/rb-transfer-target.c
 sources/sync/rb-sync-settings-ui.c
 sources/sync/rb-sync-state-ui.c
 widgets/eggwrapbox.c
-widgets/rb-alert-dialog.c
 widgets/rb-cell-renderer-pixbuf.c
 widgets/rb-dialog.c
 widgets/rb-encoding-settings.c

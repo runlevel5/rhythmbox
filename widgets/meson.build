@@ -19,7 +19,6 @@ install_headers(widgets_headers, subdir: 'rhythmbox/widgets')
 widgets_sources = files(
   'gossip-cell-renderer-expander.c',
   'nautilus-floating-bar.c',
-  'rb-alert-dialog.c',
   'rb-button-bar.c',
   'rb-cell-renderer-rating.c',
   'rb-dialog.c',
